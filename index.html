@@ -562,6 +562,24 @@
 
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+function toggleMenu(){
+  const m=document.getElementById('mob');
+  const spans=document.querySelectorAll('#ham span');
+  m.classList.toggle('open');
+  const isOpen=m.classList.contains('open');
+  spans[0].style.transform=isOpen?'rotate(45deg) translate(5px,5px)':'';
+  spans[1].style.opacity=isOpen?'0':'1';
+  spans[2].style.transform=isOpen?'rotate(-45deg) translate(5px,-5px)':'';
+}
+document.addEventListener('click',function(e){
+  const m=document.getElementById('mob');
+  const h=document.getElementById('ham');
+  if(m&&m.classList.contains('open')&&!m.contains(e.target)&&!h.contains(e.target)){
+    m.classList.remove('open');
+    document.querySelectorAll('#ham span').forEach(s=>{s.style.transform='';s.style.opacity='1';});
+  }
+});
+
 function submitForm(){
   const fields=document.querySelectorAll('#booking-form input,#booking-form select,#booking-form textarea');
   let ok=true;
