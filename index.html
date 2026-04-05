@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Logic One SA provides embedded systems design, Roborock repair, and Segway Ninebot repair services in Adelaide, South Australia.">
+<title>Logic One SA — Electronics Engineering & Repair, Adelaide</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="logo">
+    <img src="logo.png" alt="Logic One SA" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <span class="logo-text" style="display:none;align-items:center;gap:10px;font-family:var(--head);font-size:1.1rem;font-weight:700;letter-spacing:.06em;color:var(--silver2)">
+      <span style="width:26px;height:26px;background:linear-gradient(135deg,var(--blue),var(--cyan));border-radius:4px;flex-shrink:0;display:inline-block"></span>
+      LOGIC <span style="color:var(--cyan)">ONE</span> SA
+    </span>
+  </a>
+  <ul>
+    <li><a href="#services">Services</a></li>
+    <li><a href="#embedded">Embedded Systems</a></li>
+    <li><a href="#repairs">Repairs</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <a href="#book" class="nav-cta">Get in Touch</a>
+  <div class="hamburger" onclick="toggleMenu()" id="ham">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+<div class="mobile-menu" id="mob">
+  <a href="#services"  onclick="toggleMenu()">Services</a>
+  <a href="#embedded"  onclick="toggleMenu()">Embedded Systems</a>
+  <a href="#repairs"   onclick="toggleMenu()">Repairs</a>
+  <a href="#about"     onclick="toggleMenu()">About</a>
+  <a href="#contact"   onclick="toggleMenu()">Contact</a>
+  <a href="#book"      onclick="toggleMenu()">Get in Touch</a>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="glow-tl"></div><div class="glow-br"></div><div class="vline"></div>
+  <div class="hero-eyebrow">Electronics Engineering · Adelaide, South Australia</div>
+  <h1>We build.<br>We repair.<br><span class="grad">We engineer.</span></h1>
+  <p class="hero-sub">Logic One SA delivers embedded system design and specialist electronics repair services. From custom hardware to precision device repair — we work at the circuit level.</p>
+  <div class="hero-actions">
+    <a href="#services" class="btn-primary">Our Services →</a>
+    <a href="#book"     class="btn-secondary">Get in Touch</a>
+  </div>
+  <div class="hero-caps">
+    <div class="hcap"><div class="hcap-dot" style="background:var(--cyan)"></div><span>Embedded Systems Design</span></div>
+    <div class="hcap"><div class="hcap-dot" style="background:var(--blue)"></div><span>Roborock Repair</span></div>
+    <div class="hcap"><div class="hcap-dot" style="background:var(--blue2)"></div><span>Segway Ninebot Repair</span></div>
+    <div class="hcap"><div class="hcap-dot" style="background:var(--silver)"></div><span>Adelaide SA</span></div>
+  </div>
+</section>
+
+<!-- STRIP -->
+<div class="strip">
+  <div class="strip-inner">
+    <span class="si">Embedded Systems Design <span class="sdot">✦</span></span>
+    <span class="si">PCB Design &amp; Prototyping <span class="sdot">✦</span></span>
+    <span class="si">Roborock Repair <span class="sdot">✦</span></span>
+    <span class="si">Segway Ninebot Service <span class="sdot">✦</span></span>
+    <span class="si">Firmware Development <span class="sdot">✦</span></span>
+    <span class="si">IoT Integration <span class="sdot">✦</span></span>
+    <span class="si">Adelaide SA <span class="sdot">✦</span></span>
+    <span class="si">Embedded Systems Design <span class="sdot">✦</span></span>
+    <span class="si">PCB Design &amp; Prototyping <span class="sdot">✦</span></span>
+    <span class="si">Roborock Repair <span class="sdot">✦</span></span>
+    <span class="si">Segway Ninebot Service <span class="sdot">✦</span></span>
+    <span class="si">Firmware Development <span class="sdot">✦</span></span>
+    <span class="si">IoT Integration <span class="sdot">✦</span></span>
+    <span class="si">Adelaide SA <span class="sdot">✦</span></span>
+  </div>
+</div>
+
+<!-- SERVICES -->
+<section id="services">
+  <div class="eyebrow">What we do</div>
+  <h2>Our services.</h2>
+  <p class="sec-sub">From ground-up hardware design to specialist device repair — Logic One SA works across the full electronics stack.</p>
+  <div class="services-grid">
+    <div class="svc-card">
+      <div class="svc-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/><circle cx="17" cy="7" r="1" fill="var(--cyan)" stroke="none"/></svg></div>
+      <h3>Embedded Systems Design</h3>
+      <p>Custom hardware and firmware design from concept to production-ready prototype. Microcontroller selection, PCB layout, sensor integration and real-time firmware — built to your specification.</p>
+      <span class="svc-tag">Core Service</span>
+    </div>
+    <div class="svc-card">
+      <div class="svc-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg></div>
+      <h3>Roborock Robot Vacuum Repair</h3>
+      <p>Specialist repair for the full Roborock range. Genuine parts, same-day diagnosis, and transparent pricing. As an authorised repair centre we handle both warranty and out-of-warranty repairs — all models covered.</p>
+      <span class="svc-tag">Repair</span>
+    </div>
+    <div class="svc-card">
+      <div class="svc-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v10l10 5 10-5V7L12 2z"/><path d="M12 22V12M2 7l10 5 10-5"/></svg></div>
+      <h3>Segway Ninebot Scooter Repair</h3>
+      <p>Full service and repair for all Ninebot models. Batteries, motors, controllers, tyres and safety checks — returned roadworthy and fully tested. Authorised for both warranty and out-of-warranty repairs.</p>
+      <span class="svc-tag">Repair</span>
+    </div>
+  </div>
+</section>
+
+<!-- EMBEDDED SYSTEMS -->
+<section id="embedded">
+  <div class="embed-layout">
+    <div class="embed-text">
+      <div class="eyebrow">Embedded Systems Design</div>
+      <h2>Hardware built<br>from the ground up.</h2>
+      <p>Logic One SA designs custom embedded systems for clients who need hardware that <strong>doesn't exist off the shelf.</strong> Whether you're building an IoT device, an industrial controller, or a smart product — we take your requirements from concept through to a working, testable prototype.</p>
+      <p>We work with a range of microcontroller platforms including <strong>STM32, ESP32, Arduino and Raspberry Pi</strong>, and design around your constraints — power budget, form factor, connectivity and cost.</p>
+      <p>Every project includes full firmware development, hardware testing and documentation — so what we hand over is <strong>ready to manufacture or iterate.</strong></p>
+    </div>
+    <div class="embed-caps">
+      <div class="ecap"><div class="ecap-num">C-01</div><h4>Microcontroller Design</h4><p>STM32, ESP32, AVR, ARM Cortex-M — architecture selection and schematic design.</p></div>
+      <div class="ecap"><div class="ecap-num">C-02</div><h4>PCB Layout &amp; Prototyping</h4><p>Single and multi-layer PCB design, Gerber output, and prototype build and test.</p></div>
+      <div class="ecap"><div class="ecap-num">C-03</div><h4>Firmware Development</h4><p>Bare-metal C/C++ and RTOS firmware. Sensor drivers, communication stacks, power management.</p></div>
+      <div class="ecap"><div class="ecap-num">C-04</div><h4>IoT &amp; Wireless Integration</h4><p>Wi-Fi, Bluetooth, Zigbee, LoRa and MQTT — cloud connectivity and local network integration.</p></div>
+      <div class="ecap"><div class="ecap-num">C-05</div><h4>Sensor &amp; Actuator Integration</h4><p>IMUs, environmental sensors, motor drivers, relay boards — full peripheral integration.</p></div>
+      <div class="ecap"><div class="ecap-num">C-06</div><h4>Testing &amp; Documentation</h4><p>Functional testing, debugging, and full schematic/firmware documentation on every project.</p></div>
+    </div>
+  </div>
+
+  <!-- EMBEDDED SYSTEMS IMAGE DECK -->
+  <div class="eyebrow" style="margin-bottom:1rem">Design process</div>
+  <div class="img-deck" id="embed-deck">
+    <div class="img-deck-track" id="embed-track">
+      <div class="img-deck-slide">
+        <div class="img-deck-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M12 8v8"/></svg></div>
+        <div class="img-deck-label">Schematic &amp; circuit design</div>
+        <div class="img-deck-tag">Add image →</div>
+      </div>
+      <div class="img-deck-slide">
+        <div class="img-deck-icon"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 10h8M8 14h4"/><circle cx="17" cy="14" r="1" fill="currentColor" stroke="none"/></svg></div>
+        <div class="img-deck-label">PCB layout &amp; routing</div>
+        <div class="img-deck-tag">Add image →</div>
+      </div>
+      <div class="img-deck-slide">
+        <div class="img-deck-icon"><svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/></svg></div>
+        <div class="img-deck-label">Prototype assembly</div>
+        <div class="img-deck-tag">Add image →</div>
+      </div>
+      <div class="img-deck-slide">
+        <div class="img-deck-icon"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+        <div class="img-deck-label">Firmware development</div>
+        <div class="img-deck-tag">Add image →</div>
+      </div>
+      <div class="img-deck-slide">
+        <div class="img-deck-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div class="img-deck-label">Testing &amp; validation</div>
+        <div class="img-deck-tag">Add image →</div>
+      </div>
+    </div>
+  </div>
+  <div class="deck-dots" id="embed-dots">
+    <div class="deck-dot active" onclick="deckGo('embed',0)"></div>
+    <div class="deck-dot" onclick="deckGo('embed',1)"></div>
+    <div class="deck-dot" onclick="deckGo('embed',2)"></div>
+    <div class="deck-dot" onclick="deckGo('embed',3)"></div>
+    <div class="deck-dot" onclick="deckGo('embed',4)"></div>
+  </div>
+
+  <div class="eyebrow" style="margin-bottom:2rem">How a project works</div>
+  <div class="embed-process">
+    <div class="eproc-step"><div class="eproc-circle"><div class="eproc-num">01</div></div><h4>Brief &amp; Scoping</h4><p>We define your requirements, constraints and objectives before anything is designed.</p></div>
+    <div class="eproc-step"><div class="eproc-circle"><div class="eproc-num">02</div></div><h4>Architecture &amp; Design</h4><p>Component selection, schematic capture, PCB layout and firmware architecture planning.</p></div>
+    <div class="eproc-step"><div class="eproc-circle"><div class="eproc-num">03</div></div><h4>Build &amp; Firmware</h4><p>Prototype assembly, firmware development and iterative hardware/software bring-up.</p></div>
+    <div class="eproc-step"><div class="eproc-circle"><div class="eproc-num">04</div></div><h4>Test &amp; Handover</h4><p>Full functional testing, bug fixes and documentation handover — production-ready.</p></div>
+  </div>
+</section>
+
+<!-- REPAIRS -->
+<section id="repairs">
+  <div class="repairs-hero">
+    <div class="repairs-hero-left">
+      <div class="eyebrow">Device repair</div>
+      <h2>Specialist repair<br>for two brands.</h2>
+      <p class="sec-sub" style="margin-bottom:0">Authorised repair centre for Roborock and Segway Ninebot — genuine parts, warranty and out-of-warranty repairs, all models.</p>
+    </div>
+    <div class="repairs-hero-right">
+      <div class="img-deck img-deck--inline" id="repair-hero-deck">
+        <div class="img-deck-track" id="repair-hero-track">
+          <div class="img-deck-slide">
+            <div class="img-deck-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>
+            <div class="img-deck-label">Device inspection &amp; diagnostic</div>
+            <div class="img-deck-tag">Add image →</div>
+          </div>
+          <div class="img-deck-slide">
+            <div class="img-deck-icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+            <div class="img-deck-label">Board-level repair work</div>
+            <div class="img-deck-tag">Add image →</div>
+          </div>
+          <div class="img-deck-slide">
+            <div class="img-deck-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+            <div class="img-deck-label">Roborock sensor calibration</div>
+            <div class="img-deck-tag">Add image →</div>
+          </div>
+          <div class="img-deck-slide">
+            <div class="img-deck-icon"><svg viewBox="0 0 24 24"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            <div class="img-deck-label">Segway scooter servicing</div>
+            <div class="img-deck-tag">Add image →</div>
+          </div>
+          <div class="img-deck-slide">
+            <div class="img-deck-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+            <div class="img-deck-label">Post-repair testing</div>
+            <div class="img-deck-tag">Add image →</div>
+          </div>
+        </div>
+      </div>
+      <div class="deck-dots" id="repair-hero-dots">
+        <div class="deck-dot active" onclick="deckGo('repair-hero',0)"></div>
+        <div class="deck-dot" onclick="deckGo('repair-hero',1)"></div>
+        <div class="deck-dot" onclick="deckGo('repair-hero',2)"></div>
+        <div class="deck-dot" onclick="deckGo('repair-hero',3)"></div>
+        <div class="deck-dot" onclick="deckGo('repair-hero',4)"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="repair-brands">
+
+    <!-- ROBOROCK -->
+    <div class="rbrand">
+      <div class="rbrand-bar"></div>
+      <div class="rbrand-head">
+        <div class="brand-logo-row">
+          <div class="brand-logo-placeholder">
+            <span>Roborock<br>Logo</span>
+          </div>
+          <div class="rbrand-name robo">ROBOROCK</div>
+        </div>
+        <div class="rbrand-sub">Robot Vacuum · All Models</div>
+      </div>
+      <div class="rbrand-car">
+        <div class="car-label">Models we service</div>
+        <div class="car-slide active" id="rr0">
+          <div class="car-img">
+            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            <div class="car-model-name">S Series</div>
+            <div class="car-model-sub">Flagship · S7, S8, S8 Pro</div>
+          </div>
+        </div>
+        <div class="car-slide" id="rr1">
+          <div class="car-img">
+            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            <div class="car-model-name">Q Series</div>
+            <div class="car-model-sub">Q5+, Q7 Max, Q7 Max+</div>
+          </div>
+        </div>
+        <div class="car-slide" id="rr2">
+          <div class="car-img">
+            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            <div class="car-model-name">E &amp; P Series</div>
+            <div class="car-model-sub">Entry &amp; mid-range lineup</div>
+          </div>
+        </div>
+        <div class="car-nav">
+          <button class="car-btn" onclick="slide('rr',-1)">&#8592;</button>
+          <div class="car-dots" id="rr-dots"><div class="car-dot active"></div><div class="car-dot"></div><div class="car-dot"></div></div>
+          <button class="car-btn" onclick="slide('rr',1)">&#8594;</button>
+        </div>
+      </div>
+      <div class="rbrand-symptoms">
+        <div class="sym-label">Common symptoms</div>
+        <div class="sym-grid">
+          <div class="sym"><div class="sym-dot"></div>Won't charge or dock</div>
+          <div class="sym"><div class="sym-dot"></div>Loss of suction</div>
+          <div class="sym"><div class="sym-dot"></div>Navigation errors</div>
+          <div class="sym"><div class="sym-dot"></div>Unusual noises</div>
+          <div class="sym"><div class="sym-dot"></div>Wi-Fi / app issues</div>
+          <div class="sym"><div class="sym-dot"></div>Brush not spinning</div>
+          <div class="sym"><div class="sym-dot"></div>Error codes</div>
+          <div class="sym"><div class="sym-dot"></div>Water tank faults</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEGWAY -->
+    <div class="rbrand">
+      <div class="rbrand-bar"></div>
+      <div class="rbrand-head">
+        <div class="brand-logo-row">
+          <div class="brand-logo-placeholder">
+            <span>Segway<br>Logo</span>
+          </div>
+          <div class="rbrand-name seg">SEGWAY</div>
+        </div>
+        <div class="rbrand-sub">Ninebot Electric Scooter · All Models</div>
+      </div>
+      <div class="rbrand-car">
+        <div class="car-label">Models we service</div>
+        <div class="car-slide active" id="sg0">
+          <div class="car-img">
+            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            <div class="car-model-name">Max Series</div>
+            <div class="car-model-sub">Max G2, Max G30</div>
+          </div>
+        </div>
+        <div class="car-slide" id="sg1">
+          <div class="car-img">
+            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            <div class="car-model-name">F Series</div>
+            <div class="car-model-sub">F25, F30, F40</div>
+          </div>
+        </div>
+        <div class="car-slide" id="sg2">
+          <div class="car-img">
+            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            <div class="car-model-name">E &amp; D Series</div>
+            <div class="car-model-sub">E22, E45, D38</div>
+          </div>
+        </div>
+        <div class="car-nav">
+          <button class="car-btn" onclick="slide('sg',-1)">&#8592;</button>
+          <div class="car-dots" id="sg-dots"><div class="car-dot active"></div><div class="car-dot"></div><div class="car-dot"></div></div>
+          <button class="car-btn" onclick="slide('sg',1)">&#8594;</button>
+        </div>
+      </div>
+      <div class="rbrand-symptoms">
+        <div class="sym-label">Common symptoms</div>
+        <div class="sym-grid">
+          <div class="sym"><div class="sym-dot"></div>Reduced battery range</div>
+          <div class="sym"><div class="sym-dot"></div>Won't power on</div>
+          <div class="sym"><div class="sym-dot"></div>Error codes on display</div>
+          <div class="sym"><div class="sym-dot"></div>Flat or damaged tyres</div>
+          <div class="sym"><div class="sym-dot"></div>Weak or no brakes</div>
+          <div class="sym"><div class="sym-dot"></div>Motor stuttering</div>
+          <div class="sym"><div class="sym-dot"></div>Display / throttle fault</div>
+          <div class="sym"><div class="sym-dot"></div>Fold mechanism stuck</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TRUST BADGES -->
+  <div class="repair-trust">
+    <div class="rtbadge">
+      <div class="rtbadge-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 4.8L20 8l-4 3.9.9 5.6L12 15l-4.9 2.5.9-5.6L4 8l5.6-.8z"/></svg></div>
+      <div><h5>Genuine Parts</h5><p>Official Roborock &amp; Segway components only</p></div>
+    </div>
+    <div class="rtbadge">
+      <div class="rtbadge-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div>
+      <div><h5>Authorised Repairs</h5><p>Certified centre for both brands</p></div>
+    </div>
+    <div class="rtbadge">
+      <div class="rtbadge-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <div><h5>In &amp; Out of Warranty</h5><p>Warranty follows the official process</p></div>
+    </div>
+  </div>
+
+  <!-- REPAIR PROCESS -->
+  <div class="repair-proc">
+    <div class="repair-proc-head">
+      <div class="eyebrow">How it works</div>
+      <h2 style="font-size:clamp(1.4rem,2.5vw,2rem);margin-bottom:0">The repair process</h2>
+    </div>
+    <div class="repair-proc-steps">
+      <div class="rp-step"><div class="rp-circle"><div class="rp-circle-num">01</div></div><h4>Drop it off</h4><p>Bring your device in — no appointment needed during business hours.</p></div>
+      <div class="rp-step"><div class="rp-circle"><div class="rp-circle-num">02</div></div><h4>Inspection &amp; diagnosis</h4><p>Full diagnostic run. Inspection fee applies for out-of-warranty devices.</p></div>
+      <div class="rp-step"><div class="rp-circle"><div class="rp-circle-num">03</div></div><h4>Clear quote</h4><p>Firm price before any work starts. No surprises, no hidden costs.</p></div>
+      <div class="rp-step"><div class="rp-circle"><div class="rp-circle-num">04</div></div><h4>Repaired &amp; tested</h4><p>Fixed with genuine parts and fully tested before collection.</p></div>
+    </div>
+    <div class="repair-proc-note">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      <p><strong>In-warranty repairs</strong> follow the official Roborock or Segway process at no cost to you. Out-of-warranty repairs start with an inspection fee, then a firm quote before we proceed.</p>
+    </div>
+  </div>
+
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="about-layout">
+    <div class="about-text">
+      <div class="eyebrow">About Logic One SA</div>
+      <h2>Engineering-first.<br>Adelaide-based.</h2>
+      <p>Logic One SA is an Adelaide electronics engineering business with a hands-on approach — we design custom embedded systems and repair precision devices, and we take both seriously.</p>
+      <p>Our embedded design work is built on <strong>real engineering depth</strong> — not off-the-shelf modules bodged together. And our repair work goes beyond part-swapping — we diagnose at the circuit level and know these platforms inside out.</p>
+      <p>Every project and repair comes with <strong>straight talk and honest pricing.</strong> As an authorised repair centre for both Roborock and Segway, we handle warranty and out-of-warranty work — with a clear inspection fee and firm quote before any repair begins. We're based in South Australia and work with local businesses, makers and individuals.</p>
+      <div class="pill-row">
+        <span class="pill">Embedded Design</span>
+        <span class="pill">PCB Layout</span>
+        <span class="pill">Firmware Dev</span>
+        <span class="pill">IoT Integration</span>
+        <span class="pill">Roborock Repair</span>
+        <span class="pill">Segway Ninebot</span>
+        <span class="pill">Genuine Parts</span>
+        <span class="pill">Adelaide SA</span>
+      </div>
+    </div>
+    <div>
+      <div class="stats-wrap">
+        <div class="stats-inner">
+          <div class="eyebrow" style="margin-bottom:1.75rem">By the numbers</div>
+          <div class="stats-grid">
+            <div class="stat"><div class="stat-val">96%</div><div class="stat-key">Repair success rate</div></div>
+            <div class="stat"><div class="stat-val">24h</div><div class="stat-key">Avg. repair turnaround</div></div>
+            <div class="stat"><div class="stat-val">E2E</div><div class="stat-key">Embedded design coverage</div></div>
+            <div class="stat"><div class="stat-val">Auth.</div><div class="stat-key">Authorised repair centre</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BOOKING -->
+<section id="book">
+  <div class="book-layout">
+    <div>
+      <div class="eyebrow">Get in touch</div>
+      <h2>Let's talk<br>about your project.</h2>
+      <p class="sec-sub" style="margin-bottom:0">Whether it's an embedded system project or a device repair — fill in the form and we'll get back to you within a few hours.</p>
+      <div class="process">
+        <div class="pstep"><div class="pnum">01</div><div><h4>Tell us what you need</h4><p>Describe your project or the issue with your device. The more detail the better.</p></div></div>
+        <div class="pstep"><div class="pnum">02</div><div><h4>We get back to you</h4><p>We'll reply within a few hours to discuss scope, timeline and next steps.</p></div></div>
+        <div class="pstep"><div class="pnum">03</div><div><h4>Inspection &amp; quote</h4><p>For repairs — an inspection fee applies, then a firm quote before we start. For design projects — a free scoping call.</p></div></div>
+        <div class="pstep"><div class="pnum">04</div><div><h4>We get to work</h4><p>Repairs done same or next day. Design projects kicked off on an agreed timeline.</p></div></div>
+      </div>
+    </div>
+    <div class="form-wrap">
+      <div class="form-inner">
+        <div id="booking-form">
+          <div class="frow">
+            <div class="fg"><label>First name</label><input type="text" placeholder="Alex"></div>
+            <div class="fg"><label>Last name</label><input type="text" placeholder="Nguyen"></div>
+          </div>
+          <div class="fg"><label>Email</label><input type="email" placeholder="alex@example.com"></div>
+          <div class="fg"><label>Phone</label><input type="tel" placeholder="+61 4xx xxx xxx"></div>
+          <div class="fg">
+            <label>Enquiry type</label>
+            <select id="type-sel">
+              <option value="" disabled selected>Select type</option>
+              <option>Embedded Systems Design Project</option>
+              <option>Roborock Repair</option>
+              <option>Segway Ninebot Repair</option>
+              <option>General Enquiry</option>
+            </select>
+          </div>
+          <div class="fg"><label>Tell us about your project or issue</label><textarea placeholder="e.g. I need a custom ESP32 sensor board for an environmental monitor… or: My Roborock won't dock and shows an error…"></textarea></div>
+          <button class="btn-submit" onclick="submitForm()">Send Enquiry via Email</button>
+        </div>
+        <div id="form-success">
+          <div class="check-ring">✓</div>
+          <h3>Enquiry Received</h3>
+          <p>Your email app should now open with your enquiry details. If it doesn’t, contact us directly by email.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="eyebrow">Find us</div>
+  <h2>Get in touch.</h2>
+  <p class="sec-sub">Based in Adelaide, South Australia. Available for local and remote embedded design projects.</p>
+  <div class="contact-grid">
+    <div class="cbox">
+      <div class="clabel">Location</div>
+      <div class="cval">Adelaide, South Australia<br><span style="color:var(--muted);font-size:.82rem">Workshop address provided on booking</span></div>
+    </div>
+    <div class="cbox">
+      <div class="clabel">Phone &amp; Email</div>
+      <div class="cval">
+        <a href="mailto:info@logicone.com.au">info@logicone.com.au</a><br>
+        <span style="color:var(--muted);font-size:.82rem">Phone number to be added</span>
+      </div>
+      <div class="csub">We reply by email within 4 hours on business days</div>
+    </div>
+    <div class="cbox">
+      <div class="clabel">Services</div>
+      <div class="cval">
+        <span style="color:var(--cyan)">●</span> Embedded Systems Design<br>
+        <span style="color:var(--blue)">●</span> Roborock Robot Vacuum Repair<br>
+        <span style="color:var(--blue2)">●</span> Segway Ninebot Scooter Repair
+      </div>
+    </div>
+  </div>
+  <div class="eyebrow" style="margin-bottom:1rem">Business hours</div>
+  <div class="hours-grid">
+    <div class="hcell"><div class="hday">Mon – Fri</div><div class="htime">9:00 am – 5:30 pm</div></div>
+    <div class="hcell"><div class="hday">Saturday</div><div class="htime">10:00 am – 3:00 pm</div></div>
+    <div class="hcell"><div class="hday">Sunday</div><div class="htime closed">Closed</div></div>
+    <div class="hcell"><div class="hday">Public Holidays</div><div class="htime closed">Closed</div></div>
+  </div>
+  <div class="map-wrap">
+    <div class="map-grid-bg"></div>
+    <div class="map-glow"></div>
+    <div class="map-pin-wrap">
+      <div class="map-pin"></div>
+      <div class="map-label">Logic One SA</div>
+      <div class="map-sub">Adelaide, South Australia</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="foot-copy">© 2026 Logic One SA · Adelaide SA · ABN to be added · Electronics Engineering &amp; Repair</div>
+  <div class="foot-right">
+    <a href="#services">Services</a>
+    <a href="#embedded">Embedded</a>
+    <a href="#repairs">Repairs</a>
+    <a href="#about">About</a>
+    <a href="#book">Contact</a>
+  </div>
+</footer>
+
+
+<script>
+function submitForm(){
+  const fields=document.querySelectorAll('#booking-form input,#booking-form select,#booking-form textarea');
+  let ok=true;
+  fields.forEach(f=>{ if(!f.value.trim()) ok=false; });
+  if(!ok){
+    alert('Please fill in all fields before submitting.');
+    return;
+  }
+
+  const first=document.querySelector('input[placeholder="Alex"]').value.trim();
+  const last=document.querySelector('input[placeholder="Nguyen"]').value.trim();
+  const email=document.querySelector('input[type="email"]').value.trim();
+  const phone=document.querySelector('input[type="tel"]').value.trim();
+  const enquiry=document.getElementById('type-sel').value.trim();
+  const details=document.querySelector('textarea').value.trim();
+
+  const subject = encodeURIComponent('Website enquiry - ' + enquiry);
+  const body = encodeURIComponent(
+`Name: ${first} ${last}
+
+Email: ${email}
+Phone: ${phone}
+Enquiry type: ${enquiry}
+
+Details:
+${details}`
+  );
+
+  window.location.href = `mailto:info@logicone.com.au?subject=${subject}&body=${body}`;
+  document.getElementById('booking-form').style.display='none';
+  document.getElementById('form-success').style.display='block';
+}
+
+const carIdx={rr:0,sg:0},carMax={rr:2,sg:2};
+function slide(brand,dir){
+  const old=carIdx[brand];
+  carIdx[brand]=Math.max(0,Math.min(carMax[brand],old+dir));
+  if(old===carIdx[brand]) return;
+  document.getElementById(brand+old).classList.remove('active');
+  document.getElementById(brand+carIdx[brand]).classList.add('active');
+  document.querySelectorAll('#'+brand+'-dots .car-dot').forEach((d,i)=>d.classList.toggle('active',i===carIdx[brand]));
+}
+
+const deckState={embed:{idx:0,total:5},'repair-hero':{idx:0,total:5}};
+function updateDeckDots(name){
+  const dots=document.querySelectorAll('#'+name+'-dots .deck-dot');
+  dots.forEach((d,i)=>d.classList.toggle('active',i===deckState[name].idx));
+}
+function deckGo(name,idx){
+  deckState[name].idx=idx;
+  document.getElementById(name+'-track').style.transform='translateX(-'+idx*100+'%)';
+  updateDeckDots(name);
+}
+function deckTick(name){
+  const s=deckState[name];
+  s.idx=(s.idx+1)%s.total;
+  document.getElementById(name+'-track').style.transform='translateX(-'+s.idx*100+'%)';
+  updateDeckDots(name);
+}
+setInterval(()=>deckTick('embed'),3500);
+setInterval(()=>deckTick('repair-hero'),4000);
+
+function toggleMenu(){
+  document.getElementById('mob').classList.toggle('open');
+}
+</script>
+</body>
+</html>
