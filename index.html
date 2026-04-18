@@ -6,7 +6,6 @@
 <meta name="description" content="Logic One SA provides embedded systems design, Roborock repair, and Segway Ninebot repair services in Adelaide, South Australia.">
 <title>Logic One SA — Electronics Engineering & Repair, Adelaide</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,7 +13,7 @@
 <!-- NAV -->
 <nav>
   <a href="#" class="logo">
-    <img src="logo.png" alt="Logic One SA" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <img src="images/logo.png" alt="Logic One SA" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
     <span class="logo-text" style="display:none;align-items:center;gap:10px;font-family:var(--head);font-size:1.1rem;font-weight:700;letter-spacing:.06em;color:var(--silver2)">
       <span style="width:26px;height:26px;background:linear-gradient(135deg,var(--blue),var(--cyan));border-radius:4px;flex-shrink:0;display:inline-block"></span>
       LOGIC <span style="color:var(--cyan)">ONE</span> SA
@@ -28,34 +27,82 @@
     <li><a href="#contact">Contact</a></li>
   </ul>
   <a href="#book" class="nav-cta">Get in Touch</a>
-  <button class="hamburger" id="ham" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mob">
+  <div class="hamburger" onclick="toggleMenu()" id="ham">
     <span></span><span></span><span></span>
-  </button>
+  </div>
 </nav>
 <div class="mobile-menu" id="mob">
-  <a href="#services">Services</a>
-  <a href="#embedded">Embedded Systems</a>
-  <a href="#repairs">Repairs</a>
-  <a href="#about">About</a>
-  <a href="#contact">Contact</a>
-  <a href="#book">Get in Touch</a>
+  <a href="#services"  onclick="toggleMenu()">Services</a>
+  <a href="#embedded"  onclick="toggleMenu()">Embedded Systems</a>
+  <a href="#repairs"   onclick="toggleMenu()">Repairs</a>
+  <a href="#about"     onclick="toggleMenu()">About</a>
+  <a href="#contact"   onclick="toggleMenu()">Contact</a>
+  <a href="#book"      onclick="toggleMenu()">Get in Touch</a>
 </div>
 
 <!-- HERO -->
 <section class="hero">
   <div class="glow-tl"></div><div class="glow-br"></div><div class="vline"></div>
-  <div class="hero-eyebrow">Electronics Engineering · Adelaide, South Australia</div>
-  <h1>We build.<br>We repair.<br><span class="grad">We engineer.</span></h1>
-  <p class="hero-sub">Logic One SA delivers embedded system design and specialist electronics repair services. From custom hardware to precision device repair — we work at the circuit level.</p>
-  <div class="hero-actions">
-    <a href="#services" class="btn-primary">Our Services →</a>
-    <a href="#book"     class="btn-secondary">Get in Touch</a>
-  </div>
-  <div class="hero-caps">
-    <div class="hcap"><div class="hcap-dot" style="background:var(--cyan)"></div><span>Embedded Systems Design</span></div>
-    <div class="hcap"><div class="hcap-dot" style="background:var(--blue)"></div><span>Roborock Repair</span></div>
-    <div class="hcap"><div class="hcap-dot" style="background:var(--blue2)"></div><span>Segway Ninebot Repair</span></div>
-    <div class="hcap"><div class="hcap-dot" style="background:var(--silver)"></div><span>Adelaide SA</span></div>
+  <div class="hero-inner">
+    <div class="hero-left">
+      <div class="hero-eyebrow">Electronics Engineering · Adelaide, South Australia</div>
+      <h1>We build.<br>We repair.<br><span class="grad">We engineer.</span></h1>
+      <p class="hero-sub">Logic One SA delivers embedded system design and specialist electronics repair services. From custom hardware to precision device repair — we work at the circuit level.</p>
+      <div class="hero-actions">
+        <a href="#services" class="btn-primary">Our Services →</a>
+        <a href="#book"     class="btn-secondary">Get in Touch</a>
+      </div>
+      <div class="hero-caps">
+        <div class="hcap"><div class="hcap-dot" style="background:var(--cyan)"></div><span>Embedded Systems Design</span></div>
+        <div class="hcap"><div class="hcap-dot" style="background:var(--blue)"></div><span>Roborock Repair</span></div>
+        <div class="hcap"><div class="hcap-dot" style="background:var(--blue2)"></div><span>Segway Ninebot Repair</span></div>
+        <div class="hcap"><div class="hcap-dot" style="background:var(--silver)"></div><span>Adelaide SA</span></div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <!-- Stat cards -->
+      <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:1.75rem 2rem;position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--cyan))"></div>
+        <div style="font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:1.5rem;display:flex;align-items:center;gap:8px"><span style="width:10px;height:1px;background:var(--cyan);opacity:.7;display:block"></span>Why Logic One SA</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="padding:1.25rem 1.5rem;border-right:1px solid var(--border);border-bottom:1px solid var(--border)">
+            <div style="font-family:var(--head);font-size:2rem;font-weight:700;background:linear-gradient(90deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.25rem">96%</div>
+            <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Repair success rate</div>
+          </div>
+          <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border)">
+            <div style="font-family:var(--head);font-size:2rem;font-weight:700;background:linear-gradient(90deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.25rem">24h</div>
+            <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Avg. repair turnaround</div>
+          </div>
+          <div style="padding:1.25rem 1.5rem;border-right:1px solid var(--border)">
+            <div style="font-family:var(--head);font-size:2rem;font-weight:700;background:linear-gradient(90deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.25rem">E2E</div>
+            <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Embedded design</div>
+          </div>
+          <div style="padding:1.25rem 1.5rem">
+            <div style="font-family:var(--head);font-size:2rem;font-weight:700;background:linear-gradient(90deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.25rem">Auth.</div>
+            <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Authorised repair centre</div>
+          </div>
+        </div>
+      </div>
+      <!-- Service quick-links -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <a href="#embedded" style="display:flex;align-items:center;gap:.75rem;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:1rem 1.25rem;text-decoration:none;transition:border-color .2s,box-shadow .2s" onmouseover="this.style.borderColor='var(--blue)';this.style.boxShadow='0 4px 14px rgba(20,100,255,.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+          <span style="font-family:var(--mono);font-size:.65rem;letter-spacing:.07em;text-transform:uppercase;color:var(--silver2)">Embedded Design</span>
+        </a>
+        <a href="#repairs" style="display:flex;align-items:center;gap:.75rem;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:1rem 1.25rem;text-decoration:none;transition:border-color .2s,box-shadow .2s" onmouseover="this.style.borderColor='var(--cyan)';this.style.boxShadow='0 4px 14px rgba(0,166,214,.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          <span style="font-family:var(--mono);font-size:.65rem;letter-spacing:.07em;text-transform:uppercase;color:var(--silver2)">Device Repair</span>
+        </a>
+        <a href="#repairs" style="display:flex;align-items:center;gap:.75rem;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:1rem 1.25rem;text-decoration:none;transition:border-color .2s,box-shadow .2s" onmouseover="this.style.borderColor='var(--blue)';this.style.boxShadow='0 4px 14px rgba(20,100,255,.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
+          <span style="font-family:var(--mono);font-size:.65rem;letter-spacing:.07em;text-transform:uppercase;color:var(--silver2)">Roborock Repair</span>
+        </a>
+        <a href="#repairs" style="display:flex;align-items:center;gap:.75rem;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:1rem 1.25rem;text-decoration:none;transition:border-color .2s,box-shadow .2s" onmouseover="this.style.borderColor='var(--cyan)';this.style.boxShadow='0 4px 14px rgba(0,166,214,.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg>
+          <span style="font-family:var(--mono);font-size:.65rem;letter-spacing:.07em;text-transform:uppercase;color:var(--silver2)">Segway Repair</span>
+        </a>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -229,40 +276,222 @@
       <div class="rbrand-bar"></div>
       <div class="rbrand-head">
         <div class="brand-logo-row">
-          <div class="brand-logo-img">
-            <img src="Images/roborock_logo.png" alt="Roborock Logo">
+          <div class="brand-logo-placeholder">
+            <span>Roborock<br>Logo</span>
           </div>
           <div class="rbrand-name robo">ROBOROCK</div>
         </div>
         <div class="rbrand-sub">Robot Vacuum · All Models</div>
       </div>
       <div class="rbrand-car">
-        <div class="car-label">Models we service</div>
+        <div class="car-header">
+          <div class="car-label">Models we service</div>
+          <div class="car-counter"><span id="rr-cur">1</span> / 20</div>
+        </div>
         <div class="car-slide active" id="rr0">
           <div class="car-img">
-            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
-            <div class="car-model-name">S Series</div>
-            <div class="car-model-sub">Flagship · S7, S8, S8 Pro</div>
+            <img src="images/roborock/roborock-s8-pro-ultra.jpg" alt="S8 Pro Ultra" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
           </div>
+          <div class="car-model-name">S8 Pro Ultra</div>
+          <div class="car-model-sub">Flagship · Auto-empty, mop & vacuum</div>
         </div>
         <div class="car-slide" id="rr1">
           <div class="car-img">
-            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
-            <div class="car-model-name">Q Series</div>
-            <div class="car-model-sub">Q5+, Q7 Max, Q7 Max+</div>
+            <img src="images/roborock/roborock-s8-maxv-ultra.jpg" alt="S8 MaxV Ultra" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
           </div>
+          <div class="car-model-name">S8 MaxV Ultra</div>
+          <div class="car-model-sub">Flagship · Obstacle avoidance</div>
         </div>
         <div class="car-slide" id="rr2">
           <div class="car-img">
-            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
-            <div class="car-model-name">E &amp; P Series</div>
-            <div class="car-model-sub">Entry &amp; mid-range lineup</div>
+            <img src="images/roborock/roborock-s8-plus.jpg" alt="S8+" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
           </div>
+          <div class="car-model-name">S8+</div>
+          <div class="car-model-sub">S Series · Self-empty dock</div>
+        </div>
+        <div class="car-slide" id="rr3">
+          <div class="car-img">
+            <img src="images/roborock/roborock-s8.jpg" alt="S8" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">S8</div>
+          <div class="car-model-sub">S Series · Dual brush system</div>
+        </div>
+        <div class="car-slide" id="rr4">
+          <div class="car-img">
+            <img src="images/roborock/roborock-s7-maxv-ultra.jpg" alt="S7 MaxV Ultra" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">S7 MaxV Ultra</div>
+          <div class="car-model-sub">S Series · ReactiveAI 2.0</div>
+        </div>
+        <div class="car-slide" id="rr5">
+          <div class="car-img">
+            <img src="images/roborock/roborock-s7-max-ultra.jpg" alt="S7 Max Ultra" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">S7 Max Ultra</div>
+          <div class="car-model-sub">S Series · All-in-one dock</div>
+        </div>
+        <div class="car-slide" id="rr6">
+          <div class="car-img">
+            <img src="images/roborock/roborock-s7-plus.jpg" alt="S7+" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">S7+</div>
+          <div class="car-model-sub">S Series · Auto-empty</div>
+        </div>
+        <div class="car-slide" id="rr7">
+          <div class="car-img">
+            <img src="images/roborock/roborock-s7.jpg" alt="S7" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">S7</div>
+          <div class="car-model-sub">S Series · VibraRise mopping</div>
+        </div>
+        <div class="car-slide" id="rr8">
+          <div class="car-img">
+            <img src="images/roborock/roborock-q8-max-plus.jpg" alt="Q8 Max+" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Q8 Max+</div>
+          <div class="car-model-sub">Q Series · Auto-empty</div>
+        </div>
+        <div class="car-slide" id="rr9">
+          <div class="car-img">
+            <img src="images/roborock/roborock-q8-max.jpg" alt="Q8 Max" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Q8 Max</div>
+          <div class="car-model-sub">Q Series · Obstacle avoidance</div>
+        </div>
+        <div class="car-slide" id="rr10">
+          <div class="car-img">
+            <img src="images/roborock/roborock-q7-max-plus.jpg" alt="Q7 Max+" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Q7 Max+</div>
+          <div class="car-model-sub">Q Series · Auto-empty dock</div>
+        </div>
+        <div class="car-slide" id="rr11">
+          <div class="car-img">
+            <img src="images/roborock/roborock-q7-max.jpg" alt="Q7 Max" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Q7 Max</div>
+          <div class="car-model-sub">Q Series · LiDAR navigation</div>
+        </div>
+        <div class="car-slide" id="rr12">
+          <div class="car-img">
+            <img src="images/roborock/roborock-q7-plus.jpg" alt="Q7+" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Q7+</div>
+          <div class="car-model-sub">Q Series · Self-empty</div>
+        </div>
+        <div class="car-slide" id="rr13">
+          <div class="car-img">
+            <img src="images/roborock/roborock-q5-plus.jpg" alt="Q5+" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Q5+</div>
+          <div class="car-model-sub">Q Series · Auto-empty</div>
+        </div>
+        <div class="car-slide" id="rr14">
+          <div class="car-img">
+            <img src="images/roborock/roborock-q5.jpg" alt="Q5" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Q5</div>
+          <div class="car-model-sub">Q Series · LiDAR navigation</div>
+        </div>
+        <div class="car-slide" id="rr15">
+          <div class="car-img">
+            <img src="images/roborock/roborock-p10-pro.jpg" alt="P10 Pro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">P10 Pro</div>
+          <div class="car-model-sub">P Series · Self-empty & mop</div>
+        </div>
+        <div class="car-slide" id="rr16">
+          <div class="car-img">
+            <img src="images/roborock/roborock-p10.jpg" alt="P10" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">P10</div>
+          <div class="car-model-sub">P Series · Auto-empty</div>
+        </div>
+        <div class="car-slide" id="rr17">
+          <div class="car-img">
+            <img src="images/roborock/roborock-e5-mop.jpg" alt="E5 Mop" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">E5 Mop</div>
+          <div class="car-model-sub">E Series · Mopping & vacuum</div>
+        </div>
+        <div class="car-slide" id="rr18">
+          <div class="car-img">
+            <img src="images/roborock/roborock-e4-mop.jpg" alt="E4 Mop" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">E4 Mop</div>
+          <div class="car-model-sub">E Series · Entry level mop</div>
+        </div>
+        <div class="car-slide" id="rr19">
+          <div class="car-img">
+            <img src="images/roborock/roborock-e2.jpg" alt="E2" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">E2</div>
+          <div class="car-model-sub">E Series · Entry level</div>
         </div>
         <div class="car-nav">
-          <button class="car-btn" onclick="slide('rr',-1)">&#8592;</button>
-          <div class="car-dots" id="rr-dots"><div class="car-dot active"></div><div class="car-dot"></div><div class="car-dot"></div></div>
-          <button class="car-btn" onclick="slide('rr',1)">&#8594;</button>
+          <button class="car-btn" onclick="carSlide('rr',-1)">&#8592;</button>
+          <div class="car-progress"><div class="car-progress-bar" id="rr-progress"></div></div>
+          <button class="car-btn" onclick="carSlide('rr',1)">&#8594;</button>
         </div>
       </div>
       <div class="rbrand-symptoms">
@@ -285,40 +514,232 @@
       <div class="rbrand-bar"></div>
       <div class="rbrand-head">
         <div class="brand-logo-row">
-          <div class="brand-logo-img">
-            <img src="Images/segway_logo.png" alt="Segway Logo">
+          <div class="brand-logo-placeholder">
+            <span>Segway<br>Logo</span>
           </div>
           <div class="rbrand-name seg">SEGWAY</div>
         </div>
         <div class="rbrand-sub">Ninebot Electric Scooter · All Models</div>
       </div>
       <div class="rbrand-car">
-        <div class="car-label">Models we service</div>
+        <div class="car-header">
+          <div class="car-label">Models we service</div>
+          <div class="car-counter"><span id="sg-cur">1</span> / 21</div>
+        </div>
         <div class="car-slide active" id="sg0">
           <div class="car-img">
-            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
-            <div class="car-model-name">Max Series</div>
-            <div class="car-model-sub">Max G2, Max G30</div>
+            <img src="images/segway/segway-max-g2.jpg" alt="Ninebot Max G2" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
           </div>
+          <div class="car-model-name">Ninebot Max G2</div>
+          <div class="car-model-sub">Max Series · 70km range</div>
         </div>
         <div class="car-slide" id="sg1">
           <div class="car-img">
-            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
-            <div class="car-model-name">F Series</div>
-            <div class="car-model-sub">F25, F30, F40</div>
+            <img src="images/segway/segway-max-g30.jpg" alt="Ninebot Max G30" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
           </div>
+          <div class="car-model-name">Ninebot Max G30</div>
+          <div class="car-model-sub">Max Series · 65km range</div>
         </div>
         <div class="car-slide" id="sg2">
           <div class="car-img">
-            <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
-            <div class="car-model-name">E &amp; D Series</div>
-            <div class="car-model-sub">E22, E45, D38</div>
+            <img src="images/segway/segway-max-g30e-ii.jpg" alt="Ninebot Max G30E II" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
           </div>
+          <div class="car-model-name">Ninebot Max G30E II</div>
+          <div class="car-model-sub">Max Series · 55km range</div>
+        </div>
+        <div class="car-slide" id="sg3">
+          <div class="car-img">
+            <img src="images/segway/segway-max-g30le.jpg" alt="Ninebot Max G30LE" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot Max G30LE</div>
+          <div class="car-model-sub">Max Series · Limited edition</div>
+        </div>
+        <div class="car-slide" id="sg4">
+          <div class="car-img">
+            <img src="images/segway/segway-max-g30p.jpg" alt="Ninebot Max G30P" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot Max G30P</div>
+          <div class="car-model-sub">Max Series · Performance</div>
+        </div>
+        <div class="car-slide" id="sg5">
+          <div class="car-img">
+            <img src="images/segway/segway-f65i.jpg" alt="Ninebot F65I" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot F65I</div>
+          <div class="car-model-sub">F Series · 65km range</div>
+        </div>
+        <div class="car-slide" id="sg6">
+          <div class="car-img">
+            <img src="images/segway/segway-f40i.jpg" alt="Ninebot F40I" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot F40I</div>
+          <div class="car-model-sub">F Series · 40km range</div>
+        </div>
+        <div class="car-slide" id="sg7">
+          <div class="car-img">
+            <img src="images/segway/segway-f40.jpg" alt="Ninebot F40" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot F40</div>
+          <div class="car-model-sub">F Series · 40km range</div>
+        </div>
+        <div class="car-slide" id="sg8">
+          <div class="car-img">
+            <img src="images/segway/segway-f30.jpg" alt="Ninebot F30" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot F30</div>
+          <div class="car-model-sub">F Series · 30km range</div>
+        </div>
+        <div class="car-slide" id="sg9">
+          <div class="car-img">
+            <img src="images/segway/segway-f25.jpg" alt="Ninebot F25" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot F25</div>
+          <div class="car-model-sub">F Series · 25km range</div>
+        </div>
+        <div class="car-slide" id="sg10">
+          <div class="car-img">
+            <img src="images/segway/segway-f20.jpg" alt="Ninebot F20" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot F20</div>
+          <div class="car-model-sub">F Series · 20km range</div>
+        </div>
+        <div class="car-slide" id="sg11">
+          <div class="car-img">
+            <img src="images/segway/segway-e45e.jpg" alt="Ninebot E45E" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot E45E</div>
+          <div class="car-model-sub">E Series · 45km range</div>
+        </div>
+        <div class="car-slide" id="sg12">
+          <div class="car-img">
+            <img src="images/segway/segway-e45.jpg" alt="Ninebot E45" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot E45</div>
+          <div class="car-model-sub">E Series · 45km range</div>
+        </div>
+        <div class="car-slide" id="sg13">
+          <div class="car-img">
+            <img src="images/segway/segway-e25e.jpg" alt="Ninebot E25E" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot E25E</div>
+          <div class="car-model-sub">E Series · 25km range</div>
+        </div>
+        <div class="car-slide" id="sg14">
+          <div class="car-img">
+            <img src="images/segway/segway-e22e.jpg" alt="Ninebot E22E" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot E22E</div>
+          <div class="car-model-sub">E Series · 22km range</div>
+        </div>
+        <div class="car-slide" id="sg15">
+          <div class="car-img">
+            <img src="images/segway/segway-e22.jpg" alt="Ninebot E22" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot E22</div>
+          <div class="car-model-sub">E Series · 22km range</div>
+        </div>
+        <div class="car-slide" id="sg16">
+          <div class="car-img">
+            <img src="images/segway/segway-d38u.jpg" alt="Ninebot D38U" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot D38U</div>
+          <div class="car-model-sub">D Series · 38km range</div>
+        </div>
+        <div class="car-slide" id="sg17">
+          <div class="car-img">
+            <img src="images/segway/segway-d38e.jpg" alt="Ninebot D38E" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot D38E</div>
+          <div class="car-model-sub">D Series · 38km range</div>
+        </div>
+        <div class="car-slide" id="sg18">
+          <div class="car-img">
+            <img src="images/segway/segway-d28e.jpg" alt="Ninebot D28E" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot D28E</div>
+          <div class="car-model-sub">D Series · 28km range</div>
+        </div>
+        <div class="car-slide" id="sg19">
+          <div class="car-img">
+            <img src="images/segway/segway-d18e.jpg" alt="Ninebot D18E" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot D18E</div>
+          <div class="car-model-sub">D Series · 18km range</div>
+        </div>
+        <div class="car-slide" id="sg20">
+          <div class="car-img">
+            <img src="images/segway/segway-air-t15.jpg" alt="Ninebot Air T15" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:100%;height:100%;object-fit:contain;padding:.75rem">
+            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%">
+              <div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
+            </div>
+          </div>
+          <div class="car-model-name">Ninebot Air T15</div>
+          <div class="car-model-sub">Air Series · Lightweight</div>
         </div>
         <div class="car-nav">
-          <button class="car-btn" onclick="slide('sg',-1)">&#8592;</button>
-          <div class="car-dots" id="sg-dots"><div class="car-dot active"></div><div class="car-dot"></div><div class="car-dot"></div></div>
-          <button class="car-btn" onclick="slide('sg',1)">&#8594;</button>
+          <button class="car-btn" onclick="carSlide('sg',-1)">&#8592;</button>
+          <div class="car-progress"><div class="car-progress-bar" id="sg-progress"></div></div>
+          <button class="car-btn" onclick="carSlide('sg',1)">&#8594;</button>
         </div>
       </div>
       <div class="rbrand-symptoms">
@@ -469,10 +890,10 @@
     <div class="cbox">
       <div class="clabel">Phone &amp; Email</div>
       <div class="cval">
-        <a href="mailto:info@logicone.com.au">info@logicone.com.au</a><br>
+        <a href="/cdn-cgi/l/email-protection#771e191118371b18101e141819125914181a591602"><span class="__cf_email__" data-cfemail="b8d1d6ded7f8d4d7dfd1dbd7d6dd96dbd7d596d9cd">[email&#160;protected]</span></a><br>
         <span style="color:var(--muted);font-size:.82rem">Phone number to be added</span>
       </div>
-      <div class="csub">We reply by email within 4 hours on business days</div>
+      <div class="csub">We reply by email within 4 hours on business days (Mon – Fri, 10am – 5pm)</div>
     </div>
     <div class="cbox">
       <div class="clabel">Services</div>
@@ -485,8 +906,8 @@
   </div>
   <div class="eyebrow" style="margin-bottom:1rem">Business hours</div>
   <div class="hours-grid">
-    <div class="hcell"><div class="hday">Mon – Fri</div><div class="htime">9:00 am – 5:30 pm</div></div>
-    <div class="hcell"><div class="hday">Saturday</div><div class="htime">10:00 am – 3:00 pm</div></div>
+    <div class="hcell"><div class="hday">Mon – Fri</div><div class="htime">10:00 am – 5:00 pm</div></div>
+    <div class="hcell"><div class="hday">Saturday</div><div class="htime closed">Closed</div></div>
     <div class="hcell"><div class="hday">Sunday</div><div class="htime closed">Closed</div></div>
     <div class="hcell"><div class="hday">Public Holidays</div><div class="htime closed">Closed</div></div>
   </div>
@@ -514,7 +935,25 @@
 </footer>
 
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+function toggleMenu(){
+  const m=document.getElementById('mob');
+  const spans=document.querySelectorAll('#ham span');
+  m.classList.toggle('open');
+  const isOpen=m.classList.contains('open');
+  spans[0].style.transform=isOpen?'rotate(45deg) translate(5px,5px)':'';
+  spans[1].style.opacity=isOpen?'0':'1';
+  spans[2].style.transform=isOpen?'rotate(-45deg) translate(5px,-5px)':'';
+}
+document.addEventListener('click',function(e){
+  const m=document.getElementById('mob');
+  const h=document.getElementById('ham');
+  if(m&&m.classList.contains('open')&&!m.contains(e.target)&&!h.contains(e.target)){
+    m.classList.remove('open');
+    document.querySelectorAll('#ham span').forEach(s=>{s.style.transform='';s.style.opacity='1';});
+  }
+});
+
 function submitForm(){
   const fields=document.querySelectorAll('#booking-form input,#booking-form select,#booking-form textarea');
   let ok=true;
@@ -548,15 +987,33 @@ ${details}`
   document.getElementById('form-success').style.display='block';
 }
 
-const carIdx={rr:0,sg:0},carMax={rr:2,sg:2};
-function slide(brand,dir){
-  const old=carIdx[brand];
-  carIdx[brand]=Math.max(0,Math.min(carMax[brand],old+dir));
-  if(old===carIdx[brand]) return;
-  document.getElementById(brand+old).classList.remove('active');
-  document.getElementById(brand+carIdx[brand]).classList.add('active');
-  document.querySelectorAll('#'+brand+'-dots .car-dot').forEach((d,i)=>d.classList.toggle('active',i===carIdx[brand]));
+const carData={
+  rr:{idx:0,total:20,timer:null},
+  sg:{idx:0,total:21,timer:null}
+};
+function carUpdate(brand){
+  const d=carData[brand];
+  document.querySelectorAll('[id^="'+brand+'"]').forEach((el,i)=>{
+    if(el.classList.contains('car-slide'))el.classList.toggle('active',i===d.idx);
+  });
+  const cur=document.getElementById(brand+'-cur');
+  if(cur)cur.textContent=d.idx+1;
+  const bar=document.getElementById(brand+'-progress');
+  if(bar)bar.style.width=((d.idx+1)/d.total*100)+'%';
 }
+function carSlide(brand,dir){
+  const d=carData[brand];
+  d.idx=(d.idx+dir+d.total)%d.total;
+  carUpdate(brand);
+  resetAutoplay(brand);
+}
+function resetAutoplay(brand){
+  const d=carData[brand];
+  clearInterval(d.timer);
+  d.timer=setInterval(()=>{d.idx=(d.idx+1)%d.total;carUpdate(brand);},3000);
+}
+resetAutoplay('rr');
+resetAutoplay('sg');
 
 const deckState={embed:{idx:0,total:5},'repair-hero':{idx:0,total:5}};
 function updateDeckDots(name){
@@ -571,51 +1028,4 @@ function deckGo(name,idx){
 function deckTick(name){
   const s=deckState[name];
   s.idx=(s.idx+1)%s.total;
-  document.getElementById(name+'-track').style.transform='translateX(-'+s.idx*100+'%)';
-  updateDeckDots(name);
-}
-setInterval(()=>deckTick('embed'),3500);
-setInterval(()=>deckTick('repair-hero'),4000);
-
-function toggleMenu(forceOpen){
-  const menu = document.getElementById('mob');
-  const button = document.getElementById('ham');
-  if(!menu || !button) return;
-
-  const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !menu.classList.contains('open');
-  menu.classList.toggle('open', shouldOpen);
-  button.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
-}
-
-document.addEventListener('DOMContentLoaded', function(){
-  const button = document.getElementById('ham');
-  const menu = document.getElementById('mob');
-  if(!button || !menu) return;
-
-  button.addEventListener('click', function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    toggleMenu();
-  });
-
-  menu.querySelectorAll('a').forEach(function(link){
-    link.addEventListener('click', function(){
-      toggleMenu(false);
-    });
-  });
-
-  document.addEventListener('click', function(e){
-    if(menu.classList.contains('open') && !menu.contains(e.target) && !button.contains(e.target)){
-      toggleMenu(false);
-    }
-  });
-
-  window.addEventListener('resize', function(){
-    if(window.innerWidth > 700){
-      toggleMenu(false);
-    }
-  });
-}
-</script>
-</body>
-</html>
+  document.getElementById(name+'-track').style.transform='translateX
