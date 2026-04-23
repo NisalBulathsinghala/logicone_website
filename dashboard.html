@@ -610,7 +610,7 @@
     <div class="loading-overlay" id="listLoading"><div class="spinner"></div><div class="loading-text">Loading jobs…</div></div>
     <div class="table-wrapper">
       <table class="jobs-table">
-        <thead><tr><th>Job ID</th><th>Brand</th><th>Model</th><th>Type</th><th>Customer</th><th>Case No.</th><th>Status</th><th>Date In</th><th>Folder</th></tr></thead>
+        <thead><tr><th>Job ID</th><th>Brand</th><th>Model</th><th>Type</th><th>Customer</th><th>Case No.</th><th>Warranty</th><th>Status</th><th>Date In</th><th>Folder</th></tr></thead>
         <tbody id="tBody"></tbody>
       </table>
     </div>
@@ -721,6 +721,7 @@ const HMAP = {
   'when did it start?':'whenStarted','when did it start':'whenStarted',
   'repaired before?':'repairedBefore','repaired before':'repairedBefore',
   'known issues':'knownIssues',
+  'warranty status':'warranty',
   'job id':'jobId','status':'status','drive folder':'driveFolder',
 };
 
@@ -840,7 +841,7 @@ function mkCard(j) {
   card.className = 'kanban-card'; card.draggable = true; card.dataset.jobId = j.jobId;
 
   const bt = j.brand === 'Roborock' ? 't-roborock' : j.brand === 'Segway' ? 't-segway' : 't-other';
-  const wt = j.caseNo ? 'In Warranty' : 'Out of Warranty';
+  const wt = j.warranty || (j.caseNo ? 'In Warranty' : 'Out of Warranty');
   const wtc = wt === 'In Warranty' ? 'tag-wt-in' : 'tag-wt-out';
 
   let caseH = '';
@@ -904,6 +905,12 @@ function renderTable() {
     const sc = SC[j.status] || { bg:'#f1f5f9', c:'#475569' };
     const tr = document.createElement('tr');
     tr.style.cursor = 'pointer'; tr.onclick = () => showDetail(j);
+    const wtVal = j.warranty || '—';
+    const wtStyle = j.warranty === 'In Warranty'
+      ? 'background:rgba(16,185,129,0.1);color:#059669;'
+      : j.warranty === 'Out of Warranty'
+      ? 'background:rgba(239,68,68,0.1);color:#dc2626;'
+      : '';
     tr.innerHTML = `
       <td><span class="t-job-id">${j.jobId||'—'}</span></td>
       <td><span class="card-brand-tag ${bt}" style="font-size:10.5px;">${j.brand||'—'}</span></td>
@@ -911,6 +918,7 @@ function renderTable() {
       <td style="font-size:12.5px;">${j.deviceType||'—'}</td>
       <td>${j.name||'—'}</td>
       <td><span class="t-case">${j.caseNo||'—'}</span></td>
+      <td><span class="t-status" style="${wtStyle}font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;">${wtVal}</span></td>
       <td><span class="t-status" style="background:${sc.bg};color:${sc.c};">${j.status||'—'}</span></td>
       <td style="font-size:12.5px;color:var(--text-secondary);">${fmtDate(j.ts)}</td>
       <td>${j.driveFolder && !String(j.driveFolder).startsWith('ERROR') ? `<a href="${j.driveFolder}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);font-size:12px;">Open</a>` : '—'}</td>`;
@@ -930,8 +938,9 @@ function showDetail(j) {
     ['Customer', j.name], ['Phone', j.phone],
     ['Email', j.email], ['Address', j.address],
     ['Issue', j.issue, false, true],
-    ['When Started', j.whenStarted], ['Repaired Before', j.repairedBefore],
-    ['Known Issues', j.knownIssues], ['Accessories', j.accessories],
+    ['Warranty Status', j.warranty], ['Repaired Before', j.repairedBefore],
+    ['When Started', j.whenStarted], ['Known Issues', j.knownIssues],
+    ['Accessories', j.accessories],
     ['Status', j.status], ['Date In', fmtDate(j.ts)],
   ];
 
