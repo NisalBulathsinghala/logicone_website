@@ -971,7 +971,12 @@ async function moveJob(id, newStatus) {
   renderAll();
 
   if (cfg.appsScriptUrl) {
-    callScript({ action: 'updateStatus', jobId: id, status: newStatus });
+    const result = await callScript({ action: 'updateStatus', jobId: id, status: newStatus });
+    if (!result.ok) {
+      showToast('error', 'Status update failed: ' + result.error);
+      // Roll back the local change
+      j.status = newStatus === id ? j.status : newStatus;
+    }
   }
 }
 
@@ -1007,7 +1012,7 @@ async function submitNewJob() {
   // ── Disable button while submitting ─────────────────────────
   const btn = document.getElementById('submitJobBtn');
   btn.disabled = true;
-  btn.textContent = 'Creating…';
+  btn.textContent = 'Saving to sheet…';
 
   // ── Build job object ─────────────────────────────────────────
   const now = new Date();
@@ -1035,14 +1040,9 @@ async function submitNewJob() {
     driveFolder: '',
   };
 
-  jobs.unshift(newJob);
-  renderAll();
-  closeModal('newJobModal');
-  resetNewJobForm();
-
-  // ── Sync to Google Sheet + trigger Drive folder creation ─────
+  // ── Sync to sheet FIRST, then update UI ──────────────────────
   if (cfg.appsScriptUrl) {
-    const ok = await callScript({
+    const result = await callScript({
       action:         'addJob',
       jobId:          newJob.jobId,
       timestamp:      newJob.ts,
@@ -1061,28 +1061,52 @@ async function submitNewJob() {
       repairedBefore: newJob.repairedBefore,
       status:         'Intake',
     });
-    showToast(ok ? 'success' : 'error',
-      ok ? '✓ ' + newJob.jobId + ' created and synced'
-         : 'Job created locally — sheet sync failed');
+
+    if (result.ok) {
+      // Sheet saved — now reload from sheet so card shows real data
+      closeModal('newJobModal');
+      resetNewJobForm();
+      showToast('success', '✓ ' + newJob.jobId + ' saved to sheet — reloading…');
+      await fetchSheet(); // pulls fresh data including Drive folder URL
+    } else {
+      // Sheet failed — show error inside modal, don't close
+      const errDiv = document.getElementById('nJobError');
+      errDiv.textContent = 'Sheet sync failed: ' + result.error + '. Please try again.';
+      errDiv.style.display = 'block';
+      showToast('error', 'Failed to save to sheet — see error above');
+    }
   } else {
-    showToast('success', '✓ Job ' + newJob.jobId + ' created');
+    // No Apps Script configured — add locally only
+    jobs.unshift(newJob);
+    renderAll();
+    closeModal('newJobModal');
+    resetNewJobForm();
+    showToast('success', '✓ Job ' + newJob.jobId + ' created (not synced — no Apps Script URL)');
   }
 
   btn.disabled = false;
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Job';
 }
 
-// ── callScript: sends data to Apps Script via GET request ──────
-// GET avoids CORS preflight issues that affect POST from browsers.
-// Data is JSON-encoded in a single 'payload' query param.
+// ── callScript ────────────────────────────────────────────────
+// Sends data to Apps Script via GET + payload param.
+// Apps Script redirects to a googeapis.com URL — we follow it
+// and parse the JSON response to know if it actually worked.
 async function callScript(data) {
   try {
-    const url = cfg.appsScriptUrl
-      + '?payload=' + encodeURIComponent(JSON.stringify(data));
-    const r = await fetch(url, { method: 'GET', redirect: 'follow' });
-    return r.ok;
+    const url = cfg.appsScriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(data));
+    const r = await fetch(url, { redirect: 'follow' });
+    const text = await r.text();
+    try {
+      const json = JSON.parse(text);
+      if (json.result === 'ok') return { ok: true };
+      return { ok: false, error: json.msg || json.result || 'Unknown error' };
+    } catch {
+      // Could not parse JSON — log the raw response for debugging
+      return { ok: false, error: 'Bad response: ' + text.substring(0, 120) };
+    }
   } catch (err) {
-    return false;
+    return { ok: false, error: err.message };
   }
 }
 
