@@ -5,7 +5,3 @@
 [[edge_functions]]
   path = "/dashboard.html"
   function = "auth"
-
-[[edge_functions]]
-  path = "/config.js"
-  function = "auth"
