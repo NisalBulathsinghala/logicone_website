@@ -971,13 +971,7 @@ async function moveJob(id, newStatus) {
   renderAll();
 
   if (cfg.appsScriptUrl) {
-    try {
-      await fetch(cfg.appsScriptUrl, {
-        method: 'POST', mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'updateStatus', jobId: id, status: newStatus })
-      });
-    } catch (err) { /* sync failed silently */ }
+    callScript({ action: 'updateStatus', jobId: id, status: newStatus });
   }
 }
 
@@ -1048,40 +1042,48 @@ async function submitNewJob() {
 
   // ── Sync to Google Sheet + trigger Drive folder creation ─────
   if (cfg.appsScriptUrl) {
-    try {
-      await fetch(cfg.appsScriptUrl, {
-        method: 'POST', mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action:       'addJob',
-          jobId:        newJob.jobId,
-          timestamp:    newJob.ts,
-          fullName:     newJob.name,
-          phone:        newJob.phone,
-          email:        newJob.email,
-          address:      newJob.address,
-          caseNumber:   newJob.caseNo,
-          deviceType:   newJob.deviceType,
-          brand:        newJob.brand,
-          model:        newJob.model,
-          serialNumber: newJob.serial,
-          accessories:  newJob.accessories,
-          issue:        newJob.issue,
-          warranty:     newJob.warranty,
-          repairedBefore: newJob.repairedBefore,
-          status:       'Intake',
-        })
-      });
-      showToast('success', '✓ Job ' + newJob.jobId + ' created and synced to sheet');
-    } catch (err) {
-      showToast('error', 'Job created locally — sheet sync failed');
-    }
+    const ok = await callScript({
+      action:         'addJob',
+      jobId:          newJob.jobId,
+      timestamp:      newJob.ts,
+      fullName:       newJob.name,
+      phone:          newJob.phone,
+      email:          newJob.email,
+      address:        newJob.address,
+      caseNumber:     newJob.caseNo,
+      deviceType:     newJob.deviceType,
+      brand:          newJob.brand,
+      model:          newJob.model,
+      serialNumber:   newJob.serial,
+      accessories:    newJob.accessories,
+      issue:          newJob.issue,
+      warranty:       newJob.warranty,
+      repairedBefore: newJob.repairedBefore,
+      status:         'Intake',
+    });
+    showToast(ok ? 'success' : 'error',
+      ok ? '✓ ' + newJob.jobId + ' created and synced'
+         : 'Job created locally — sheet sync failed');
   } else {
     showToast('success', '✓ Job ' + newJob.jobId + ' created');
   }
 
   btn.disabled = false;
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Job';
+}
+
+// ── callScript: sends data to Apps Script via GET request ──────
+// GET avoids CORS preflight issues that affect POST from browsers.
+// Data is JSON-encoded in a single 'payload' query param.
+async function callScript(data) {
+  try {
+    const url = cfg.appsScriptUrl
+      + '?payload=' + encodeURIComponent(JSON.stringify(data));
+    const r = await fetch(url, { method: 'GET', redirect: 'follow' });
+    return r.ok;
+  } catch (err) {
+    return false;
+  }
 }
 
 function resetNewJobForm() {
