@@ -203,7 +203,7 @@
 
   /* ===== STATS ===== */
   .stats-row {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    display: grid; grid-template-columns: repeat(6, 1fr);
     gap: 14px; padding: 20px 28px; flex-shrink: 0;
   }
 
@@ -223,9 +223,11 @@
 
   .stat-icon svg { width: 20px; height: 20px; }
   .si-intake { background: rgba(99,102,241,0.1); color: var(--col-intake); }
+  .si-diagnosis { background: rgba(245,158,11,0.1); color: var(--col-diagnosis); }
   .si-active { background: rgba(59,130,246,0.1); color: var(--col-repair); }
   .si-waiting { background: rgba(239,68,68,0.1); color: var(--col-awaiting); }
   .si-done { background: rgba(16,185,129,0.1); color: var(--col-complete); }
+  .si-total { background: rgba(0,180,216,0.1); color: var(--accent); }
 
   .stat-info h3 { font-size: 22px; font-weight: 700; line-height: 1; }
   .stat-info p { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
@@ -532,7 +534,7 @@
     .sidebar { position: fixed; left: 0; top: 0; transform: translateX(-100%); z-index: 200; }
     .sidebar.open { transform: translateX(0); }
     .menu-toggle { display: block; }
-    .stats-row { grid-template-columns: repeat(2, 1fr); padding: 16px; }
+    .stats-row { grid-template-columns: repeat(3, 1fr); padding: 16px; gap: 10px; }
     .kanban-wrapper { padding: 0 16px 16px; }
     .kanban-column { width: 260px; min-width: 260px; }
     .topbar { padding: 14px 16px; }
@@ -543,7 +545,7 @@
   }
 
   @media (max-width: 500px) {
-    .stats-row { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
     .fr2, .fr3, .d-grid { grid-template-columns: 1fr; }
     .topbar-actions .btn-label { display: none; }
   }
@@ -623,9 +625,11 @@
     <div class="loading-overlay" id="kanbanLoading"><div class="spinner"></div><div class="loading-text">Syncing with Google Sheets…</div></div>
     <div class="stats-row">
       <div class="stat-card"><div class="stat-icon si-intake"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><div class="stat-info"><h3 id="sI">0</h3><p>New Intake</p></div></div>
+      <div class="stat-card"><div class="stat-icon si-diagnosis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div class="stat-info"><h3 id="sD">0</h3><p>In Diagnosis</p></div></div>
       <div class="stat-card"><div class="stat-icon si-active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div><div class="stat-info"><h3 id="sA">0</h3><p>In Repair</p></div></div>
       <div class="stat-card"><div class="stat-icon si-waiting"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-info"><h3 id="sW">0</h3><p>Awaiting Parts</p></div></div>
       <div class="stat-card"><div class="stat-icon si-done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="stat-info"><h3 id="sC">0</h3><p>Completed</p></div></div>
+      <div class="stat-card"><div class="stat-icon si-total"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><div class="stat-info"><h3 id="sT">0</h3><p>Total Active</p></div></div>
     </div>
     <div class="kanban-wrapper"><div class="kanban-board" id="kanbanBoard"></div></div>
   </div>
@@ -933,10 +937,21 @@ function mkCard(j) {
 // STATS
 // ============================================================
 function renderStats() {
-  document.getElementById('sI').textContent = jobs.filter(j => j.status === 'Intake').length;
-  document.getElementById('sA').textContent = jobs.filter(j => j.status === 'In Repair').length;
-  document.getElementById('sW').textContent = jobs.filter(j => j.status === 'Awaiting Parts').length;
-  document.getElementById('sC').textContent = jobs.filter(j => j.status === 'Complete' || j.status === 'Collected').length;
+  const intake    = jobs.filter(j => j.status === 'Intake').length;
+  const diagnosis = jobs.filter(j => j.status === 'Diagnosis').length;
+  const inRepair  = jobs.filter(j => j.status === 'In Repair').length;
+  const waiting   = jobs.filter(j => j.status === 'Awaiting Parts').length;
+  const testing   = jobs.filter(j => j.status === 'Testing').length;
+  const complete  = jobs.filter(j => j.status === 'Complete' || j.status === 'Collected').length;
+  // Total active = everything not yet collected/completed
+  const total     = jobs.filter(j => j.status !== 'Complete' && j.status !== 'Collected').length;
+
+  document.getElementById('sI').textContent = intake;
+  document.getElementById('sD').textContent = diagnosis;
+  document.getElementById('sA').textContent = inRepair;
+  document.getElementById('sW').textContent = waiting;
+  document.getElementById('sC').textContent = complete;
+  document.getElementById('sT').textContent = total;
 }
 
 // ============================================================
