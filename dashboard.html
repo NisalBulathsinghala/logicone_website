@@ -6,6 +6,7 @@
 <meta name="color-scheme" content="light">
 <title>Logic One SA — Repair Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="/config.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -658,6 +659,11 @@
       <div class="input-group"><label>API Key</label><div class="input-row"><input type="text" id="cfgKey" placeholder="AIzaSy…"><button class="btn btn-secondary" onclick="saveCfg('apiKey','cfgKey')">Save</button></div></div>
       <div class="input-group"><label>Apps Script Web App URL</label><div class="input-row"><input type="text" id="cfgScript" placeholder="https://script.google.com/macros/s/…/exec"><button class="btn btn-secondary" onclick="saveCfg('appsScriptUrl','cfgScript')">Save</button></div></div>
 
+      <!-- Shown when config.js is loaded -->
+      <div id="cfgFileNotice" style="display:none;margin-top:16px;padding:12px 16px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;font-size:13px;color:#059669;">
+        ✓ Configuration loaded from <strong>config.js</strong>. To change settings, edit that file and redeploy.
+      </div>
+
       <div class="status-msg" id="setupStatus"></div>
 
       <div class="tmpl-info">
@@ -778,11 +784,13 @@ const HMAP = {
 
 let jobs = [], searchTerm = '';
 
+const FILE_CFG = window.LO_CONFIG || {};
+
 const cfg = {
-  sheetId: localStorage.getItem('lo_sheetId') || '',
-  sheetTab: localStorage.getItem('lo_sheetTab') || 'Form Responses 1',
-  apiKey: localStorage.getItem('lo_apiKey') || '',
-  appsScriptUrl: localStorage.getItem('lo_appsScriptUrl') || '',
+  sheetId:       FILE_CFG.sheetId       || localStorage.getItem('lo_sheetId')       || '',
+  sheetTab:      FILE_CFG.sheetTab      || localStorage.getItem('lo_sheetTab')      || 'Form Responses 1',
+  apiKey:        FILE_CFG.apiKey        || localStorage.getItem('lo_apiKey')        || '',
+  appsScriptUrl: FILE_CFG.appsScriptUrl || localStorage.getItem('lo_appsScriptUrl') || '',
 };
 
 // DEMO
@@ -805,6 +813,16 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('cfgTab').value = cfg.sheetTab;
   document.getElementById('cfgKey').value = cfg.apiKey;
   document.getElementById('cfgScript').value = cfg.appsScriptUrl;
+
+  // If values came from config.js, mark fields as read-only and show a notice
+  if (FILE_CFG.sheetId) {
+    ['cfgSheetId','cfgTab','cfgKey','cfgScript'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.readOnly = true; el.style.background = '#f0f2f5'; el.style.color = '#5a6078'; }
+    });
+    const notice = document.getElementById('cfgFileNotice');
+    if (notice) notice.style.display = 'block';
+  }
   buildBoard();
   loadData();
 });

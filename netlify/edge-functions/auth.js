@@ -1,7 +1,8 @@
 export default async (request, context) => {
   const url = new URL(request.url);
+  const protected_paths = ['/dashboard.html', '/config.js'];
 
-  if (url.pathname !== '/dashboard.html') return;
+  if (!protected_paths.includes(url.pathname)) return;
 
   const cookie = request.headers.get('cookie') || '';
   const authed = cookie.includes('lo_authed=1');
@@ -14,4 +15,4 @@ export default async (request, context) => {
   }
 };
 
-export const config = { path: '/dashboard.html' };
+export const config = { path: ['/dashboard.html', '/config.js'] };
