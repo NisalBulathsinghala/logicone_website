@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Logic One SA — Staff Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0b1628;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  /* Subtle circuit grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,180,216,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,180,216,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .login-box {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 52px 44px;
+    width: 400px;
+    max-width: 100%;
+    text-align: center;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+    position: relative;
+  }
+
+  .logo {
+    width: 56px; height: 56px;
+    background: linear-gradient(135deg, #00b4d8, #0077b6);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 800; font-size: 20px; color: white;
+    box-shadow: 0 8px 24px rgba(0,180,216,0.3);
+  }
+
+  .site-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 17px; font-weight: 700;
+    color: #1a1a2e;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .site-name span { color: #00b4d8; }
+
+  .subtitle {
+    font-size: 13px;
+    color: #5a6078;
+    margin-bottom: 36px;
+    font-weight: 500;
+  }
+
+  .field-label {
+    display: block;
+    text-align: left;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #5a6078;
+    margin-bottom: 8px;
+  }
+
+  .field-input {
+    width: 100%;
+    padding: 13px 16px;
+    border: 1.5px solid #e2e5ec;
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    margin-bottom: 20px;
+    color: #1a1a2e;
+    background: #fafbfc;
+    letter-spacing: 1px;
+  }
+
+  .field-input:focus {
+    border-color: #00b4d8;
+    box-shadow: 0 0 0 3px rgba(0,180,216,0.1);
+    background: #ffffff;
+  }
+
+  .login-btn {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, #00b4d8, #0096b7);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'Orbitron', sans-serif;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 1px;
+  }
+
+  .login-btn:hover { opacity: 0.9; }
+  .login-btn:active { transform: scale(0.99); }
+
+  .error-msg {
+    display: none;
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 8px;
+    font-size: 13px;
+    color: #dc2626;
+    font-weight: 500;
+  }
+
+  .footer-note {
+    margin-top: 28px;
+    font-size: 11.5px;
+    color: #9ca3b0;
+  }
+
+  /* Shake animation for wrong password */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+
+  .shake { animation: shake 0.4s ease; }
+</style>
+</head>
+<body>
+<div class="login-box" id="loginBox">
+  <div class="logo">L1</div>
+  <div class="site-name">LOGIC <span>ONE</span> SA</div>
+  <div class="subtitle">Repair Dashboard — Staff Access Only</div>
+
+  <label class="field-label" for="passInput">Password</label>
+  <input class="field-input" type="password" id="passInput" placeholder="Enter your password" autocomplete="current-password">
+  <button class="login-btn" onclick="attemptLogin()">SIGN IN</button>
+  <div class="error-msg" id="errorMsg">Incorrect password. Please try again.</div>
+
+  <div class="footer-note">Authorised personnel only. All access is logged.</div>
+</div>
+
+<script>
+  // ── PASSWORD CONFIGURATION ──────────────────────────────────────────
+  // Change the password below. The hash is computed client-side,
+  // but the cookie is what actually controls access — the edge function
+  // checks for the cookie before serving dashboard.html.
+  //
+  // To change password: update PASS below, then redeploy.
+  // ────────────────────────────────────────────────────────────────────
+
+  const PASS = 'logicone2026'; // ← CHANGE THIS TO YOUR PASSWORD
+
+  async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function attemptLogin() {
+    const input = document.getElementById('passInput').value;
+    const err = document.getElementById('errorMsg');
+    const box = document.getElementById('loginBox');
+
+    const inputHash = await sha256(input + 'lo2026salt');
+    const correctHash = await sha256(PASS + 'lo2026salt');
+
+    if (inputHash === correctHash) {
+      // Set session cookie — expires when browser closes (session cookie)
+      // For a longer session, add: ; max-age=86400 (1 day) or 604800 (1 week)
+      document.cookie = 'lo_authed=1; path=/; SameSite=Strict';
+      window.location.href = '/dashboard.html';
+    } else {
+      err.style.display = 'block';
+      box.classList.add('shake');
+      document.getElementById('passInput').value = '';
+      document.getElementById('passInput').focus();
+      setTimeout(() => {
+        err.style.display = 'none';
+        box.classList.remove('shake');
+      }, 3500);
+    }
+  }
+
+  // Enter key support
+  document.getElementById('passInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') attemptLogin();
+  });
+
+  // Auto-focus
+  document.getElementById('passInput').focus();
+
+  // If already authed, go straight to dashboard
+  if (document.cookie.includes('lo_authed=1')) {
+    window.location.href = '/dashboard.html';
+  }
+</script>
+</body>
+</html>
