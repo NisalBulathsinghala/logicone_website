@@ -388,57 +388,6 @@
     border-radius: 20px; display: inline-block;
   }
 
-  /* ===== SETUP ===== */
-  .setup-view { padding: 40px 28px; overflow-y: auto; }
-
-  .setup-card {
-    max-width: 680px; margin: 0 auto;
-    background: var(--bg-surface); border: 1px solid var(--border);
-    border-radius: var(--radius-xl); padding: 40px;
-  }
-
-  .setup-card h2 { font-family: 'Orbitron', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-  .setup-card > p { font-size: 13.5px; color: var(--text-secondary); margin-bottom: 28px; line-height: 1.6; }
-
-  .setup-step { display: flex; gap: 16px; margin-bottom: 24px; }
-
-  .step-num {
-    width: 32px; height: 32px; background: var(--accent-glow); color: var(--accent);
-    font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px;
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; margin-top: 2px;
-  }
-
-  .step-body h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
-  .step-body p { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
-
-  .step-body code {
-    background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;
-    font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--accent-dark);
-  }
-
-  .input-group { margin-top: 20px; }
-  .input-group label { font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .input-row { display: flex; gap: 10px; }
-
-  .input-row input {
-    flex: 1; padding: 10px 14px; border: 1px solid var(--border);
-    border-radius: var(--radius-sm); font-size: 13px; font-family: 'Inter', sans-serif;
-    outline: none; transition: border-color 0.15s;
-  }
-
-  .input-row input:focus { border-color: var(--accent); }
-
-  .status-msg { margin-top: 16px; padding: 12px 16px; border-radius: var(--radius-sm); font-size: 13px; display: none; }
-  .status-msg.error { background: rgba(239,68,68,0.08); color: #dc2626; border: 1px solid rgba(239,68,68,0.2); display: block; }
-  .status-msg.success { background: rgba(16,185,129,0.08); color: #059669; border: 1px solid rgba(16,185,129,0.2); display: block; }
-
-  .tmpl-info { background: var(--bg-primary); border-radius: var(--radius-md); padding: 16px; margin-top: 24px; }
-  .tmpl-info h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-  .tmpl-cols { display: flex; flex-wrap: wrap; gap: 6px; }
-  .tmpl-cols span { font-size: 11px; font-weight: 600; background: var(--bg-surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 20px; color: var(--text-secondary); }
-
-  .code-block { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; font-size: 11.5px; line-height: 1.5; overflow-x: auto; color: var(--text-primary); margin-top: 12px; }
 
   /* ===== MODAL ===== */
   .modal-overlay {
@@ -535,8 +484,7 @@
     .kanban-wrapper { padding: 0 16px 16px; }
     .kanban-column { width: 260px; min-width: 260px; }
     .topbar { padding: 14px 16px; }
-    .setup-view { padding: 20px 16px; }
-    .setup-card { padding: 24px; }
+
     .table-wrapper { padding: 16px; }
     .search-bar { max-width: 160px; }
   }
@@ -579,11 +527,7 @@
       All Jobs
       <span class="nav-badge" id="totalBadge">0</span>
     </a>
-    <div class="sidebar-section-label">Settings</div>
-    <a class="nav-item" data-view="setup" onclick="switchView('setup')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      Sheet Setup
-    </a>
+
   </nav>
   <div class="sidebar-footer">
     <a href="index.html">
@@ -644,74 +588,16 @@
     </div>
   </div>
 
-  <!-- SETUP -->
-  <div class="view setup-view" id="view-setup">
-    <div class="setup-card">
-      <h2>Connect Google Sheet</h2>
-      <p>Link your master repair tracking sheet. The dashboard reads job data via the Sheets API and writes status updates via your existing Apps Script. Form submissions and Drive folder creation continue working as normal.</p>
 
-      <div class="setup-step"><div class="step-num">1</div><div class="step-body"><h4>Get your Sheet ID</h4><p>Copy the ID from your sheet URL: <code>docs.google.com/spreadsheets/d/<b>{SHEET_ID}</b>/edit</code></p></div></div>
-      <div class="setup-step"><div class="step-num">2</div><div class="step-body"><h4>Google API Key (read access)</h4><p>Go to <code>console.cloud.google.com</code>, enable the Sheets API, and create an API key. Share your sheet as "Anyone with the link" → Viewer.</p></div></div>
-      <div class="setup-step"><div class="step-num">3</div><div class="step-body"><h4>Apps Script Web App (write access)</h4><p>Add a <code>doPost()</code> handler to your existing Apps Script alongside your <code>onFormSubmit</code>, <code>onEdit</code>, and <code>onOpen</code> functions.</p></div></div>
-
-      <div class="input-group"><label>Google Sheet ID</label><div class="input-row"><input type="text" id="cfgSheetId" placeholder="e.g. 1BxiMVs0XRA5nFMdKvBd…"><button class="btn btn-primary" onclick="saveCfg('sheetId','cfgSheetId')">Save</button></div></div>
-      <div class="input-group"><label>Sheet Tab Name</label><div class="input-row"><input type="text" id="cfgTab" placeholder="Form Responses 1"><button class="btn btn-secondary" onclick="saveCfg('sheetTab','cfgTab')">Save</button></div></div>
-      <div class="input-group"><label>API Key</label><div class="input-row"><input type="text" id="cfgKey" placeholder="AIzaSy…"><button class="btn btn-secondary" onclick="saveCfg('apiKey','cfgKey')">Save</button></div></div>
-      <div class="input-group"><label>Apps Script Web App URL</label><div class="input-row"><input type="text" id="cfgScript" placeholder="https://script.google.com/macros/s/…/exec"><button class="btn btn-secondary" onclick="saveCfg('appsScriptUrl','cfgScript')">Save</button></div></div>
-
-      <!-- Shown when config.js is loaded -->
-      <div id="cfgFileNotice" style="display:none;margin-top:16px;padding:12px 16px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;font-size:13px;color:#059669;">
-        ✓ Configuration loaded from <strong>config.js</strong>. To change settings, edit that file and redeploy.
-      </div>
-
-      <div class="status-msg" id="setupStatus"></div>
-
-      <div class="tmpl-info">
-        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg> Expected Sheet Columns</h4>
-        <div class="tmpl-cols">
-          <span>Timestamp</span><span>Email</span><span>Full Name</span><span>Phone Number</span><span>Address</span><span>Case Number</span><span>Device Type</span><span>Brand</span><span>Model</span><span>Serial Number</span><span>Accessories</span><span>Describe the Issue</span><span>When did it start?</span><span>Repaired before?</span><span>Known Issues</span><span>Job ID</span><span>Status</span><span>Drive Folder</span>
-        </div>
-      </div>
-
-      <div style="margin-top:24px;padding:20px;background:var(--bg-primary);border-radius:var(--radius-md);">
-        <h4 style="font-size:13px;font-weight:700;margin-bottom:6px;">Add to your existing Apps Script</h4>
-        <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.6;margin-bottom:4px;">Paste this alongside your existing functions. It uses your <code>getColumnByHeader_</code> helper to find columns dynamically.</p>
-        <pre class="code-block"><code>function doPost(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = JSON.parse(e.postData.contents);
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-  if (data.action === 'updateStatus') {
-    var jobIdCol = getColumnByHeader_(headers, "Job ID");
-    var statusCol = getColumnByHeader_(headers, "Status");
-    var rows = sheet.getDataRange().getValues();
-    for (var i = 1; i &lt; rows.length; i++) {
-      if (String(rows[i][jobIdCol - 1]) === String(data.jobId)) {
-        sheet.getRange(i + 1, statusCol).setValue(data.status);
-        break;
-      }
-    }
-    return ContentService.createTextOutput(
-      JSON.stringify({result: 'ok'})
-    ).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-function doGet(e) {
-  return ContentService.createTextOutput('Logic One SA Dashboard API');
-}</code></pre>
-        <p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">Deploy as: <b>Web app</b> → Execute as: <b>Me</b> → Access: <b>Anyone</b></p>
-      </div>
-    </div>
-  </div>
 </main>
+
 
 <!-- NEW JOB MODAL -->
 <div class="modal-overlay" id="newJobModal">
   <div class="modal">
     <div class="modal-header"><h2>New Repair Job</h2><button class="modal-close" onclick="closeModal('newJobModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-body">
-      <p style="font-size:12.5px;color:var(--text-secondary);margin-bottom:4px;">For full workflow (Drive folders, etc.), use the <a href="https://forms.gle/3Y9JpL9YJhcijBcv9" target="_blank" style="color:var(--accent);">drop-off form</a>. This creates a quick local record.</p>
+      <p style="font-size:12.5px;color:var(--text-secondary);margin-bottom:4px;">This creates a local record. For the full intake workflow with Drive folder creation, use the staff drop-off form.</p>
       <div class="fr3">
         <div class="ff"><label>Device Type</label><select id="nType"><option value="Robot Vacuum">Robot Vacuum</option><option value="Scooter">Scooter</option></select></div>
         <div class="ff"><label>Brand</label><select id="nBrand"><option value="Roborock">Roborock</option><option value="Segway">Segway</option></select></div>
@@ -787,42 +673,20 @@ let jobs = [], searchTerm = '';
 const FILE_CFG = window.LO_CONFIG || {};
 
 const cfg = {
-  sheetId:       FILE_CFG.sheetId       || localStorage.getItem('lo_sheetId')       || '',
-  sheetTab:      FILE_CFG.sheetTab      || localStorage.getItem('lo_sheetTab')      || 'Form Responses 1',
-  apiKey:        FILE_CFG.apiKey        || localStorage.getItem('lo_apiKey')        || '',
-  appsScriptUrl: FILE_CFG.appsScriptUrl || localStorage.getItem('lo_appsScriptUrl') || '',
+  sheetId:       FILE_CFG.sheetId       || '',
+  sheetTab:      FILE_CFG.sheetTab      || 'Form Responses 1',
+  apiKey:        FILE_CFG.apiKey        || '',
+  appsScriptUrl: FILE_CFG.appsScriptUrl || '',
 };
 
-// DEMO
-const DEMO = [
-  { jobId:'LO-260420-001', name:'Sarah Mitchell', phone:'0412 345 678', email:'sarah@email.com', address:'14 King William St, Adelaide', caseNo:'C01260415104006758', deviceType:'Robot Vacuum', brand:'Roborock', model:'S8 MaxV Ultra', serial:'R100SQ24L1234567', accessories:'Charger, Dock, Mop, Water Tank', issue:'Brush motor not spinning, error code E02 on display', whenStarted:'3 days ago', repairedBefore:'No', knownIssues:'', status:'Intake', driveFolder:'', ts:'2026-04-20 09:15:00' },
-  { jobId:'LO-260418-001', name:'Tom Bradley', phone:'0423 456 789', email:'tom@email.com', address:'8 Rundle Mall, Adelaide', caseNo:'', deviceType:'Scooter', brand:'Segway', model:'Ninebot G30 Max', serial:'N4GSH20L0987654', accessories:'Charger', issue:'Battery not charging past 40%, LED flashing red', whenStarted:'1 week ago', repairedBefore:'No', knownIssues:'Battery issue', status:'Diagnosis', driveFolder:'https://drive.google.com/drive/folders/abc123', ts:'2026-04-18 14:30:00' },
-  { jobId:'LO-260415-001', name:'Anna Chen', phone:'0434 567 890', email:'anna@email.com', address:'', caseNo:'C01260410109876543', deviceType:'Robot Vacuum', brand:'Roborock', model:'Q7 Max+', serial:'', accessories:'Dock', issue:'LiDAR sensor failure, mapping randomly and bumping walls', whenStarted:'2 weeks ago', repairedBefore:'No', knownIssues:'', status:'Awaiting Parts', driveFolder:'https://drive.google.com/drive/folders/def456', ts:'2026-04-15 10:00:00' },
-  { jobId:'LO-260414-001', name:'James Lee', phone:'0445 678 901', email:'james@email.com', address:'22 Magill Rd, Norwood', caseNo:'', deviceType:'Scooter', brand:'Segway', model:'Ninebot F2 Pro', serial:'N4GKF2P1122334', accessories:'Charger', issue:'Throttle unresponsive intermittently, cuts out mid-ride', whenStarted:'5 days ago', repairedBefore:'Yes', knownIssues:'Physical damage', status:'In Repair', driveFolder:'https://drive.google.com/drive/folders/ghi789', ts:'2026-04-14 11:45:00' },
-  { jobId:'LO-260412-001', name:'Emily Park', phone:'0456 789 012', email:'emily@email.com', address:'', caseNo:'C01260408108765432', deviceType:'Robot Vacuum', brand:'Roborock', model:'S7 MaxV', serial:'R100SQ21M9876543', accessories:'Charger, Dock, Mop, Water Tank', issue:'Water tank leaks heavily during mopping cycle', whenStarted:'10 days ago', repairedBefore:'No', knownIssues:'Water damage', status:'Testing', driveFolder:'https://drive.google.com/drive/folders/jkl012', ts:'2026-04-12 08:20:00' },
-  { jobId:'LO-260410-001', name:'Mark Thompson', phone:'0467 890 123', email:'mark@email.com', address:'5 Greenhill Rd, Wayville', caseNo:'', deviceType:'Scooter', brand:'Segway', model:'Ninebot E2', serial:'', accessories:'Charger', issue:'Flat rear tyre and front brake squealing', whenStarted:'2 weeks ago', repairedBefore:'No', knownIssues:'', status:'Complete', driveFolder:'https://drive.google.com/drive/folders/mno345', ts:'2026-04-10 16:00:00' },
-  { jobId:'LO-260416-001', name:'Lisa Nguyen', phone:'0478 901 234', email:'lisa@email.com', address:'12 The Parade, Norwood', caseNo:'C01260414107654321', deviceType:'Robot Vacuum', brand:'Roborock', model:'Dyad Pro', serial:'', accessories:'Charger', issue:'Roller brush tangled causing motor strain and overheating', whenStarted:'4 days ago', repairedBefore:'No', knownIssues:'', status:'In Repair', driveFolder:'https://drive.google.com/drive/folders/pqr678', ts:'2026-04-16 13:10:00' },
-  { jobId:'LO-260419-001', name:'David Wilson', phone:'0489 012 345', email:'david@email.com', address:'', caseNo:'C01260417106543210', deviceType:'Scooter', brand:'Segway', model:'Ninebot G65', serial:'N4GKG652233445', accessories:'Charger', issue:'Dashboard display flickering and cutting out at speed', whenStarted:'2 days ago', repairedBefore:'No', knownIssues:'Not charging', status:'Diagnosis', driveFolder:'', ts:'2026-04-19 10:30:00' },
-];
+const DEMO = [];
+
 
 // ============================================================
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('cfgSheetId').value = cfg.sheetId;
-  document.getElementById('cfgTab').value = cfg.sheetTab;
-  document.getElementById('cfgKey').value = cfg.apiKey;
-  document.getElementById('cfgScript').value = cfg.appsScriptUrl;
 
-  // If values came from config.js, mark fields as read-only and show a notice
-  if (FILE_CFG.sheetId) {
-    ['cfgSheetId','cfgTab','cfgKey','cfgScript'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.readOnly = true; el.style.background = '#f0f2f5'; el.style.color = '#5a6078'; }
-    });
-    const notice = document.getElementById('cfgFileNotice');
-    if (notice) notice.style.display = 'block';
-  }
   buildBoard();
   loadData();
 });
@@ -862,8 +726,6 @@ async function fetchSheet() {
 
     renderAll();
   } catch (err) {
-    console.error(err);
-    showSetupStatus('error', 'Sheets API error: ' + err.message + '. Showing demo data.');
     jobs = [...DEMO]; renderAll();
   }
   showLoading(false);
@@ -1053,7 +915,7 @@ async function moveJob(id, newStatus) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'updateStatus', jobId: id, status: newStatus })
       });
-    } catch (err) { console.warn('Sync failed:', err); }
+    } catch (err) { /* sync failed silently */ }
   }
 }
 
@@ -1100,11 +962,7 @@ function genId(d) {
 // ============================================================
 // CONFIG
 // ============================================================
-function saveCfg(key, inputId) {
-  const v = document.getElementById(inputId).value.trim();
-  cfg[key] = v; localStorage.setItem('lo_' + key, v);
-  showSetupStatus('success', key + ' saved.');
-}
+
 
 // ============================================================
 // UI
@@ -1114,7 +972,7 @@ function switchView(v) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('view-' + v).classList.add('active');
   document.querySelector(`[data-view="${v}"]`).classList.add('active');
-  document.getElementById('viewTitle').textContent = { kanban:'KANBAN BOARD', list:'ALL JOBS', setup:'SHEET SETUP' }[v] || '';
+  document.getElementById('viewTitle').textContent = { kanban:'KANBAN BOARD', list:'ALL JOBS' }[v] || '';
   closeSidebar();
 }
 
@@ -1124,11 +982,7 @@ function toggleSidebar() { document.getElementById('sidebar').classList.toggle('
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
 function showLoading(s) { document.getElementById('kanbanLoading').classList.toggle('show', s); document.getElementById('listLoading').classList.toggle('show', s); }
 
-function showSetupStatus(type, msg) {
-  const el = document.getElementById('setupStatus');
-  el.className = `status-msg ${type}`; el.textContent = msg;
-  setTimeout(() => { el.style.display = 'none'; }, 5000);
-}
+
 
 function handleSearch() { searchTerm = document.getElementById('searchInput').value.trim(); renderKanban(); renderTable(); }
 
