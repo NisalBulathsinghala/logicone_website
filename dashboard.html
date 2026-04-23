@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Logic One SA — Repair Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-primary: #f0f2f5;
+    --bg-surface: #ffffff;
+    --bg-surface-hover: #f7f8fa;
+    --bg-sidebar: #0b1628;
+    --bg-sidebar-hover: #132240;
+    --text-primary: #1a1a2e;
+    --text-secondary: #5a6078;
+    --text-sidebar: #c0c8e0;
+    --text-sidebar-active: #ffffff;
+    --accent: #00b4d8;
+    --accent-glow: rgba(0, 180, 216, 0.15);
+    --accent-dark: #0096b7;
+    --border: #e2e5ec;
+    --border-light: #eef0f4;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.08);
+    --shadow-kanban: 0 2px 8px rgba(0,0,0,0.08);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --col-intake: #6366f1;
+    --col-diagnosis: #f59e0b;
+    --col-awaiting: #ef4444;
+    --col-repair: #3b82f6;
+    --col-testing: #8b5cf6;
+    --col-complete: #10b981;
+    --col-collected: #64748b;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    width: 260px; min-width: 260px;
+    background: var(--bg-sidebar);
+    display: flex; flex-direction: column;
+    height: 100vh; position: sticky; top: 0; z-index: 100;
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar-brand {
+    padding: 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .brand-icon {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--accent), #0077b6);
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 800; font-size: 14px; color: white;
+  }
+
+  .brand-text {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 600; font-size: 13px;
+    color: var(--text-sidebar-active);
+    letter-spacing: 1px; line-height: 1.3;
+  }
+
+  .brand-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px; color: var(--text-sidebar);
+    font-weight: 400; letter-spacing: 0.5px; margin-top: 2px;
+  }
+
+  .sidebar-nav {
+    flex: 1; padding: 16px 12px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+
+  .sidebar-section-label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1.5px; color: rgba(192,200,224,0.4);
+    padding: 16px 12px 8px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    color: var(--text-sidebar); text-decoration: none;
+    font-size: 13.5px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s ease; position: relative;
+  }
+
+  .nav-item:hover { background: var(--bg-sidebar-hover); color: var(--text-sidebar-active); }
+  .nav-item.active { background: rgba(0,180,216,0.12); color: var(--accent); }
+
+  .nav-item.active::before {
+    content: ''; position: absolute; left: -12px; top: 50%;
+    transform: translateY(-50%);
+    width: 3px; height: 20px;
+    background: var(--accent); border-radius: 0 3px 3px 0;
+  }
+
+  .nav-item svg { width: 18px; height: 18px; opacity: 0.7; flex-shrink: 0; }
+  .nav-item.active svg { opacity: 1; }
+
+  .nav-badge {
+    margin-left: auto; background: rgba(255,255,255,0.08);
+    color: var(--text-sidebar); font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 10px;
+  }
+
+  .nav-item.active .nav-badge { background: rgba(0,180,216,0.2); color: var(--accent); }
+
+  .sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .sidebar-footer a {
+    font-size: 12px; color: var(--text-sidebar);
+    text-decoration: none; display: flex; align-items: center;
+    gap: 8px; opacity: 0.7; transition: opacity 0.15s;
+  }
+
+  .sidebar-footer a:hover { opacity: 1; }
+
+  /* ===== MAIN ===== */
+  .main-content { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px; background: var(--bg-surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+
+  .menu-toggle {
+    display: none; background: none; border: none;
+    cursor: pointer; color: var(--text-secondary); padding: 4px;
+  }
+
+  .topbar h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px; font-weight: 700; letter-spacing: 0.5px;
+  }
+
+  .topbar-actions { display: flex; align-items: center; gap: 10px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600; border: none;
+    cursor: pointer; transition: all 0.15s ease;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .btn svg { width: 16px; height: 16px; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-secondary { background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+
+  .search-bar { position: relative; max-width: 240px; }
+
+  .search-bar input {
+    width: 100%; padding: 7px 12px 7px 34px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 13px; font-family: 'Inter', sans-serif;
+    outline: none; transition: border-color 0.15s; background: var(--bg-primary);
+  }
+
+  .search-bar input:focus { border-color: var(--accent); background: var(--bg-surface); }
+
+  .search-bar svg {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    width: 15px; height: 15px; color: var(--text-secondary); opacity: 0.5;
+  }
+
+  /* ===== VIEWS ===== */
+  .view { display: none; flex-direction: column; height: 100%; }
+  .view.active { display: flex; }
+
+  /* ===== STATS ===== */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 14px; padding: 20px 28px; flex-shrink: 0;
+  }
+
+  .stat-card {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 16px 18px;
+    display: flex; align-items: center; gap: 14px;
+    transition: box-shadow 0.2s ease;
+  }
+
+  .stat-card:hover { box-shadow: var(--shadow-md); }
+
+  .stat-icon {
+    width: 42px; height: 42px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+
+  .stat-icon svg { width: 20px; height: 20px; }
+  .si-intake { background: rgba(99,102,241,0.1); color: var(--col-intake); }
+  .si-active { background: rgba(59,130,246,0.1); color: var(--col-repair); }
+  .si-waiting { background: rgba(239,68,68,0.1); color: var(--col-awaiting); }
+  .si-done { background: rgba(16,185,129,0.1); color: var(--col-complete); }
+
+  .stat-info h3 { font-size: 22px; font-weight: 700; line-height: 1; }
+  .stat-info p { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
+
+  /* ===== KANBAN ===== */
+  .kanban-wrapper { flex: 1; overflow-x: auto; overflow-y: hidden; padding: 0 28px 20px; }
+  .kanban-board { display: flex; gap: 14px; height: 100%; min-width: min-content; }
+
+  .kanban-column {
+    width: 280px; min-width: 280px;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    display: flex; flex-direction: column; max-height: 100%;
+    transition: box-shadow 0.2s ease;
+  }
+
+  .kanban-column.drag-over { box-shadow: 0 0 0 2px var(--accent), var(--shadow-lg); }
+
+  .column-header {
+    padding: 14px 16px; display: flex; align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light); flex-shrink: 0;
+  }
+
+  .column-header-left { display: flex; align-items: center; gap: 10px; }
+  .column-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  .column-header h3 {
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px;
+  }
+
+  .column-count {
+    font-size: 11px; font-weight: 700; color: var(--text-secondary);
+    background: var(--bg-primary);
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .column-cards {
+    flex: 1; overflow-y: auto; padding: 10px;
+    display: flex; flex-direction: column; gap: 8px;
+    min-height: 60px;
+  }
+
+  .column-cards::-webkit-scrollbar { width: 4px; }
+  .column-cards::-webkit-scrollbar-track { background: transparent; }
+  .column-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ===== KANBAN CARD ===== */
+  .kanban-card {
+    background: var(--bg-surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius-md); padding: 14px;
+    cursor: grab; transition: all 0.15s ease; position: relative;
+  }
+
+  .kanban-card:hover { box-shadow: var(--shadow-kanban); border-color: var(--border); }
+  .kanban-card:active { cursor: grabbing; }
+  .kanban-card.dragging { opacity: 0.4; transform: rotate(2deg); }
+
+  .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+
+  .card-id {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px; font-weight: 600; color: var(--accent); letter-spacing: 0.3px;
+  }
+
+  .card-brand-tag {
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; padding: 2px 7px; border-radius: 4px;
+  }
+
+  .t-roborock { background: rgba(16,185,129,0.1); color: #059669; }
+  .t-segway { background: rgba(239,68,68,0.1); color: #dc2626; }
+  .t-other { background: rgba(100,116,139,0.1); color: #475569; }
+
+  .card-device { font-size: 13.5px; font-weight: 600; line-height: 1.3; margin-bottom: 2px; }
+  .card-model-sub { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+
+  .card-case {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 9.5px; font-weight: 600;
+    background: rgba(99,102,241,0.07); color: #6366f1;
+    padding: 3px 8px; border-radius: 4px; margin-bottom: 8px;
+    letter-spacing: 0.2px; max-width: 100%; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .card-case svg { width: 11px; height: 11px; opacity: 0.6; flex-shrink: 0; }
+
+  .card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+
+  .tag-sm {
+    font-size: 10px; font-weight: 600;
+    padding: 2px 7px; border-radius: 4px;
+  }
+
+  .tag-type { background: rgba(59,130,246,0.08); color: #3b82f6; }
+  .tag-wt-in { background: rgba(16,185,129,0.1); color: #059669; }
+  .tag-wt-out { background: rgba(239,68,68,0.1); color: #dc2626; }
+
+  .card-issue {
+    font-size: 12px; color: var(--text-secondary); line-height: 1.4;
+    margin-bottom: 10px;
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+
+  .card-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 10px; border-top: 1px solid var(--border-light);
+  }
+
+  .card-customer {
+    font-size: 11.5px; font-weight: 500; color: var(--text-secondary);
+    display: flex; align-items: center; gap: 5px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;
+  }
+
+  .card-customer svg { width: 13px; height: 13px; opacity: 0.5; flex-shrink: 0; }
+
+  .card-footer-r { display: flex; align-items: center; gap: 6px; }
+  .card-date { font-size: 10.5px; color: var(--text-secondary); opacity: 0.7; }
+
+  .card-folder {
+    color: var(--text-secondary); opacity: 0.5; transition: all 0.15s; display: flex;
+  }
+
+  .card-folder:hover { opacity: 1; color: var(--accent); }
+  .card-folder svg { width: 14px; height: 14px; }
+
+  /* ===== TABLE ===== */
+  .table-wrapper { overflow: auto; padding: 20px 28px; flex: 1; }
+
+  .jobs-table {
+    width: 100%; border-collapse: collapse;
+    background: var(--bg-surface); border-radius: var(--radius-lg);
+    overflow: hidden; border: 1px solid var(--border); min-width: 1000px;
+  }
+
+  .jobs-table th {
+    padding: 12px 14px; text-align: left;
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--text-secondary);
+    background: var(--bg-primary); position: sticky; top: 0; z-index: 2;
+  }
+
+  .jobs-table td {
+    padding: 11px 14px; font-size: 13px;
+    border-bottom: 1px solid var(--border-light); white-space: nowrap;
+  }
+
+  .jobs-table tr:hover td { background: var(--bg-surface-hover); }
+
+  .t-job-id { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 600; color: var(--accent); }
+  .t-case { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; color: #6366f1; }
+
+  .t-status {
+    font-size: 10.5px; font-weight: 700; padding: 3px 10px;
+    border-radius: 20px; display: inline-block;
+  }
+
+  /* ===== SETUP ===== */
+  .setup-view { padding: 40px 28px; overflow-y: auto; }
+
+  .setup-card {
+    max-width: 680px; margin: 0 auto;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-xl); padding: 40px;
+  }
+
+  .setup-card h2 { font-family: 'Orbitron', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .setup-card > p { font-size: 13.5px; color: var(--text-secondary); margin-bottom: 28px; line-height: 1.6; }
+
+  .setup-step { display: flex; gap: 16px; margin-bottom: 24px; }
+
+  .step-num {
+    width: 32px; height: 32px; background: var(--accent-glow); color: var(--accent);
+    font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 2px;
+  }
+
+  .step-body h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .step-body p { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+  .step-body code {
+    background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;
+    font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--accent-dark);
+  }
+
+  .input-group { margin-top: 20px; }
+  .input-group label { font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .input-row { display: flex; gap: 10px; }
+
+  .input-row input {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 13px; font-family: 'Inter', sans-serif;
+    outline: none; transition: border-color 0.15s;
+  }
+
+  .input-row input:focus { border-color: var(--accent); }
+
+  .status-msg { margin-top: 16px; padding: 12px 16px; border-radius: var(--radius-sm); font-size: 13px; display: none; }
+  .status-msg.error { background: rgba(239,68,68,0.08); color: #dc2626; border: 1px solid rgba(239,68,68,0.2); display: block; }
+  .status-msg.success { background: rgba(16,185,129,0.08); color: #059669; border: 1px solid rgba(16,185,129,0.2); display: block; }
+
+  .tmpl-info { background: var(--bg-primary); border-radius: var(--radius-md); padding: 16px; margin-top: 24px; }
+  .tmpl-info h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .tmpl-cols { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tmpl-cols span { font-size: 11px; font-weight: 600; background: var(--bg-surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 20px; color: var(--text-secondary); }
+
+  .code-block { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; font-size: 11.5px; line-height: 1.5; overflow-x: auto; color: var(--text-primary); margin-top: 12px; }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+    z-index: 1000; align-items: center; justify-content: center;
+  }
+
+  .modal-overlay.show { display: flex; }
+
+  .modal {
+    background: var(--bg-surface); border-radius: var(--radius-xl);
+    width: 540px; max-width: 92vw; max-height: 88vh;
+    overflow-y: auto; box-shadow: var(--shadow-lg);
+  }
+
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+  }
+
+  .modal-header h2 { font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 700; }
+
+  .modal-close { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 4px; }
+
+  .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+  .ff label {
+    display: block; font-size: 11.5px; font-weight: 600; margin-bottom: 6px;
+    color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  .ff input, .ff select, .ff textarea {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 13.5px; font-family: 'Inter', sans-serif;
+    outline: none; transition: border-color 0.15s;
+    background: var(--bg-surface); color: var(--text-primary);
+  }
+
+  .ff input:focus, .ff select:focus, .ff textarea:focus { border-color: var(--accent); }
+  .ff textarea { resize: vertical; min-height: 70px; }
+
+  .fr2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .fr3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  .cb-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+
+  .cb-group label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 400; color: var(--text-primary);
+    text-transform: none; letter-spacing: 0; cursor: pointer; margin-bottom: 0;
+  }
+
+  .cb-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+  .modal-footer {
+    padding: 16px 24px; border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 10px;
+  }
+
+  /* ===== DETAIL ===== */
+  .d-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .d-full { grid-column: 1 / -1; }
+
+  .d-item label {
+    font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--text-secondary); margin-bottom: 4px; display: block;
+  }
+
+  .d-val { font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+  .d-mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12.5px; color: #6366f1; }
+
+  /* ===== LOADING ===== */
+  .loading-overlay {
+    display: none; position: absolute; inset: 0;
+    background: rgba(255,255,255,0.85); z-index: 50;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px;
+  }
+
+  .loading-overlay.show { display: flex; }
+
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 900px) {
+    .sidebar { position: fixed; left: 0; top: 0; transform: translateX(-100%); z-index: 200; }
+    .sidebar.open { transform: translateX(0); }
+    .menu-toggle { display: block; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); padding: 16px; }
+    .kanban-wrapper { padding: 0 16px 16px; }
+    .kanban-column { width: 260px; min-width: 260px; }
+    .topbar { padding: 14px 16px; }
+    .setup-view { padding: 20px 16px; }
+    .setup-card { padding: 24px; }
+    .table-wrapper { padding: 16px; }
+    .search-bar { max-width: 160px; }
+  }
+
+  @media (max-width: 500px) {
+    .stats-row { grid-template-columns: 1fr; }
+    .fr2, .fr3, .d-grid { grid-template-columns: 1fr; }
+    .topbar-actions .btn-label { display: none; }
+  }
+
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 150; }
+  .sidebar-overlay.show { display: block; }
+
+  .kanban-wrapper::-webkit-scrollbar { height: 6px; }
+  .kanban-wrapper::-webkit-scrollbar-track { background: transparent; }
+  .kanban-wrapper::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">L1</div>
+    <div>
+      <div class="brand-text">LOGIC ONE</div>
+      <div class="brand-sub">Repair Dashboard</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">Main</div>
+    <a class="nav-item active" data-view="kanban" onclick="switchView('kanban')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      Kanban Board
+    </a>
+    <a class="nav-item" data-view="list" onclick="switchView('list')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+      All Jobs
+      <span class="nav-badge" id="totalBadge">0</span>
+    </a>
+    <div class="sidebar-section-label">Settings</div>
+    <a class="nav-item" data-view="setup" onclick="switchView('setup')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Sheet Setup
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to Website
+    </a>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- MAIN -->
+<main class="main-content">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="menu-toggle" onclick="toggleSidebar()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <h1 id="viewTitle">KANBAN BOARD</h1>
+    </div>
+    <div class="topbar-actions">
+      <div class="search-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Search jobs…" oninput="handleSearch()">
+      </div>
+      <button class="btn btn-secondary" onclick="refreshData()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+        <span class="btn-label">Sync</span>
+      </button>
+      <button class="btn btn-primary" onclick="openModal('newJobModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span class="btn-label">New Job</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- KANBAN -->
+  <div class="view active" id="view-kanban" style="position:relative;">
+    <div class="loading-overlay" id="kanbanLoading"><div class="spinner"></div><div class="loading-text">Syncing with Google Sheets…</div></div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-icon si-intake"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><div class="stat-info"><h3 id="sI">0</h3><p>New Intake</p></div></div>
+      <div class="stat-card"><div class="stat-icon si-active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div><div class="stat-info"><h3 id="sA">0</h3><p>In Repair</p></div></div>
+      <div class="stat-card"><div class="stat-icon si-waiting"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-info"><h3 id="sW">0</h3><p>Awaiting Parts</p></div></div>
+      <div class="stat-card"><div class="stat-icon si-done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="stat-info"><h3 id="sC">0</h3><p>Completed</p></div></div>
+    </div>
+    <div class="kanban-wrapper"><div class="kanban-board" id="kanbanBoard"></div></div>
+  </div>
+
+  <!-- LIST -->
+  <div class="view" id="view-list" style="position:relative;">
+    <div class="loading-overlay" id="listLoading"><div class="spinner"></div><div class="loading-text">Loading jobs…</div></div>
+    <div class="table-wrapper">
+      <table class="jobs-table">
+        <thead><tr><th>Job ID</th><th>Brand</th><th>Model</th><th>Type</th><th>Customer</th><th>Case No.</th><th>Status</th><th>Date In</th><th>Folder</th></tr></thead>
+        <tbody id="tBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SETUP -->
+  <div class="view setup-view" id="view-setup">
+    <div class="setup-card">
+      <h2>Connect Google Sheet</h2>
+      <p>Link your master repair tracking sheet. The dashboard reads job data via the Sheets API and writes status updates via your existing Apps Script. Form submissions and Drive folder creation continue working as normal.</p>
+
+      <div class="setup-step"><div class="step-num">1</div><div class="step-body"><h4>Get your Sheet ID</h4><p>Copy the ID from your sheet URL: <code>docs.google.com/spreadsheets/d/<b>{SHEET_ID}</b>/edit</code></p></div></div>
+      <div class="setup-step"><div class="step-num">2</div><div class="step-body"><h4>Google API Key (read access)</h4><p>Go to <code>console.cloud.google.com</code>, enable the Sheets API, and create an API key. Share your sheet as "Anyone with the link" → Viewer.</p></div></div>
+      <div class="setup-step"><div class="step-num">3</div><div class="step-body"><h4>Apps Script Web App (write access)</h4><p>Add a <code>doPost()</code> handler to your existing Apps Script alongside your <code>onFormSubmit</code>, <code>onEdit</code>, and <code>onOpen</code> functions.</p></div></div>
+
+      <div class="input-group"><label>Google Sheet ID</label><div class="input-row"><input type="text" id="cfgSheetId" placeholder="e.g. 1BxiMVs0XRA5nFMdKvBd…"><button class="btn btn-primary" onclick="saveCfg('sheetId','cfgSheetId')">Save</button></div></div>
+      <div class="input-group"><label>Sheet Tab Name</label><div class="input-row"><input type="text" id="cfgTab" placeholder="Form Responses 1"><button class="btn btn-secondary" onclick="saveCfg('sheetTab','cfgTab')">Save</button></div></div>
+      <div class="input-group"><label>API Key</label><div class="input-row"><input type="text" id="cfgKey" placeholder="AIzaSy…"><button class="btn btn-secondary" onclick="saveCfg('apiKey','cfgKey')">Save</button></div></div>
+      <div class="input-group"><label>Apps Script Web App URL</label><div class="input-row"><input type="text" id="cfgScript" placeholder="https://script.google.com/macros/s/…/exec"><button class="btn btn-secondary" onclick="saveCfg('appsScriptUrl','cfgScript')">Save</button></div></div>
+
+      <div class="status-msg" id="setupStatus"></div>
+
+      <div class="tmpl-info">
+        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg> Expected Sheet Columns</h4>
+        <div class="tmpl-cols">
+          <span>Timestamp</span><span>Email</span><span>Full Name</span><span>Phone Number</span><span>Address</span><span>Case Number</span><span>Device Type</span><span>Brand</span><span>Model</span><span>Serial Number</span><span>Accessories</span><span>Describe the Issue</span><span>When did it start?</span><span>Repaired before?</span><span>Known Issues</span><span>Job ID</span><span>Status</span><span>Drive Folder</span>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;padding:20px;background:var(--bg-primary);border-radius:var(--radius-md);">
+        <h4 style="font-size:13px;font-weight:700;margin-bottom:6px;">Add to your existing Apps Script</h4>
+        <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.6;margin-bottom:4px;">Paste this alongside your existing functions. It uses your <code>getColumnByHeader_</code> helper to find columns dynamically.</p>
+        <pre class="code-block"><code>function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  if (data.action === 'updateStatus') {
+    var jobIdCol = getColumnByHeader_(headers, "Job ID");
+    var statusCol = getColumnByHeader_(headers, "Status");
+    var rows = sheet.getDataRange().getValues();
+    for (var i = 1; i &lt; rows.length; i++) {
+      if (String(rows[i][jobIdCol - 1]) === String(data.jobId)) {
+        sheet.getRange(i + 1, statusCol).setValue(data.status);
+        break;
+      }
+    }
+    return ContentService.createTextOutput(
+      JSON.stringify({result: 'ok'})
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput('Logic One SA Dashboard API');
+}</code></pre>
+        <p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">Deploy as: <b>Web app</b> → Execute as: <b>Me</b> → Access: <b>Anyone</b></p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- NEW JOB MODAL -->
+<div class="modal-overlay" id="newJobModal">
+  <div class="modal">
+    <div class="modal-header"><h2>New Repair Job</h2><button class="modal-close" onclick="closeModal('newJobModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-body">
+      <p style="font-size:12.5px;color:var(--text-secondary);margin-bottom:4px;">For full workflow (Drive folders, etc.), use the <a href="https://forms.gle/3Y9JpL9YJhcijBcv9" target="_blank" style="color:var(--accent);">drop-off form</a>. This creates a quick local record.</p>
+      <div class="fr3">
+        <div class="ff"><label>Device Type</label><select id="nType"><option value="Robot Vacuum">Robot Vacuum</option><option value="Scooter">Scooter</option></select></div>
+        <div class="ff"><label>Brand</label><select id="nBrand"><option value="Roborock">Roborock</option><option value="Segway">Segway</option></select></div>
+        <div class="ff"><label>Model</label><input type="text" id="nModel" placeholder="e.g. S8 MaxV Ultra"></div>
+      </div>
+      <div class="fr2">
+        <div class="ff"><label>Serial Number</label><input type="text" id="nSerial" placeholder="Optional"></div>
+        <div class="ff"><label>Case Number</label><input type="text" id="nCase" placeholder="C01260415104006758"></div>
+      </div>
+      <div class="ff"><label>Issue Description</label><textarea id="nIssue" placeholder="Describe the fault…"></textarea></div>
+      <div class="fr2">
+        <div class="ff"><label>Customer Name</label><input type="text" id="nName" placeholder="Full name"></div>
+        <div class="ff"><label>Phone</label><input type="text" id="nPhone" placeholder="0412 345 678"></div>
+      </div>
+      <div class="ff"><label>Email</label><input type="email" id="nEmail" placeholder="customer@email.com"></div>
+      <div class="ff"><label>Accessories</label><div class="cb-group"><label><input type="checkbox" value="Charger"> Charger</label><label><input type="checkbox" value="Dock"> Dock</label><label><input type="checkbox" value="Mop"> Mop</label><label><input type="checkbox" value="Water Tank"> Water Tank</label></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('newJobModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitNewJob()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Job</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal" style="width:580px;">
+    <div class="modal-header"><h2 id="dTitle">Job Details</h2><button class="modal-close" onclick="closeModal('detailModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-body" id="dBody"></div>
+    <div class="modal-footer" id="dFoot"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+const COLS = [
+  { id: 'Intake', label: 'Intake', color: 'var(--col-intake)' },
+  { id: 'Diagnosis', label: 'Diagnosis', color: 'var(--col-diagnosis)' },
+  { id: 'Awaiting Parts', label: 'Awaiting Parts', color: 'var(--col-awaiting)' },
+  { id: 'In Repair', label: 'In Repair', color: 'var(--col-repair)' },
+  { id: 'Testing', label: 'Testing', color: 'var(--col-testing)' },
+  { id: 'Complete', label: 'Complete', color: 'var(--col-complete)' },
+  { id: 'Collected', label: 'Collected', color: 'var(--col-collected)' },
+];
+
+const SC = {
+  'Intake': { bg:'rgba(99,102,241,0.1)', c:'#6366f1' },
+  'Diagnosis': { bg:'rgba(245,158,11,0.1)', c:'#d97706' },
+  'Awaiting Parts': { bg:'rgba(239,68,68,0.1)', c:'#dc2626' },
+  'In Repair': { bg:'rgba(59,130,246,0.1)', c:'#2563eb' },
+  'Testing': { bg:'rgba(139,92,246,0.1)', c:'#7c3aed' },
+  'Complete': { bg:'rgba(16,185,129,0.1)', c:'#059669' },
+  'Collected': { bg:'rgba(100,116,139,0.1)', c:'#475569' },
+};
+
+// Map sheet headers → internal keys
+const HMAP = {
+  'timestamp':'ts','email address':'email','email':'email',
+  'full name':'name','phone number':'phone','phone':'phone',
+  'address':'address','case number':'caseNo',
+  'device type':'deviceType','brand':'brand','model':'model',
+  'serial number':'serial','serial':'serial',
+  'accessories':'accessories',
+  'describe the issue':'issue','issue':'issue',
+  'when did it start?':'whenStarted','when did it start':'whenStarted',
+  'repaired before?':'repairedBefore','repaired before':'repairedBefore',
+  'known issues':'knownIssues',
+  'job id':'jobId','status':'status','drive folder':'driveFolder',
+};
+
+let jobs = [], searchTerm = '';
+
+const cfg = {
+  sheetId: localStorage.getItem('lo_sheetId') || '',
+  sheetTab: localStorage.getItem('lo_sheetTab') || 'Form Responses 1',
+  apiKey: localStorage.getItem('lo_apiKey') || '',
+  appsScriptUrl: localStorage.getItem('lo_appsScriptUrl') || '',
+};
+
+// DEMO
+const DEMO = [
+  { jobId:'LO-260420-001', name:'Sarah Mitchell', phone:'0412 345 678', email:'sarah@email.com', address:'14 King William St, Adelaide', caseNo:'C01260415104006758', deviceType:'Robot Vacuum', brand:'Roborock', model:'S8 MaxV Ultra', serial:'R100SQ24L1234567', accessories:'Charger, Dock, Mop, Water Tank', issue:'Brush motor not spinning, error code E02 on display', whenStarted:'3 days ago', repairedBefore:'No', knownIssues:'', status:'Intake', driveFolder:'', ts:'2026-04-20 09:15:00' },
+  { jobId:'LO-260418-001', name:'Tom Bradley', phone:'0423 456 789', email:'tom@email.com', address:'8 Rundle Mall, Adelaide', caseNo:'', deviceType:'Scooter', brand:'Segway', model:'Ninebot G30 Max', serial:'N4GSH20L0987654', accessories:'Charger', issue:'Battery not charging past 40%, LED flashing red', whenStarted:'1 week ago', repairedBefore:'No', knownIssues:'Battery issue', status:'Diagnosis', driveFolder:'https://drive.google.com/drive/folders/abc123', ts:'2026-04-18 14:30:00' },
+  { jobId:'LO-260415-001', name:'Anna Chen', phone:'0434 567 890', email:'anna@email.com', address:'', caseNo:'C01260410109876543', deviceType:'Robot Vacuum', brand:'Roborock', model:'Q7 Max+', serial:'', accessories:'Dock', issue:'LiDAR sensor failure, mapping randomly and bumping walls', whenStarted:'2 weeks ago', repairedBefore:'No', knownIssues:'', status:'Awaiting Parts', driveFolder:'https://drive.google.com/drive/folders/def456', ts:'2026-04-15 10:00:00' },
+  { jobId:'LO-260414-001', name:'James Lee', phone:'0445 678 901', email:'james@email.com', address:'22 Magill Rd, Norwood', caseNo:'', deviceType:'Scooter', brand:'Segway', model:'Ninebot F2 Pro', serial:'N4GKF2P1122334', accessories:'Charger', issue:'Throttle unresponsive intermittently, cuts out mid-ride', whenStarted:'5 days ago', repairedBefore:'Yes', knownIssues:'Physical damage', status:'In Repair', driveFolder:'https://drive.google.com/drive/folders/ghi789', ts:'2026-04-14 11:45:00' },
+  { jobId:'LO-260412-001', name:'Emily Park', phone:'0456 789 012', email:'emily@email.com', address:'', caseNo:'C01260408108765432', deviceType:'Robot Vacuum', brand:'Roborock', model:'S7 MaxV', serial:'R100SQ21M9876543', accessories:'Charger, Dock, Mop, Water Tank', issue:'Water tank leaks heavily during mopping cycle', whenStarted:'10 days ago', repairedBefore:'No', knownIssues:'Water damage', status:'Testing', driveFolder:'https://drive.google.com/drive/folders/jkl012', ts:'2026-04-12 08:20:00' },
+  { jobId:'LO-260410-001', name:'Mark Thompson', phone:'0467 890 123', email:'mark@email.com', address:'5 Greenhill Rd, Wayville', caseNo:'', deviceType:'Scooter', brand:'Segway', model:'Ninebot E2', serial:'', accessories:'Charger', issue:'Flat rear tyre and front brake squealing', whenStarted:'2 weeks ago', repairedBefore:'No', knownIssues:'', status:'Complete', driveFolder:'https://drive.google.com/drive/folders/mno345', ts:'2026-04-10 16:00:00' },
+  { jobId:'LO-260416-001', name:'Lisa Nguyen', phone:'0478 901 234', email:'lisa@email.com', address:'12 The Parade, Norwood', caseNo:'C01260414107654321', deviceType:'Robot Vacuum', brand:'Roborock', model:'Dyad Pro', serial:'', accessories:'Charger', issue:'Roller brush tangled causing motor strain and overheating', whenStarted:'4 days ago', repairedBefore:'No', knownIssues:'', status:'In Repair', driveFolder:'https://drive.google.com/drive/folders/pqr678', ts:'2026-04-16 13:10:00' },
+  { jobId:'LO-260419-001', name:'David Wilson', phone:'0489 012 345', email:'david@email.com', address:'', caseNo:'C01260417106543210', deviceType:'Scooter', brand:'Segway', model:'Ninebot G65', serial:'N4GKG652233445', accessories:'Charger', issue:'Dashboard display flickering and cutting out at speed', whenStarted:'2 days ago', repairedBefore:'No', knownIssues:'Not charging', status:'Diagnosis', driveFolder:'', ts:'2026-04-19 10:30:00' },
+];
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('cfgSheetId').value = cfg.sheetId;
+  document.getElementById('cfgTab').value = cfg.sheetTab;
+  document.getElementById('cfgKey').value = cfg.apiKey;
+  document.getElementById('cfgScript').value = cfg.appsScriptUrl;
+  buildBoard();
+  loadData();
+});
+
+// ============================================================
+// DATA
+// ============================================================
+async function loadData() {
+  if (cfg.sheetId && cfg.apiKey) { await fetchSheet(); }
+  else { jobs = [...DEMO]; renderAll(); }
+}
+
+async function fetchSheet() {
+  showLoading(true);
+  try {
+    const tab = encodeURIComponent(cfg.sheetTab || 'Sheet1');
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${tab}?key=${cfg.apiKey}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`API ${r.status}`);
+    const d = await r.json();
+    const rows = d.values;
+    if (!rows || rows.length < 2) { jobs = []; renderAll(); showLoading(false); return; }
+
+    const headers = rows[0];
+    const cMap = {};
+    headers.forEach((h, i) => {
+      const k = h.trim().toLowerCase().replace(/\s+/g, ' ');
+      if (HMAP[k]) cMap[i] = HMAP[k];
+    });
+
+    jobs = rows.slice(1).map(row => {
+      const o = {};
+      Object.entries(cMap).forEach(([i, key]) => { o[key] = row[parseInt(i)] || ''; });
+      if (!o.status) o.status = 'Intake';
+      return o;
+    }).filter(j => j.jobId || j.name);
+
+    renderAll();
+  } catch (err) {
+    console.error(err);
+    showSetupStatus('error', 'Sheets API error: ' + err.message + '. Showing demo data.');
+    jobs = [...DEMO]; renderAll();
+  }
+  showLoading(false);
+}
+
+function refreshData() { loadData(); }
+
+// ============================================================
+// KANBAN
+// ============================================================
+function buildBoard() {
+  const board = document.getElementById('kanbanBoard');
+  board.innerHTML = '';
+  COLS.forEach(col => {
+    const el = document.createElement('div');
+    el.className = 'kanban-column'; el.dataset.status = col.id;
+    el.innerHTML = `<div class="column-header"><div class="column-header-left"><div class="column-dot" style="background:${col.color}"></div><h3>${col.label}</h3></div><div class="column-count" data-cnt="${col.id}">0</div></div><div class="column-cards" data-col="${col.id}"></div>`;
+    const z = el.querySelector('.column-cards');
+    z.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+    z.addEventListener('dragleave', e => { if (!el.contains(e.relatedTarget)) el.classList.remove('drag-over'); });
+    z.addEventListener('drop', e => { e.preventDefault(); el.classList.remove('drag-over'); moveJob(e.dataTransfer.getData('text/plain'), col.id); });
+    board.appendChild(el);
+  });
+}
+
+function renderAll() {
+  renderKanban(); renderStats(); renderTable();
+  document.getElementById('totalBadge').textContent = jobs.length;
+}
+
+function filtered() {
+  if (!searchTerm) return jobs;
+  const q = searchTerm.toLowerCase();
+  return jobs.filter(j => [j.jobId,j.name,j.brand,j.model,j.caseNo,j.issue,j.serial].some(v => (v||'').toLowerCase().includes(q)));
+}
+
+function renderKanban() {
+  const f = filtered();
+  COLS.forEach(col => {
+    const c = document.querySelector(`[data-col="${col.id}"]`);
+    c.innerHTML = '';
+    const cj = f.filter(j => j.status === col.id);
+    document.querySelector(`[data-cnt="${col.id}"]`).textContent = cj.length;
+    cj.forEach(j => c.appendChild(mkCard(j)));
+  });
+}
+
+function mkCard(j) {
+  const card = document.createElement('div');
+  card.className = 'kanban-card'; card.draggable = true; card.dataset.jobId = j.jobId;
+
+  const bt = j.brand === 'Roborock' ? 't-roborock' : j.brand === 'Segway' ? 't-segway' : 't-other';
+  const wt = j.caseNo ? 'In Warranty' : 'Out of Warranty';
+  const wtc = wt === 'In Warranty' ? 'tag-wt-in' : 'tag-wt-out';
+
+  let caseH = '';
+  if (j.caseNo) {
+    caseH = `<div class="card-case"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${j.caseNo}</div>`;
+  }
+
+  let folderH = '';
+  if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
+    folderH = `<a class="card-folder" href="${j.driveFolder}" target="_blank" title="Open Drive folder" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></a>`;
+  }
+
+  card.innerHTML = `
+    <div class="card-top"><span class="card-id">${j.jobId||'—'}</span><span class="card-brand-tag ${bt}">${j.brand||'—'}</span></div>
+    <div class="card-device">${j.brand||''} ${j.model||''}</div>
+    <div class="card-tags">
+      ${j.deviceType ? `<span class="tag-sm tag-type">${j.deviceType}</span>` : ''}
+      <span class="tag-sm ${wtc}">${wt}</span>
+    </div>
+    ${caseH}
+    <div class="card-issue">${j.issue||'—'}</div>
+    <div class="card-footer">
+      <span class="card-customer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${j.name||'—'}</span>
+      <div class="card-footer-r"><span class="card-date">${fmtDate(j.ts)}</span>${folderH}</div>
+    </div>`;
+
+  card.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', j.jobId); card.classList.add('dragging'); });
+  card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  card.addEventListener('click', () => showDetail(j));
+  return card;
+}
+
+// ============================================================
+// STATS
+// ============================================================
+function renderStats() {
+  document.getElementById('sI').textContent = jobs.filter(j => j.status === 'Intake').length;
+  document.getElementById('sA').textContent = jobs.filter(j => j.status === 'In Repair').length;
+  document.getElementById('sW').textContent = jobs.filter(j => j.status === 'Awaiting Parts').length;
+  document.getElementById('sC').textContent = jobs.filter(j => j.status === 'Complete' || j.status === 'Collected').length;
+}
+
+// ============================================================
+// TABLE
+// ============================================================
+function renderTable() {
+  const tb = document.getElementById('tBody'); tb.innerHTML = '';
+  filtered().forEach(j => {
+    const bt = j.brand === 'Roborock' ? 't-roborock' : j.brand === 'Segway' ? 't-segway' : 't-other';
+    const sc = SC[j.status] || { bg:'#f1f5f9', c:'#475569' };
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer'; tr.onclick = () => showDetail(j);
+    tr.innerHTML = `
+      <td><span class="t-job-id">${j.jobId||'—'}</span></td>
+      <td><span class="card-brand-tag ${bt}" style="font-size:10.5px;">${j.brand||'—'}</span></td>
+      <td style="font-weight:600;">${j.model||'—'}</td>
+      <td style="font-size:12.5px;">${j.deviceType||'—'}</td>
+      <td>${j.name||'—'}</td>
+      <td><span class="t-case">${j.caseNo||'—'}</span></td>
+      <td><span class="t-status" style="background:${sc.bg};color:${sc.c};">${j.status||'—'}</span></td>
+      <td style="font-size:12.5px;color:var(--text-secondary);">${fmtDate(j.ts)}</td>
+      <td>${j.driveFolder && !String(j.driveFolder).startsWith('ERROR') ? `<a href="${j.driveFolder}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);font-size:12px;">Open</a>` : '—'}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+// ============================================================
+// DETAIL
+// ============================================================
+function showDetail(j) {
+  document.getElementById('dTitle').textContent = j.jobId || 'Job Details';
+  const fields = [
+    ['Job ID', j.jobId, true], ['Case Number', j.caseNo, true],
+    ['Brand', j.brand], ['Model', j.model],
+    ['Device Type', j.deviceType], ['Serial Number', j.serial],
+    ['Customer', j.name], ['Phone', j.phone],
+    ['Email', j.email], ['Address', j.address],
+    ['Issue', j.issue, false, true],
+    ['When Started', j.whenStarted], ['Repaired Before', j.repairedBefore],
+    ['Known Issues', j.knownIssues], ['Accessories', j.accessories],
+    ['Status', j.status], ['Date In', fmtDate(j.ts)],
+  ];
+
+  let h = '<div class="d-grid">';
+  fields.forEach(([lbl, val, mono, full]) => {
+    if (!val) return;
+    h += `<div class="d-item ${full ? 'd-full' : ''}"><label>${lbl}</label><div class="d-val ${mono ? 'd-mono' : ''}">${val}</div></div>`;
+  });
+  h += '</div>';
+
+  if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
+    h += `<div style="margin-top:16px;"><a href="${j.driveFolder}" target="_blank" class="btn btn-secondary" style="text-decoration:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> Open Drive Folder</a></div>`;
+  }
+
+  document.getElementById('dBody').innerHTML = h;
+
+  let fh = `<div style="display:flex;align-items:center;gap:10px;flex:1;"><span style="font-size:12px;color:var(--text-secondary);font-weight:600;">Move to:</span><select id="dSel" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Inter',sans-serif;">`;
+  COLS.forEach(c => { fh += `<option value="${c.id}" ${c.id === j.status ? 'selected' : ''}>${c.label}</option>`; });
+  fh += `</select><button class="btn btn-primary" onclick="moveFromDetail('${j.jobId}')">Update</button></div>`;
+  document.getElementById('dFoot').innerHTML = fh;
+
+  openModal('detailModal');
+}
+
+function moveFromDetail(id) {
+  moveJob(id, document.getElementById('dSel').value);
+  closeModal('detailModal');
+}
+
+// ============================================================
+// MOVE JOB
+// ============================================================
+async function moveJob(id, newStatus) {
+  const j = jobs.find(x => x.jobId === id);
+  if (!j || j.status === newStatus) return;
+  j.status = newStatus;
+  renderAll();
+
+  if (cfg.appsScriptUrl) {
+    try {
+      await fetch(cfg.appsScriptUrl, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateStatus', jobId: id, status: newStatus })
+      });
+    } catch (err) { console.warn('Sync failed:', err); }
+  }
+}
+
+// ============================================================
+// NEW JOB
+// ============================================================
+function submitNewJob() {
+  const model = document.getElementById('nModel').value;
+  const name = document.getElementById('nName').value;
+  if (!model || !name) { alert('Please fill in at least Model and Customer Name.'); return; }
+
+  const now = new Date();
+  const accs = [];
+  document.querySelectorAll('#newJobModal .cb-group input:checked').forEach(cb => accs.push(cb.value));
+
+  jobs.unshift({
+    jobId: genId(now), ts: now.toISOString(),
+    name, phone: document.getElementById('nPhone').value,
+    email: document.getElementById('nEmail').value, address: '',
+    caseNo: document.getElementById('nCase').value,
+    deviceType: document.getElementById('nType').value,
+    brand: document.getElementById('nBrand').value,
+    model, serial: document.getElementById('nSerial').value,
+    accessories: accs.join(', '),
+    issue: document.getElementById('nIssue').value,
+    whenStarted: '', repairedBefore: '', knownIssues: '',
+    status: 'Intake', driveFolder: '',
+  });
+
+  renderAll(); closeModal('newJobModal');
+  ['nModel','nSerial','nCase','nIssue','nName','nPhone','nEmail'].forEach(id => document.getElementById(id).value = '');
+  document.querySelectorAll('#newJobModal .cb-group input').forEach(cb => cb.checked = false);
+}
+
+function genId(d) {
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yy = String(d.getFullYear()).slice(-2);
+  const pfx = `LO-${dd}${mm}${yy}-`;
+  const n = jobs.filter(j => (j.jobId||'').startsWith(pfx)).length + 1;
+  return pfx + String(n).padStart(3,'0');
+}
+
+// ============================================================
+// CONFIG
+// ============================================================
+function saveCfg(key, inputId) {
+  const v = document.getElementById(inputId).value.trim();
+  cfg[key] = v; localStorage.setItem('lo_' + key, v);
+  showSetupStatus('success', key + ' saved.');
+}
+
+// ============================================================
+// UI
+// ============================================================
+function switchView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  document.querySelector(`[data-view="${v}"]`).classList.add('active');
+  document.getElementById('viewTitle').textContent = { kanban:'KANBAN BOARD', list:'ALL JOBS', setup:'SHEET SETUP' }[v] || '';
+  closeSidebar();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('show'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
+function showLoading(s) { document.getElementById('kanbanLoading').classList.toggle('show', s); document.getElementById('listLoading').classList.toggle('show', s); }
+
+function showSetupStatus(type, msg) {
+  const el = document.getElementById('setupStatus');
+  el.className = `status-msg ${type}`; el.textContent = msg;
+  setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+function handleSearch() { searchTerm = document.getElementById('searchInput').value.trim(); renderKanban(); renderTable(); }
+
+function fmtDate(s) {
+  if (!s) return '—';
+  try { const d = new Date(s); return isNaN(d.getTime()) ? s : d.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' }); }
+  catch { return s; }
+}
+
+document.querySelectorAll('.modal-overlay').forEach(o => { o.addEventListener('click', e => { if (e.target === o) o.classList.remove('show'); }); });
+</script>
+
+<!-- Netlify Identity Gate -->
+<script>
+  netlifyIdentity.on('init', user => {
+    if (!user) { netlifyIdentity.open('login'); }
+    else { document.body.style.visibility = 'visible'; }
+  });
+  netlifyIdentity.on('login', () => {
+    document.body.style.visibility = 'visible';
+    netlifyIdentity.close();
+  });
+  netlifyIdentity.on('logout', () => {
+    document.body.style.visibility = 'hidden';
+    netlifyIdentity.open('login');
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    const footer = document.querySelector('.sidebar-footer');
+    if (footer) {
+      const btn = document.createElement('button');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Log Out';
+      btn.style.cssText = 'margin-top:10px;display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(192,200,224,0.5);background:none;border:none;cursor:pointer;font-family:Inter,sans-serif;padding:0;transition:color 0.15s;width:100%;';
+      btn.onmouseenter = () => btn.style.color = '#ef4444';
+      btn.onmouseleave = () => btn.style.color = 'rgba(192,200,224,0.5)';
+      btn.onclick = () => netlifyIdentity.logout();
+      footer.appendChild(btn);
+    }
+  });
+</script>
+<style>body{visibility:hidden;}</style>
+</body>
+</html>
