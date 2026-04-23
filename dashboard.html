@@ -922,7 +922,7 @@ async function moveJob(id, newStatus) {
 // ============================================================
 // NEW JOB
 // ============================================================
-function submitNewJob() {
+async function submitNewJob() {
   const model = document.getElementById('nModel').value;
   const name = document.getElementById('nName').value;
   if (!model || !name) { alert('Please fill in at least Model and Customer Name.'); return; }
@@ -931,7 +931,7 @@ function submitNewJob() {
   const accs = [];
   document.querySelectorAll('#newJobModal .cb-group input:checked').forEach(cb => accs.push(cb.value));
 
-  jobs.unshift({
+  const newJob = {
     jobId: genId(now), ts: now.toISOString(),
     name, phone: document.getElementById('nPhone').value,
     email: document.getElementById('nEmail').value, address: '',
@@ -943,11 +943,42 @@ function submitNewJob() {
     issue: document.getElementById('nIssue').value,
     whenStarted: '', repairedBefore: '', knownIssues: '',
     status: 'Intake', driveFolder: '',
-  });
+  };
 
-  renderAll(); closeModal('newJobModal');
+  jobs.unshift(newJob);
+  renderAll();
+  closeModal('newJobModal');
+
+  // Reset form
   ['nModel','nSerial','nCase','nIssue','nName','nPhone','nEmail'].forEach(id => document.getElementById(id).value = '');
   document.querySelectorAll('#newJobModal .cb-group input').forEach(cb => cb.checked = false);
+
+  // Sync new job to Google Sheet via Apps Script
+  if (cfg.appsScriptUrl) {
+    try {
+      await fetch(cfg.appsScriptUrl, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'addJob',
+          jobId: newJob.jobId,
+          timestamp: newJob.ts,
+          fullName: newJob.name,
+          phone: newJob.phone,
+          email: newJob.email,
+          address: newJob.address,
+          caseNumber: newJob.caseNo,
+          deviceType: newJob.deviceType,
+          brand: newJob.brand,
+          model: newJob.model,
+          serialNumber: newJob.serial,
+          accessories: newJob.accessories,
+          issue: newJob.issue,
+          status: 'Intake',
+        })
+      });
+    } catch (err) { /* sync failed silently */ }
+  }
 }
 
 function genId(d) {
