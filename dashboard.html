@@ -8,6 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 <style>
+  /* Hide body immediately — shown only after Identity confirms login */
+  body { visibility: hidden; }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
@@ -1109,22 +1112,15 @@ document.querySelectorAll('.modal-overlay').forEach(o => { o.addEventListener('c
 
 <!-- Netlify Identity Gate -->
 <script>
-  netlifyIdentity.on('init', user => {
-    if (!user) { netlifyIdentity.open('login'); }
-    else { document.body.style.visibility = 'visible'; }
-  });
-  netlifyIdentity.on('login', () => {
+  function showDashboard() {
     document.body.style.visibility = 'visible';
-    netlifyIdentity.close();
-  });
-  netlifyIdentity.on('logout', () => {
-    document.body.style.visibility = 'hidden';
-    netlifyIdentity.open('login');
-  });
-  document.addEventListener('DOMContentLoaded', () => {
+  }
+
+  function addLogoutButton() {
     const footer = document.querySelector('.sidebar-footer');
-    if (footer) {
+    if (footer && !document.getElementById('logoutBtn')) {
       const btn = document.createElement('button');
+      btn.id = 'logoutBtn';
       btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Log Out';
       btn.style.cssText = 'margin-top:10px;display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(192,200,224,0.5);background:none;border:none;cursor:pointer;font-family:Inter,sans-serif;padding:0;transition:color 0.15s;width:100%;';
       btn.onmouseenter = () => btn.style.color = '#ef4444';
@@ -1132,8 +1128,42 @@ document.querySelectorAll('.modal-overlay').forEach(o => { o.addEventListener('c
       btn.onclick = () => netlifyIdentity.logout();
       footer.appendChild(btn);
     }
+  }
+
+  // Fallback: if Identity hasn't resolved within 5s, show the page anyway
+  // (handles: Identity not enabled on Netlify, ad blockers, slow networks)
+  const identityTimeout = setTimeout(() => {
+    console.warn('Netlify Identity timeout — showing dashboard without auth');
+    showDashboard();
+  }, 5000);
+
+  netlifyIdentity.on('init', user => {
+    clearTimeout(identityTimeout);
+    if (user) {
+      // Already logged in — show immediately
+      showDashboard();
+      // Wait for DOM before adding logout button
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', addLogoutButton);
+      } else {
+        addLogoutButton();
+      }
+    } else {
+      // Not logged in — open login modal, keep page hidden
+      netlifyIdentity.open('login');
+    }
+  });
+
+  netlifyIdentity.on('login', () => {
+    showDashboard();
+    netlifyIdentity.close();
+    addLogoutButton();
+  });
+
+  netlifyIdentity.on('logout', () => {
+    document.body.style.visibility = 'hidden';
+    netlifyIdentity.open('login');
   });
 </script>
-<style>body{visibility:hidden;}</style>
 </body>
 </html>
