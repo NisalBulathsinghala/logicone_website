@@ -1030,7 +1030,7 @@ async function submitNewJob() {
 
   const newJob = {
     jobId:      genId(now),
-    ts:         now.toISOString(),
+    ts:         fmtTimestamp(now),
     name:       document.getElementById('nName').value.trim(),
     phone:      document.getElementById('nPhone').value.trim(),
     email:      document.getElementById('nEmail').value.trim(),
@@ -1148,12 +1148,23 @@ function showToast(type, msg) {
 }
 
 function genId(d) {
-  const dd = String(d.getDate()).padStart(2,'0');
-  const mm = String(d.getMonth()+1).padStart(2,'0');
   const yy = String(d.getFullYear()).slice(-2);
-  const pfx = `LO-${dd}${mm}${yy}-`;
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  const pfx = `LO-${yy}${mm}${dd}-`;
   const n = jobs.filter(j => (j.jobId||'').startsWith(pfx)).length + 1;
   return pfx + String(n).padStart(3,'0');
+}
+
+function fmtTimestamp(d) {
+  // Format: M/D/YYYY HH:MM:SS — matches Google Sheets form response format
+  const mo = d.getMonth() + 1;
+  const da = d.getDate();
+  const yr = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  const ss = String(d.getSeconds()).padStart(2,'0');
+  return `${mo}/${da}/${yr} ${hh}:${mi}:${ss}`;
 }
 
 // ============================================================
