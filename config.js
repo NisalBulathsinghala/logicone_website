@@ -22,6 +22,6 @@ window.LO_CONFIG = {
 
   // Apps Script Web App URL — from your deployed Apps Script
   // Extensions → Apps Script → Deploy → Manage deployments → copy URL
-  appsScriptUrl: 'https://script.google.com/macros/s/AKfycbxvbvOy7gwsV4qjittpKPwd6RYhhcHHNqv5mjrWVK6KL73Z2zhDlsByGUyPuuqg47d7Tw/exec',
+  appsScriptUrl: 'https://script.google.com/macros/library/d/1UjtgCRMjDNdzH-h95QPJSeE_DmfB8e3URFxaG3BzS9vxcerBpBjjLWst/4',
 
 };

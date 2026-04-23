@@ -501,6 +501,34 @@
   .kanban-wrapper::-webkit-scrollbar { height: 6px; }
   .kanban-wrapper::-webkit-scrollbar-track { background: transparent; }
   .kanban-wrapper::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Required field indicator */
+  .req { color: #ef4444; font-size: 13px; }
+
+  /* Field error highlight */
+  .ff input.field-err, .ff select.field-err, .ff textarea.field-err {
+    border-color: #ef4444;
+    background: rgba(239,68,68,0.04);
+  }
+
+  /* Toast notification */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #1a1a2e; color: white;
+    padding: 13px 24px; border-radius: 10px;
+    font-size: 13.5px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    z-index: 9999; opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none; white-space: nowrap;
+  }
+
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.toast-success { background: #064e3b; border: 1px solid #059669; }
+  .toast.toast-error { background: #7f1d1d; border: 1px solid #dc2626; }
+
+  .toast svg { width: 17px; height: 17px; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -597,27 +625,49 @@
   <div class="modal">
     <div class="modal-header"><h2>New Repair Job</h2><button class="modal-close" onclick="closeModal('newJobModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-body">
-      <p style="font-size:12.5px;color:var(--text-secondary);margin-bottom:4px;">This creates a local record. For the full intake workflow with Drive folder creation, use the staff drop-off form.</p>
+
       <div class="fr3">
         <div class="ff"><label>Device Type</label><select id="nType"><option value="Robot Vacuum">Robot Vacuum</option><option value="Scooter">Scooter</option></select></div>
-        <div class="ff"><label>Brand</label><select id="nBrand"><option value="Roborock">Roborock</option><option value="Segway">Segway</option></select></div>
-        <div class="ff"><label>Model</label><input type="text" id="nModel" placeholder="e.g. S8 MaxV Ultra"></div>
+        <div class="ff"><label>Brand <span class="req">*</span></label><select id="nBrand"><option value="">Select…</option><option value="Roborock">Roborock</option><option value="Segway">Segway</option></select></div>
+        <div class="ff"><label>Model <span class="req">*</span></label><input type="text" id="nModel" placeholder="e.g. S8 MaxV Ultra"></div>
       </div>
+
       <div class="fr2">
         <div class="ff"><label>Serial Number</label><input type="text" id="nSerial" placeholder="Optional"></div>
         <div class="ff"><label>Case Number</label><input type="text" id="nCase" placeholder="C01260415104006758"></div>
       </div>
-      <div class="ff"><label>Issue Description</label><textarea id="nIssue" placeholder="Describe the fault…"></textarea></div>
+
+      <div class="ff"><label>Issue Description <span class="req">*</span></label><textarea id="nIssue" placeholder="Describe the fault…"></textarea></div>
+
       <div class="fr2">
-        <div class="ff"><label>Customer Name</label><input type="text" id="nName" placeholder="Full name"></div>
-        <div class="ff"><label>Phone</label><input type="text" id="nPhone" placeholder="0412 345 678"></div>
+        <div class="ff"><label>Customer Name <span class="req">*</span></label><input type="text" id="nName" placeholder="Full name"></div>
+        <div class="ff"><label>Phone <span class="req">*</span></label><input type="text" id="nPhone" placeholder="0412 345 678"></div>
       </div>
-      <div class="ff"><label>Email</label><input type="email" id="nEmail" placeholder="customer@email.com"></div>
+
+      <div class="ff"><label>Email <span class="req">*</span></label><input type="email" id="nEmail" placeholder="customer@email.com"></div>
+
+      <div class="fr2">
+        <div class="ff"><label>Warranty Status</label>
+          <select id="nWarranty">
+            <option value="In Warranty">In Warranty</option>
+            <option value="Out of Warranty">Out of Warranty</option>
+          </select>
+        </div>
+        <div class="ff"><label>Repaired Before?</label>
+          <select id="nRepaired">
+            <option value="No">No</option>
+            <option value="Yes">Yes</option>
+          </select>
+        </div>
+      </div>
+
       <div class="ff"><label>Accessories</label><div class="cb-group"><label><input type="checkbox" value="Charger"> Charger</label><label><input type="checkbox" value="Dock"> Dock</label><label><input type="checkbox" value="Mop"> Mop</label><label><input type="checkbox" value="Water Tank"> Water Tank</label></div></div>
+
+      <div id="nJobError" style="display:none;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:13px;color:#dc2626;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('newJobModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitNewJob()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Job</button>
+      <button class="btn btn-primary" id="submitJobBtn" onclick="submitNewJob()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Job</button>
     </div>
   </div>
 </div>
@@ -629,6 +679,12 @@
     <div class="modal-body" id="dBody"></div>
     <div class="modal-footer" id="dFoot"></div>
   </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast">
+  <svg id="toastIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg"></span>
 </div>
 
 <script>
@@ -686,9 +742,15 @@ const DEMO = [];
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-
   buildBoard();
   loadData();
+
+  // Clear field error highlight as soon as user starts correcting
+  ['nBrand','nModel','nIssue','nName','nPhone','nEmail'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => el.classList.remove('field-err'));
+    if (el) el.addEventListener('change', () => el.classList.remove('field-err'));
+  });
 });
 
 // ============================================================
@@ -923,62 +985,131 @@ async function moveJob(id, newStatus) {
 // NEW JOB
 // ============================================================
 async function submitNewJob() {
-  const model = document.getElementById('nModel').value;
-  const name = document.getElementById('nName').value;
-  if (!model || !name) { alert('Please fill in at least Model and Customer Name.'); return; }
+  // ── Validation ──────────────────────────────────────────────
+  const fields = [
+    { id: 'nBrand',  label: 'Brand' },
+    { id: 'nModel',  label: 'Model' },
+    { id: 'nIssue',  label: 'Issue Description' },
+    { id: 'nName',   label: 'Customer Name' },
+    { id: 'nPhone',  label: 'Phone' },
+    { id: 'nEmail',  label: 'Email' },
+  ];
 
+  let missing = [];
+  fields.forEach(f => {
+    const el = document.getElementById(f.id);
+    el.classList.remove('field-err');
+    if (!el.value.trim()) { el.classList.add('field-err'); missing.push(f.label); }
+  });
+
+  const errDiv = document.getElementById('nJobError');
+  if (missing.length > 0) {
+    errDiv.textContent = 'Please fill in: ' + missing.join(', ');
+    errDiv.style.display = 'block';
+    return;
+  }
+  errDiv.style.display = 'none';
+
+  // ── Disable button while submitting ─────────────────────────
+  const btn = document.getElementById('submitJobBtn');
+  btn.disabled = true;
+  btn.textContent = 'Creating…';
+
+  // ── Build job object ─────────────────────────────────────────
   const now = new Date();
   const accs = [];
   document.querySelectorAll('#newJobModal .cb-group input:checked').forEach(cb => accs.push(cb.value));
 
   const newJob = {
-    jobId: genId(now), ts: now.toISOString(),
-    name, phone: document.getElementById('nPhone').value,
-    email: document.getElementById('nEmail').value, address: '',
-    caseNo: document.getElementById('nCase').value,
+    jobId:      genId(now),
+    ts:         now.toISOString(),
+    name:       document.getElementById('nName').value.trim(),
+    phone:      document.getElementById('nPhone').value.trim(),
+    email:      document.getElementById('nEmail').value.trim(),
+    address:    '',
+    caseNo:     document.getElementById('nCase').value.trim(),
     deviceType: document.getElementById('nType').value,
-    brand: document.getElementById('nBrand').value,
-    model, serial: document.getElementById('nSerial').value,
+    brand:      document.getElementById('nBrand').value,
+    model:      document.getElementById('nModel').value.trim(),
+    serial:     document.getElementById('nSerial').value.trim(),
     accessories: accs.join(', '),
-    issue: document.getElementById('nIssue').value,
-    whenStarted: '', repairedBefore: '', knownIssues: '',
-    status: 'Intake', driveFolder: '',
+    issue:      document.getElementById('nIssue').value.trim(),
+    warranty:   document.getElementById('nWarranty').value,
+    repairedBefore: document.getElementById('nRepaired').value,
+    whenStarted: '', knownIssues: '',
+    status:     'Intake',
+    driveFolder: '',
   };
 
   jobs.unshift(newJob);
   renderAll();
   closeModal('newJobModal');
+  resetNewJobForm();
 
-  // Reset form
-  ['nModel','nSerial','nCase','nIssue','nName','nPhone','nEmail'].forEach(id => document.getElementById(id).value = '');
-  document.querySelectorAll('#newJobModal .cb-group input').forEach(cb => cb.checked = false);
-
-  // Sync new job to Google Sheet via Apps Script
+  // ── Sync to Google Sheet + trigger Drive folder creation ─────
   if (cfg.appsScriptUrl) {
     try {
       await fetch(cfg.appsScriptUrl, {
         method: 'POST', mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'addJob',
-          jobId: newJob.jobId,
-          timestamp: newJob.ts,
-          fullName: newJob.name,
-          phone: newJob.phone,
-          email: newJob.email,
-          address: newJob.address,
-          caseNumber: newJob.caseNo,
-          deviceType: newJob.deviceType,
-          brand: newJob.brand,
-          model: newJob.model,
+          action:       'addJob',
+          jobId:        newJob.jobId,
+          timestamp:    newJob.ts,
+          fullName:     newJob.name,
+          phone:        newJob.phone,
+          email:        newJob.email,
+          address:      newJob.address,
+          caseNumber:   newJob.caseNo,
+          deviceType:   newJob.deviceType,
+          brand:        newJob.brand,
+          model:        newJob.model,
           serialNumber: newJob.serial,
-          accessories: newJob.accessories,
-          issue: newJob.issue,
-          status: 'Intake',
+          accessories:  newJob.accessories,
+          issue:        newJob.issue,
+          warranty:     newJob.warranty,
+          repairedBefore: newJob.repairedBefore,
+          status:       'Intake',
         })
       });
-    } catch (err) { /* sync failed silently */ }
+      showToast('success', '✓ Job ' + newJob.jobId + ' created and synced to sheet');
+    } catch (err) {
+      showToast('error', 'Job created locally — sheet sync failed');
+    }
+  } else {
+    showToast('success', '✓ Job ' + newJob.jobId + ' created');
   }
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Job';
+}
+
+function resetNewJobForm() {
+  ['nModel','nSerial','nCase','nIssue','nName','nPhone','nEmail'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.classList.remove('field-err'); }
+  });
+  document.getElementById('nBrand').value = '';
+  document.getElementById('nBrand').classList.remove('field-err');
+  document.getElementById('nWarranty').value = 'In Warranty';
+  document.getElementById('nRepaired').value = 'No';
+  document.querySelectorAll('#newJobModal .cb-group input').forEach(cb => cb.checked = false);
+  document.getElementById('nJobError').style.display = 'none';
+}
+
+function showToast(type, msg) {
+  const toast = document.getElementById('toast');
+  const msgEl = document.getElementById('toastMsg');
+  const icon = document.getElementById('toastIcon');
+  msgEl.textContent = msg;
+  toast.className = 'toast toast-' + type;
+  if (type === 'success') {
+    icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+  } else {
+    icon.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+  }
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 4000);
 }
 
 function genId(d) {
