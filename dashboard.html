@@ -554,6 +554,7 @@
   .sms-text {
     font-size: 13px; line-height: 1.55;
     color: var(--text-primary);
+    white-space: pre-line;
   }
   .loading-overlay {
     display: none; position: absolute; inset: 0;
@@ -1068,14 +1069,14 @@ function showDetail(j) {
       icon: '<polyline points="20 6 9 17 4 12"/>',
       color: '#6366f1',
       bg: 'rgba(99,102,241,0.08)',
-      text: `Hi ${firstName}, this is Logic One SA. We have received your ${device} (Job ID: ${j.jobId}) and it is now in our workshop queue. We will be in touch once the initial inspection is complete. Thank you!`
+      text: `Hi ${firstName},\n\nYour device has been received and registered under Job No: ${j.jobId} (Ref: ${j.caseNo || '—'}). We will begin the inspection and keep you updated.\n\nThank you!\n\nLogic One SA`
     },
     {
       label: 'Parts Ordered',
       icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
       color: '#f59e0b',
       bg: 'rgba(245,158,11,0.08)',
-      text: `Hi ${firstName}, an update on your ${device} (Job ID: ${j.jobId}): we have identified the fault and ordered the required parts. We will contact you as soon as they arrive and the repair is complete. Thank you for your patience!`
+      text: `Hi ${firstName},\n\nThe required parts for your device (Job No: ${j.jobId}) have been ordered. We'll begin the repair as soon as they arrive. We'll keep you updated.\n\nThank you!\n\nLogic One SA`
     },
     {
       label: 'Repair Done',
