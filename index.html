@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Logic One SA provides embedded systems design, Roborock repair, and Segway Ninebot repair services in Adelaide, South Australia.">
-<title>Logic One SA — Electronics Engineering & Repair, Adelaide</title>
+<meta name="color-scheme" content="light">
+<meta name="description" content="Logic One SA — Embedded systems design and authorised electronics repairs in Adelaide, South Australia.">
+<title>Logic One SA — Electronics Engineering &amp; Repair, Adelaide</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" type="image/png" href="images/logo.png">
@@ -15,15 +16,11 @@
 <nav>
   <a href="#" class="logo">
     <img src="images/logo.png" alt="Logic One SA">
-    <span class="logo-text" style="display:flex;align-items:center;gap:10px;font-family:var(--head);font-size:1.1rem;font-weight:700;letter-spacing:.06em;color:var(--silver2)">
-      LOGIC <span style="color:var(--cyan)">ONE</span> SA
-    </span>
+    <span class="logo-text">LOGIC <span class="lo">ONE</span> SA</span>
   </a>
   <ul>
-    <li><a href="#services">Services</a></li>
     <li><a href="#embedded">Embedded Systems</a></li>
     <li><a href="#repairs">Repairs</a></li>
-    <li><a href="#about">About</a></li>
     <li><a href="#contact">Contact</a></li>
   </ul>
   <a href="#book" class="nav-cta">Get in Touch</a>
@@ -32,775 +29,493 @@
   </div>
 </nav>
 <div class="mobile-menu" id="mob">
-  <a href="#services"  onclick="toggleMenu()">Services</a>
-  <a href="#embedded"  onclick="toggleMenu()">Embedded Systems</a>
-  <a href="#repairs"   onclick="toggleMenu()">Repairs</a>
-  <a href="#about"     onclick="toggleMenu()">About</a>
-  <a href="#contact"   onclick="toggleMenu()">Contact</a>
-  <a href="#book"      onclick="toggleMenu()">Get in Touch</a>
+  <a href="#embedded" onclick="toggleMenu()">Embedded Systems</a>
+  <a href="#repairs"  onclick="toggleMenu()">Repairs</a>
+  <a href="#contact"  onclick="toggleMenu()">Contact</a>
+  <a href="#book"     onclick="toggleMenu()">Get in Touch</a>
 </div>
 
 <!-- HERO -->
 <section class="hero">
-  <div class="glow-tl"></div><div class="glow-br"></div><div class="vline"></div>
+  <div class="hero-grid-bg"></div>
+  <div class="hero-glow-tl"></div>
+  <div class="hero-glow-br"></div>
   <div class="hero-inner">
+
+    <!-- Left: copy -->
     <div class="hero-left">
-      <div class="hero-eyebrow">Electronics Engineering · Adelaide, South Australia</div>
+      <div class="hero-eyebrow">Electronics Engineering · Adelaide, SA</div>
       <h1>We build.<br>We repair.<br><span class="grad">We engineer.</span></h1>
-      <p class="hero-sub">Logic One SA delivers embedded system design and specialist electronics repair services. From custom hardware to precision device repair — we work at the circuit level.</p>
+      <p class="hero-sub">Logic One SA delivers embedded systems design and specialist electronics repair services — working at the circuit level so your devices work at their best.</p>
       <div class="hero-actions">
-        <a href="#services" class="btn-primary">Our Services →</a>
+        <a href="#embedded" class="btn-primary">Our Services →</a>
         <a href="#book"     class="btn-secondary">Get in Touch</a>
       </div>
       <div class="hero-caps">
-        <div class="hcap"><div class="hcap-dot" style="background:var(--cyan)"></div><span>Embedded Systems Design</span></div>
-        <div class="hcap"><div class="hcap-dot" style="background:var(--blue)"></div><span>Roborock Repair</span></div>
-        <div class="hcap"><div class="hcap-dot" style="background:var(--blue2)"></div><span>Segway Ninebot Repair</span></div>
-        <div class="hcap"><div class="hcap-dot" style="background:var(--silver)"></div><span>Adelaide SA</span></div>
+        <div class="hcap"><div class="hcap-dot" style="background:var(--cyan)"></div><span>Embedded Systems</span></div>
+        <div class="hcap"><div class="hcap-dot" style="background:#55aaff"></div><span>Electronic Repairs</span></div>
+        <div class="hcap"><div class="hcap-dot" style="background:var(--text-dark)"></div><span>Adelaide SA</span></div>
       </div>
     </div>
+
+    <!-- Right: faded image stack + stats -->
     <div class="hero-right">
-      <!-- Stat cards -->
-      <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:1.75rem 2rem;position:relative;overflow:hidden">
-        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--cyan))"></div>
-        <div style="font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:1.5rem;display:flex;align-items:center;gap:8px"><span style="width:10px;height:1px;background:var(--cyan);opacity:.7;display:block"></span>Why Logic One SA</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-          <div style="padding:1.25rem 1.5rem;border-right:1px solid var(--border);border-bottom:1px solid var(--border)">
-            <div style="font-family:var(--head);font-size:2rem;font-weight:700;background:linear-gradient(90deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.25rem">96%</div>
-            <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Repair success rate</div>
+      <div class="hero-img-stack" style="min-height:260px">
+        <!-- Back card -->
+        <div class="img-stack-card">
+          <div class="img-stack-placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <span>Image 3</span>
           </div>
-          <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border)">
-            <div style="font-family:var(--head);font-size:2rem;font-weight:700;background:linear-gradient(90deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.25rem">24h</div>
-            <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Avg. repair turnaround</div>
+        </div>
+        <!-- Mid card -->
+        <div class="img-stack-card">
+          <div class="img-stack-placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <span>Image 2</span>
           </div>
-          <div style="padding:1.25rem 1.5rem;border-right:1px solid var(--border)">
-            <div style="font-family:var(--head);font-size:2rem;font-weight:700;background:linear-gradient(90deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.25rem">E2E</div>
-            <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Embedded design</div>
-          </div>
-          <div style="padding:1.25rem 1.5rem">
-            <div style="font-family:var(--head);font-size:2rem;font-weight:700;background:linear-gradient(90deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.25rem">Auth.</div>
-            <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Authorised repair centre</div>
+        </div>
+        <!-- Front card -->
+        <div class="img-stack-card" style="position:relative">
+          <div class="stack-corner tl"></div>
+          <div class="stack-corner br"></div>
+          <div class="img-stack-placeholder">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <span>Add your hero image here</span>
           </div>
         </div>
       </div>
-      <!-- Service quick-links -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-        <a href="#embedded" style="display:flex;align-items:center;gap:.75rem;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:1rem 1.25rem;text-decoration:none;transition:border-color .2s,box-shadow .2s" onmouseover="this.style.borderColor='var(--blue)';this.style.boxShadow='0 4px 14px rgba(20,100,255,.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
-          <span style="font-family:var(--mono);font-size:.65rem;letter-spacing:.07em;text-transform:uppercase;color:var(--silver2)">Embedded Design</span>
-        </a>
-        <a href="#repairs" style="display:flex;align-items:center;gap:.75rem;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:1rem 1.25rem;text-decoration:none;transition:border-color .2s,box-shadow .2s" onmouseover="this.style.borderColor='var(--cyan)';this.style.boxShadow='0 4px 14px rgba(0,166,214,.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-          <span style="font-family:var(--mono);font-size:.65rem;letter-spacing:.07em;text-transform:uppercase;color:var(--silver2)">Device Repair</span>
-        </a>
-        <a href="#repairs" style="display:flex;align-items:center;gap:.75rem;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:1rem 1.25rem;text-decoration:none;transition:border-color .2s,box-shadow .2s" onmouseover="this.style.borderColor='var(--blue)';this.style.boxShadow='0 4px 14px rgba(20,100,255,.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
-          <span style="font-family:var(--mono);font-size:.65rem;letter-spacing:.07em;text-transform:uppercase;color:var(--silver2)">Roborock Repair</span>
-        </a>
-        <a href="#repairs" style="display:flex;align-items:center;gap:.75rem;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:1rem 1.25rem;text-decoration:none;transition:border-color .2s,box-shadow .2s" onmouseover="this.style.borderColor='var(--cyan)';this.style.boxShadow='0 4px 14px rgba(0,166,214,.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg>
-          <span style="font-family:var(--mono);font-size:.65rem;letter-spacing:.07em;text-transform:uppercase;color:var(--silver2)">Segway Repair</span>
-        </a>
+
+      <!-- Stats -->
+      <div class="hero-stat-row">
+        <div class="hstat">
+          <div class="hstat-val">96%</div>
+          <div class="hstat-key">Repair success</div>
+        </div>
+        <div class="hstat">
+          <div class="hstat-val">24h</div>
+          <div class="hstat-key">Avg. turnaround</div>
+        </div>
+        <div class="hstat">
+          <div class="hstat-val">Auth.</div>
+          <div class="hstat-key">Authorised centre</div>
+        </div>
       </div>
     </div>
+
   </div>
 </section>
 
-<!-- STRIP -->
+<!-- SCROLLING STRIP -->
 <div class="strip">
   <div class="strip-inner">
     <span class="si">Embedded Systems Design <span class="sdot">✦</span></span>
     <span class="si">PCB Design &amp; Prototyping <span class="sdot">✦</span></span>
-    <span class="si">Roborock Repair <span class="sdot">✦</span></span>
-    <span class="si">Segway Ninebot Service <span class="sdot">✦</span></span>
+    <span class="si">Electronic Repairs <span class="sdot">✦</span></span>
+    <span class="si">Roborock Authorised <span class="sdot">✦</span></span>
+    <span class="si">Segway Ninebot Authorised <span class="sdot">✦</span></span>
     <span class="si">Firmware Development <span class="sdot">✦</span></span>
     <span class="si">IoT Integration <span class="sdot">✦</span></span>
     <span class="si">Adelaide SA <span class="sdot">✦</span></span>
     <span class="si">Embedded Systems Design <span class="sdot">✦</span></span>
     <span class="si">PCB Design &amp; Prototyping <span class="sdot">✦</span></span>
-    <span class="si">Roborock Repair <span class="sdot">✦</span></span>
-    <span class="si">Segway Ninebot Service <span class="sdot">✦</span></span>
+    <span class="si">Electronic Repairs <span class="sdot">✦</span></span>
+    <span class="si">Roborock Authorised <span class="sdot">✦</span></span>
+    <span class="si">Segway Ninebot Authorised <span class="sdot">✦</span></span>
     <span class="si">Firmware Development <span class="sdot">✦</span></span>
     <span class="si">IoT Integration <span class="sdot">✦</span></span>
     <span class="si">Adelaide SA <span class="sdot">✦</span></span>
   </div>
 </div>
 
-<!-- SERVICES -->
-<section id="services">
-  <div class="eyebrow">What we do</div>
-  <h2>Our services.</h2>
-  <p class="sec-sub">From ground-up hardware design to specialist device repair — Logic One SA works across the full electronics stack.</p>
-  <div class="services-grid">
-    <div class="svc-card">
-      <div class="svc-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/><circle cx="17" cy="7" r="1" fill="var(--cyan)" stroke="none"/></svg></div>
-      <h3>Embedded Systems Design</h3>
-      <p>Custom hardware and firmware design from concept to production-ready prototype. Microcontroller selection, PCB layout, sensor integration and real-time firmware — built to your specification.</p>
-      <span class="svc-tag">Core Service</span>
-    </div>
-    <div class="svc-card">
-      <div class="svc-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg></div>
-      <h3>Roborock Robot Vacuum Repair</h3>
-      <p>Specialist repair for the full Roborock range. Genuine parts, same-day diagnosis, and transparent pricing. As an authorised repair centre we handle both warranty and out-of-warranty repairs — all models covered.</p>
-      <span class="svc-tag">Repair</span>
-    </div>
-    <div class="svc-card">
-      <div class="svc-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v10l10 5 10-5V7L12 2z"/><path d="M12 22V12M2 7l10 5 10-5"/></svg></div>
-      <h3>Segway Ninebot Scooter Repair</h3>
-      <p>Full service and repair for all Ninebot models. Batteries, motors, controllers, tyres and safety checks — returned roadworthy and fully tested. Authorised for both warranty and out-of-warranty repairs.</p>
-      <span class="svc-tag">Repair</span>
-    </div>
-  </div>
-</section>
-
-<!-- EMBEDDED SYSTEMS -->
+<!-- ── EMBEDDED SYSTEMS ── -->
 <section id="embedded">
+  <div class="eyebrow">What we design</div>
+  <h2>Embedded Systems.</h2>
+  <p class="sec-sub">From concept to production-ready prototype — custom hardware and firmware built to your specification.</p>
+
   <div class="embed-layout">
-    <div class="embed-text">
-      <div class="eyebrow">Embedded Systems Design</div>
-      <h2>Hardware built<br>from the ground up.</h2>
-      <p>Logic One SA designs custom embedded systems for clients who need hardware that <strong>doesn't exist off the shelf.</strong> Whether you're building an IoT device, an industrial controller, or a smart product — we take your requirements from concept through to a working, testable prototype.</p>
-      <p>We work with a range of microcontroller platforms including <strong>STM32, ESP32, Arduino and Raspberry Pi</strong>, and design around your constraints — power budget, form factor, connectivity and cost.</p>
-      <p>Every project includes full firmware development, hardware testing and documentation — so what we hand over is <strong>ready to manufacture or iterate.</strong></p>
-    </div>
-    <div class="embed-caps">
-      <div class="ecap"><div class="ecap-num">C-01</div><h4>Microcontroller Design</h4><p>STM32, ESP32, AVR, ARM Cortex-M — architecture selection and schematic design.</p></div>
-      <div class="ecap"><div class="ecap-num">C-02</div><h4>PCB Layout &amp; Prototyping</h4><p>Single and multi-layer PCB design, Gerber output, and prototype build and test.</p></div>
-      <div class="ecap"><div class="ecap-num">C-03</div><h4>Firmware Development</h4><p>Bare-metal C/C++ and RTOS firmware. Sensor drivers, communication stacks, power management.</p></div>
-      <div class="ecap"><div class="ecap-num">C-04</div><h4>IoT &amp; Wireless Integration</h4><p>Wi-Fi, Bluetooth, Zigbee, LoRa and MQTT — cloud connectivity and local network integration.</p></div>
-      <div class="ecap"><div class="ecap-num">C-05</div><h4>Sensor &amp; Actuator Integration</h4><p>IMUs, environmental sensors, motor drivers, relay boards — full peripheral integration.</p></div>
-      <div class="ecap"><div class="ecap-num">C-06</div><h4>Testing &amp; Documentation</h4><p>Functional testing, debugging, and full schematic/firmware documentation on every project.</p></div>
-    </div>
-  </div>
+    <!-- Left: copy + caps + process -->
+    <div>
+      <p style="font-size:.97rem;color:var(--muted);line-height:1.8;margin-bottom:2rem">Logic One SA brings full embedded system design capability to South Australian businesses and engineers. Whether you need microcontroller firmware, custom PCB layout, sensor integration or IoT connectivity — we work across the full hardware stack from requirement to field deployment.</p>
 
-  <!-- EMBEDDED SYSTEMS IMAGE DECK -->
-  <div class="eyebrow" style="margin-bottom:1rem">Design process</div>
-  <div class="img-deck" id="embed-deck">
-    <div class="img-deck-track" id="embed-track">
-      <div class="img-deck-slide">
-        <div class="img-deck-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M12 8v8"/></svg></div>
-        <div class="img-deck-label">Schematic &amp; circuit design</div>
-        <div class="img-deck-tag">Add image →</div>
+      <div class="embed-caps">
+        <div class="ecap"><div class="ecap-label">Microcontrollers</div><div class="ecap-val">ARM Cortex, AVR, ESP32, PIC</div></div>
+        <div class="ecap"><div class="ecap-label">PCB Design</div><div class="ecap-val">Schematic to layout, DFM</div></div>
+        <div class="ecap"><div class="ecap-label">Firmware</div><div class="ecap-val">RTOS, bare-metal, C/C++</div></div>
+        <div class="ecap"><div class="ecap-label">Connectivity</div><div class="ecap-val">Wi-Fi, BLE, LoRa, RS485</div></div>
+        <div class="ecap"><div class="ecap-label">Prototyping</div><div class="ecap-val">Rapid iteration, lab testing</div></div>
+        <div class="ecap"><div class="ecap-label">Production</div><div class="ecap-val">BOM, Gerbers, test fixtures</div></div>
       </div>
-      <div class="img-deck-slide">
-        <div class="img-deck-icon"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 10h8M8 14h4"/><circle cx="17" cy="14" r="1" fill="currentColor" stroke="none"/></svg></div>
-        <div class="img-deck-label">PCB layout &amp; routing</div>
-        <div class="img-deck-tag">Add image →</div>
-      </div>
-      <div class="img-deck-slide">
-        <div class="img-deck-icon"><svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/></svg></div>
-        <div class="img-deck-label">Prototype assembly</div>
-        <div class="img-deck-tag">Add image →</div>
-      </div>
-      <div class="img-deck-slide">
-        <div class="img-deck-icon"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
-        <div class="img-deck-label">Firmware development</div>
-        <div class="img-deck-tag">Add image →</div>
-      </div>
-      <div class="img-deck-slide">
-        <div class="img-deck-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-        <div class="img-deck-label">Testing &amp; validation</div>
-        <div class="img-deck-tag">Add image →</div>
-      </div>
-    </div>
-  </div>
-  <div class="deck-dots" id="embed-dots">
-    <div class="deck-dot active" onclick="deckGo('embed',0)"></div>
-    <div class="deck-dot" onclick="deckGo('embed',1)"></div>
-    <div class="deck-dot" onclick="deckGo('embed',2)"></div>
-    <div class="deck-dot" onclick="deckGo('embed',3)"></div>
-    <div class="deck-dot" onclick="deckGo('embed',4)"></div>
-  </div>
 
-  <div class="eyebrow" style="margin-bottom:2rem">How a project works</div>
-  <div class="embed-process">
-    <div class="eproc-step"><div class="eproc-circle"><div class="eproc-num">01</div></div><h4>Brief &amp; Scoping</h4><p>We define your requirements, constraints and objectives before anything is designed.</p></div>
-    <div class="eproc-step"><div class="eproc-circle"><div class="eproc-num">02</div></div><h4>Architecture &amp; Design</h4><p>Component selection, schematic capture, PCB layout and firmware architecture planning.</p></div>
-    <div class="eproc-step"><div class="eproc-circle"><div class="eproc-num">03</div></div><h4>Build &amp; Firmware</h4><p>Prototype assembly, firmware development and iterative hardware/software bring-up.</p></div>
-    <div class="eproc-step"><div class="eproc-circle"><div class="eproc-num">04</div></div><h4>Test &amp; Handover</h4><p>Full functional testing, bug fixes and documentation handover — production-ready.</p></div>
-  </div>
-</section>
-
-<!-- REPAIRS -->
-<section id="repairs">
-  <div class="repairs-hero">
-    <div class="repairs-hero-left">
-      <div class="eyebrow">Device repair</div>
-      <h2>Specialist repair<br>for two brands.</h2>
-      <p class="sec-sub" style="margin-bottom:0">Authorised repair centre for Roborock and Segway Ninebot — genuine parts, warranty and out-of-warranty repairs, all models.</p>
-    </div>
-    <div class="repairs-hero-right">
-      <div class="img-deck img-deck--inline" id="repair-hero-deck">
-        <div class="img-deck-track" id="repair-hero-track">
-          <div class="img-deck-slide">
-            <div class="img-deck-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>
-            <div class="img-deck-label">Device inspection &amp; diagnostic</div>
-            <div class="img-deck-tag">Add image →</div>
-          </div>
-          <div class="img-deck-slide">
-            <div class="img-deck-icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
-            <div class="img-deck-label">Board-level repair work</div>
-            <div class="img-deck-tag">Add image →</div>
-          </div>
-          <div class="img-deck-slide">
-            <div class="img-deck-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
-            <div class="img-deck-label">Roborock sensor calibration</div>
-            <div class="img-deck-tag">Add image →</div>
-          </div>
-          <div class="img-deck-slide">
-            <div class="img-deck-icon"><svg viewBox="0 0 24 24"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div>
-            <div class="img-deck-label">Segway scooter servicing</div>
-            <div class="img-deck-tag">Add image →</div>
-          </div>
-          <div class="img-deck-slide">
-            <div class="img-deck-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-            <div class="img-deck-label">Post-repair testing</div>
-            <div class="img-deck-tag">Add image →</div>
-          </div>
+      <div class="embed-process">
+        <div class="epstep">
+          <div class="epnum">01</div>
+          <h4>Scoping</h4>
+          <p>Requirements, constraints and feasibility review</p>
+        </div>
+        <div class="epstep">
+          <div class="epnum">02</div>
+          <h4>Design</h4>
+          <p>Schematic, PCB layout and firmware architecture</p>
+        </div>
+        <div class="epstep">
+          <div class="epnum">03</div>
+          <h4>Prototype</h4>
+          <p>Build, test and iterate until the design is solid</p>
+        </div>
+        <div class="epstep">
+          <div class="epnum">04</div>
+          <h4>Deliver</h4>
+          <p>Production-ready files, documentation, handoff</p>
         </div>
       </div>
-      <div class="deck-dots" id="repair-hero-dots">
-        <div class="deck-dot active" onclick="deckGo('repair-hero',0)"></div>
-        <div class="deck-dot" onclick="deckGo('repair-hero',1)"></div>
-        <div class="deck-dot" onclick="deckGo('repair-hero',2)"></div>
-        <div class="deck-dot" onclick="deckGo('repair-hero',3)"></div>
-        <div class="deck-dot" onclick="deckGo('repair-hero',4)"></div>
+
+      <div style="margin-top:2.5rem">
+        <a href="#book" class="btn-primary">Discuss a Project →</a>
+      </div>
+    </div>
+
+    <!-- Right: image deck placeholder -->
+    <div>
+      <div class="embed-deck">
+        <div class="deck-track" id="embed-track">
+          <div class="deck-slide">
+            <div class="deck-placeholder">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              <span>Embedded project image 1</span>
+            </div>
+          </div>
+          <div class="deck-slide">
+            <div class="deck-placeholder">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              <span>Embedded project image 2</span>
+            </div>
+          </div>
+          <div class="deck-slide">
+            <div class="deck-placeholder">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
+              <span>Embedded project image 3</span>
+            </div>
+          </div>
+          <div class="deck-slide">
+            <div class="deck-placeholder">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
+              <span>Embedded project image 4</span>
+            </div>
+          </div>
+          <div class="deck-slide">
+            <div class="deck-placeholder">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
+              <span>Embedded project image 5</span>
+            </div>
+          </div>
+        </div>
+        <div class="deck-dots" id="embed-dots">
+          <div class="deck-dot active" onclick="deckGo('embed',0)"></div>
+          <div class="deck-dot" onclick="deckGo('embed',1)"></div>
+          <div class="deck-dot" onclick="deckGo('embed',2)"></div>
+          <div class="deck-dot" onclick="deckGo('embed',3)"></div>
+          <div class="deck-dot" onclick="deckGo('embed',4)"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── ELECTRONIC REPAIRS ── -->
+<section id="repairs">
+  <div class="eyebrow">What we repair</div>
+  <h2>Electronic Repairs.</h2>
+  <p class="sec-sub">Authorised repair centre for Roborock and Segway Ninebot — genuine parts, certified process, warranty and out-of-warranty service.</p>
+
+  <div class="repair-intro">
+    <!-- Left: overview copy + trust points -->
+    <div>
+      <p style="font-size:.97rem;color:var(--muted);line-height:1.8;margin-bottom:2rem">As an authorised repair centre, Logic One SA follows the official warranty processes for both Roborock and Segway Ninebot. Every repair uses genuine manufacturer parts and is carried out by technicians trained to manufacturer standards. Out-of-warranty repairs are accepted subject to an inspection fee assessment.</p>
+
+      <div class="repair-trust">
+        <div class="rtrust"><div class="rtrust-dot"></div><div><h4>Genuine Parts</h4><p>Manufacturer-sourced components only — no generic substitutes</p></div></div>
+        <div class="rtrust"><div class="rtrust-dot"></div><div><h4>Authorised Process</h4><p>Official warranty procedures followed for both brands</p></div></div>
+        <div class="rtrust"><div class="rtrust-dot"></div><div><h4>Qualified Technicians</h4><p>Brand-trained for Roborock and Segway Ninebot repairs</p></div></div>
+        <div class="rtrust"><div class="rtrust-dot"></div><div><h4>Adelaide Based</h4><p>Local service — drop off or arrange freight from anywhere in SA</p></div></div>
+      </div>
+
+      <div class="insp-note">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span><strong style="color:var(--text)">Out-of-warranty repairs</strong> are subject to an inspection fee. This covers diagnostic assessment and a repair quote — if you choose not to proceed, only the inspection fee applies.</span>
+      </div>
+    </div>
+
+    <!-- Right: repair hero deck placeholder -->
+    <div>
+      <div class="repair-hero-deck">
+        <div class="deck-track" id="repair-hero-track">
+          <div class="deck-slide">
+            <div class="deck-placeholder">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+              <span>Repair workshop image 1</span>
+            </div>
+          </div>
+          <div class="deck-slide">
+            <div class="deck-placeholder">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+              <span>Repair workshop image 2</span>
+            </div>
+          </div>
+          <div class="deck-slide">
+            <div class="deck-placeholder">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+              <span>Repair workshop image 3</span>
+            </div>
+          </div>
+          <div class="deck-slide">
+            <div class="deck-placeholder">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+              <span>Repair workshop image 4</span>
+            </div>
+          </div>
+          <div class="deck-slide">
+            <div class="deck-placeholder">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+              <span>Repair workshop image 5</span>
+            </div>
+          </div>
+        </div>
+        <div class="deck-dots" id="repair-hero-dots">
+          <div class="deck-dot active" onclick="deckGo('repair-hero',0)"></div>
+          <div class="deck-dot" onclick="deckGo('repair-hero',1)"></div>
+          <div class="deck-dot" onclick="deckGo('repair-hero',2)"></div>
+          <div class="deck-dot" onclick="deckGo('repair-hero',3)"></div>
+          <div class="deck-dot" onclick="deckGo('repair-hero',4)"></div>
+        </div>
       </div>
     </div>
   </div>
 
+  <!-- Brand cards -->
   <div class="repair-brands">
 
-    <!-- ROBOROCK -->
-    <div class="rbrand">
-      <div class="rbrand-bar"></div>
-      <div class="rbrand-head">
-        <div class="brand-logo-row">
-          <div class="brand-logo-img">
-            <img src="images/roborock_logo.png" alt="Roborock">
-          </div>
-          <div class="rbrand-name robo">ROBOROCK</div>
+    <!-- Roborock -->
+    <div class="brand-card">
+      <div class="brand-header">
+        <div class="brand-logo-wrap">
+          <img src="images/roborock_logo.png" alt="Roborock">
         </div>
-        <div class="rbrand-sub">Robot Vacuum · All Models</div>
+        <div class="brand-badge">Authorised Centre</div>
       </div>
-      <div class="rbrand-car">
+      <div class="brand-body">
+        <p class="brand-desc">Logic One SA is an authorised Roborock repair centre, servicing robot vacuums both in warranty and out of warranty across South Australia. We follow Roborock's official repair processes and use genuine Roborock parts.</p>
+        <div class="brand-services">
+          <div class="bsvc">In-warranty repairs</div>
+          <div class="bsvc">Out-of-warranty repairs</div>
+          <div class="bsvc">Genuine Roborock parts</div>
+          <div class="bsvc">All Roborock models</div>
+          <div class="bsvc">Navigation & sensor faults</div>
+          <div class="bsvc">Battery replacement</div>
+          <div class="bsvc">Brush & motor service</div>
+          <div class="bsvc">Water tank & mop faults</div>
+        </div>
+        <!-- Carousel -->
         <div class="car-header">
-          <div class="car-label">Models we service</div>
-          <div class="car-counter"><span id="rr-cur">1</span> / 20</div>
-        </div>
-        <div class="car-slide active" id="rr0">
-          <div class="car-img">
-            <img src="images/roborock/roborock-qrevo-c-pro.webp" alt="Qrevo C Pro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Qrevo C Pro</div>
-        </div>
-        <div class="car-slide" id="rr1">
-          <div class="car-img">
-            <img src="images/roborock/roborock-q7b.webp" alt="Q7B+" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Q7B+</div>
-        </div>
-        <div class="car-slide" id="rr2">
-          <div class="car-img">
-            <img src="images/roborock/roborock-qrevo-curv-2-flow.webp" alt="Qrevo Curv 2 Flow" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Qrevo Curv 2 Flow</div>
-        </div>
-        <div class="car-slide" id="rr3">
-          <div class="car-img">
-            <img src="images/roborock/roborock-saros-20.webp" alt="Saros 20" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Saros 20</div>
-        </div>
-        <div class="car-slide" id="rr4">
-          <div class="car-img">
-            <img src="images/roborock/roborock-saros-z70-with-omnigrip-mechanical-arm.webp" alt="Saros Z70 (OmniGrip)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Saros Z70 (OmniGrip)</div>
-        </div>
-        <div class="car-slide" id="rr5">
-          <div class="car-img">
-            <img src="images/roborock/roborock-saros-10r.webp" alt="Saros 10R" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Saros 10R</div>
-        </div>
-        <div class="car-slide" id="rr6">
-          <div class="car-img">
-            <img src="images/roborock/roborock-saros-10.webp" alt="Saros 10" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Saros 10</div>
-        </div>
-        <div class="car-slide" id="rr7">
-          <div class="car-img">
-            <img src="images/roborock/roborock-qrevo-edge.webp" alt="Qrevo Edge" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Qrevo Edge</div>
-        </div>
-        <div class="car-slide" id="rr8">
-          <div class="car-img">
-            <img src="images/roborock/roborock-qrevo-edgec.webp" alt="Qrevo EdgeC" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Qrevo EdgeC</div>
-        </div>
-        <div class="car-slide" id="rr9">
-          <div class="car-img">
-            <img src="images/roborock/roborock-qrevo-l.webp" alt="Qrevo L" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Qrevo L</div>
-        </div>
-        <div class="car-slide" id="rr10">
-          <div class="car-img">
-            <img src="images/roborock/roborock-qrevo-c.webp" alt="Qrevo C" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Qrevo C</div>
-        </div>
-        <div class="car-slide" id="rr11">
-          <div class="car-img">
-            <img src="images/roborock/roborock-q10v-plus.webp" alt="Q10V Plus" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Q10V Plus</div>
-        </div>
-        <div class="car-slide" id="rr12">
-          <div class="car-img">
-            <img src="images/roborock/roborock-q7t-plus.webp" alt="Q7T Plus" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Q7T Plus</div>
-        </div>
-        <div class="car-slide" id="rr13">
-          <div class="car-img">
-            <img src="images/roborock/roborock-q7b-2.webp" alt="Q7B" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Q7B</div>
-        </div>
-        <div class="car-slide" id="rr14">
-          <div class="car-img">
-            <img src="images/roborock/roborock-q8-max.webp" alt="Q8 Max+ (White)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Q8 Max+ (White)</div>
-        </div>
-        <div class="car-slide" id="rr15">
-          <div class="car-img">
-            <img src="images/roborock/roborock-q8-max-2.webp" alt="Q8 Max+ (Black)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Q8 Max+ (Black)</div>
-        </div>
-        <div class="car-slide" id="rr16">
-          <div class="car-img">
-            <img src="images/roborock/roborock-q7.webp" alt="Q7" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Q7</div>
-        </div>
-        <div class="car-slide" id="rr17">
-          <div class="car-img">
-            <img src="images/roborock/roborock-s8-max-ultra.webp" alt="S8 Max Ultra" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">S8 Max Ultra</div>
-        </div>
-        <div class="car-slide" id="rr18">
-          <div class="car-img">
-            <img src="images/roborock/roborock-qrevo-edge-2-pro.webp" alt="Qrevo Edge 2 Pro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Qrevo Edge 2 Pro</div>
-        </div>
-        <div class="car-slide" id="rr19">
-          <div class="car-img">
-            <img src="images/roborock/roborock-qrevo-curv.webp" alt="Qrevo Curv" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--cyan)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div></div>
-          </div>
-          <div class="car-model-name">Qrevo Curv</div>
-        </div>
-        <div class="car-nav">
-          <button class="car-btn" onclick="carSlide('rr',-1)">&#8592;</button>
+          <span class="car-counter"><span id="rr-cur">1</span> / 20</span>
           <div class="car-progress"><div class="car-progress-bar" id="rr-progress"></div></div>
-          <button class="car-btn" onclick="carSlide('rr',1)">&#8594;</button>
         </div>
-      </div>
-      </div>
-      <div class="rbrand-symptoms">
-        <div class="sym-label">Common symptoms</div>
-        <div class="sym-grid">
-          <div class="sym"><div class="sym-dot"></div>Won't charge or dock</div>
-          <div class="sym"><div class="sym-dot"></div>Loss of suction</div>
-          <div class="sym"><div class="sym-dot"></div>Navigation errors</div>
-          <div class="sym"><div class="sym-dot"></div>Unusual noises</div>
-          <div class="sym"><div class="sym-dot"></div>Wi-Fi / app issues</div>
-          <div class="sym"><div class="sym-dot"></div>Brush not spinning</div>
-          <div class="sym"><div class="sym-dot"></div>Error codes</div>
-          <div class="sym"><div class="sym-dot"></div>Water tank faults</div>
+        <div id="rr-carousel">
+          <!-- Slides 1-20 -->
+          <div class="car-slide active" id="rr0"><div class="car-img"><img src="images/roborock/roborock-qrevo-c-pro.webp" alt="Qrevo C Pro" onerror="this.style.display='none'"></div><div class="car-model-name">Qrevo C Pro</div></div>
+          <div class="car-slide" id="rr1"><div class="car-img"><img src="images/roborock/roborock-q7b.webp" alt="Q7B+" onerror="this.style.display='none'"></div><div class="car-model-name">Q7B+</div></div>
+          <div class="car-slide" id="rr2"><div class="car-img"><img src="images/roborock/roborock-qrevo-curv-2-flow.webp" alt="Qrevo Curv 2 Flow" onerror="this.style.display='none'"></div><div class="car-model-name">Qrevo Curv 2 Flow</div></div>
+          <div class="car-slide" id="rr3"><div class="car-img"><img src="images/roborock/roborock-saros-20.webp" alt="Saros 20" onerror="this.style.display='none'"></div><div class="car-model-name">Saros 20</div></div>
+          <div class="car-slide" id="rr4"><div class="car-img"><img src="images/roborock/roborock-saros-z70-with-omnigrip-mechanical-arm.webp" alt="Saros Z70 (OmniGrip)" onerror="this.style.display='none'"></div><div class="car-model-name">Saros Z70 (OmniGrip)</div></div>
+          <div class="car-slide" id="rr5"><div class="car-img"><img src="images/roborock/roborock-saros-10r.webp" alt="Saros 10R" onerror="this.style.display='none'"></div><div class="car-model-name">Saros 10R</div></div>
+          <div class="car-slide" id="rr6"><div class="car-img"><img src="images/roborock/roborock-saros-10.webp" alt="Saros 10" onerror="this.style.display='none'"></div><div class="car-model-name">Saros 10</div></div>
+          <div class="car-slide" id="rr7"><div class="car-img"><img src="images/roborock/roborock-qrevo-edge.webp" alt="Qrevo Edge" onerror="this.style.display='none'"></div><div class="car-model-name">Qrevo Edge</div></div>
+          <div class="car-slide" id="rr8"><div class="car-img"><img src="images/roborock/roborock-qrevo-edgec.webp" alt="Qrevo EdgeC" onerror="this.style.display='none'"></div><div class="car-model-name">Qrevo EdgeC</div></div>
+          <div class="car-slide" id="rr9"><div class="car-img"><img src="images/roborock/roborock-qrevo-l.webp" alt="Qrevo L" onerror="this.style.display='none'"></div><div class="car-model-name">Qrevo L</div></div>
+          <div class="car-slide" id="rr10"><div class="car-img"><img src="images/roborock/roborock-qrevo-c.webp" alt="Qrevo C" onerror="this.style.display='none'"></div><div class="car-model-name">Qrevo C</div></div>
+          <div class="car-slide" id="rr11"><div class="car-img"><img src="images/roborock/roborock-q10v-plus.webp" alt="Q10V Plus" onerror="this.style.display='none'"></div><div class="car-model-name">Q10V Plus</div></div>
+          <div class="car-slide" id="rr12"><div class="car-img"><img src="images/roborock/roborock-q7t-plus.webp" alt="Q7T Plus" onerror="this.style.display='none'"></div><div class="car-model-name">Q7T Plus</div></div>
+          <div class="car-slide" id="rr13"><div class="car-img"><img src="images/roborock/roborock-q7b-2.webp" alt="Q7B" onerror="this.style.display='none'"></div><div class="car-model-name">Q7B</div></div>
+          <div class="car-slide" id="rr14"><div class="car-img"><img src="images/roborock/roborock-q8-max.webp" alt="Q8 Max+ (White)" onerror="this.style.display='none'"></div><div class="car-model-name">Q8 Max+ (White)</div></div>
+          <div class="car-slide" id="rr15"><div class="car-img"><img src="images/roborock/roborock-q8-max-2.webp" alt="Q8 Max+ (Black)" onerror="this.style.display='none'"></div><div class="car-model-name">Q8 Max+ (Black)</div></div>
+          <div class="car-slide" id="rr16"><div class="car-img"><img src="images/roborock/roborock-q7.webp" alt="Q7" onerror="this.style.display='none'"></div><div class="car-model-name">Q7</div></div>
+          <div class="car-slide" id="rr17"><div class="car-img"><img src="images/roborock/roborock-s8-max-ultra.webp" alt="S8 Max Ultra" onerror="this.style.display='none'"></div><div class="car-model-name">S8 Max Ultra</div></div>
+          <div class="car-slide" id="rr18"><div class="car-img"><img src="images/roborock/roborock-qrevo-edge-2-pro.webp" alt="Qrevo Edge 2 Pro" onerror="this.style.display='none'"></div><div class="car-model-name">Qrevo Edge 2 Pro</div></div>
+          <div class="car-slide" id="rr19"><div class="car-img"><img src="images/roborock/roborock-qrevo-curv.webp" alt="Qrevo Curv" onerror="this.style.display='none'"></div><div class="car-model-name">Qrevo Curv</div></div>
+        </div>
+        <div class="car-controls">
+          <div class="car-btn" onclick="carSlide('rr',-1)">‹</div>
+          <div class="car-btn" onclick="carSlide('rr',1)">›</div>
         </div>
       </div>
     </div>
 
-    <!-- SEGWAY -->
-    <div class="rbrand">
-      <div class="rbrand-bar"></div>
-      <div class="rbrand-head">
-        <div class="brand-logo-row">
-          <div class="brand-logo-img">
-            <img src="images/segway_logo.png" alt="Segway">
-          </div>
-          <div class="rbrand-name seg">SEGWAY</div>
+    <!-- Segway Ninebot -->
+    <div class="brand-card">
+      <div class="brand-header">
+        <div class="brand-logo-wrap">
+          <img src="images/segway_logo.png" alt="Segway Ninebot">
         </div>
-        <div class="rbrand-sub">Ninebot Electric Scooter · All Models</div>
+        <div class="brand-badge">Authorised Centre</div>
       </div>
-      <div class="rbrand-car">
-        <div class="car-label">Models we service</div>
+      <div class="brand-body">
+        <p class="brand-desc">As an authorised Segway Ninebot service centre, Logic One SA repairs electric scooters and personal transport devices using genuine Segway Ninebot parts — for warranty claims and out-of-warranty service.</p>
         <div class="sg-tabs">
-          <button class="sg-tab active" onclick="sgTab('adults')" id="sgtab-adults">Adults</button>
-          <button class="sg-tab" onclick="sgTab('kids')" id="sgtab-kids">Kids</button>
-          <button class="sg-tab" onclick="sgTab('super')" id="sgtab-super">Super Scooters</button>
+          <button class="sg-tab active" id="sgtab-adults" onclick="sgTab('adults')">Adults</button>
+          <button class="sg-tab" id="sgtab-kids" onclick="sgTab('kids')">Kids</button>
+          <button class="sg-tab" id="sgtab-super" onclick="sgTab('super')">SuperScooter</button>
         </div>
-
-        <div class="sg-panel" id="sgpanel-adults">
-          <div class="car-slide active" id="sg-adults-0">
-            <div class="car-img">
-              <img src="images/segway/segway-e2-pro.webp" alt="E2 Pro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">E2 Pro</div>
-            <div class="car-model-sub">AUD $699 · Sold out</div>
+        <!-- Adults panel -->
+        <div class="sg-panel" id="sgpanel-adults" style="display:block">
+          <div class="brand-services" style="margin-bottom:1rem">
+            <div class="bsvc">In-warranty service</div>
+            <div class="bsvc">Out-of-warranty repairs</div>
+            <div class="bsvc">Genuine Ninebot parts</div>
+            <div class="bsvc">Battery diagnostics</div>
+            <div class="bsvc">Motor & brake faults</div>
+            <div class="bsvc">Controller board repair</div>
           </div>
-          <div class="car-slide" id="sg-adults-1">
-            <div class="car-img">
-              <img src="images/segway/segway-max-g2.webp" alt="MAX G2" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">MAX G2</div>
-            <div class="car-model-sub">AUD $1,299 · In stock</div>
-          </div>
-          <div class="car-slide" id="sg-adults-2">
-            <div class="car-img">
-              <img src="images/segway/segway-max-g3.webp" alt="MAX G3" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">MAX G3</div>
-            <div class="car-model-sub">AUD $1,699 · In stock</div>
-          </div>
-          <div class="car-slide" id="sg-adults-3">
-            <div class="car-img">
-              <img src="images/segway/segway-zt3-pro.webp" alt="ZT3 Pro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">ZT3 Pro</div>
-            <div class="car-model-sub">AUD $1,499 · In stock</div>
-          </div>
-          <div class="car-slide" id="sg-adults-4">
-            <div class="car-img">
-              <img src="images/segway/segway-e2.webp" alt="E2" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">E2</div>
-            <div class="car-model-sub">AUD $599 · Sold out</div>
-          </div>
-          <div class="car-slide" id="sg-adults-5">
-            <div class="car-img">
-              <img src="images/segway/segway-e2-plus.webp" alt="E2 Plus" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">E2 Plus</div>
-            <div class="car-model-sub">AUD $699 · Sold out</div>
-          </div>
-          <div class="car-slide" id="sg-adults-6">
-            <div class="car-img">
-              <img src="images/segway/segway-f3-pro.webp" alt="F3 PRO" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">F3 PRO</div>
-            <div class="car-model-sub">AUD $1,299 · In stock</div>
-          </div>
-          <div class="car-slide" id="sg-adults-7">
-            <div class="car-img">
-              <img src="images/segway/segway-e2-pro-certified-refurbished.webp" alt="E2 Pro Refurbished" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">E2 Pro Refurbished</div>
-            <div class="car-model-sub">AUD $499 · In stock</div>
-          </div>
-          <div class="car-slide" id="sg-adults-8">
-            <div class="car-img">
-              <img src="images/segway/segway-e3-pro.webp" alt="E3 PRO" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">E3 PRO</div>
-            <div class="car-model-sub">AUD $999 · In stock</div>
-          </div>
-          <div class="car-slide" id="sg-adults-9">
-            <div class="car-img">
-              <img src="images/segway/segway-f2.webp" alt="F2" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">F2</div>
-            <div class="car-model-sub">AUD $799 · Sold out</div>
-          </div>
-          <div class="car-slide" id="sg-adults-10">
-            <div class="car-img">
-              <img src="images/segway/segway-f2-pro.webp" alt="F2 Pro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">F2 Pro</div>
-            <div class="car-model-sub">AUD $999 · Sold out</div>
-          </div>
-          <div class="car-slide" id="sg-adults-11">
-            <div class="car-img">
-              <img src="images/segway/segway-f3.webp" alt="F3" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">F3</div>
-            <div class="car-model-sub">AUD $1,199 · Sold out</div>
-          </div>
-          <div class="car-slide" id="sg-adults-12">
-            <div class="car-img">
-              <img src="images/segway/segway-certified-refurbished-max-g3.webp" alt="Max G3 Refurbished" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">Max G3 Refurbished</div>
-            <div class="car-model-sub">AUD $1,199 · Sold out</div>
-          </div>
-          <div class="car-slide" id="sg-adults-13">
-            <div class="car-img">
-              <img src="images/segway/segway-refurbished-e2-plus.webp" alt="E2 Plus Refurbished" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">E2 Plus Refurbished</div>
-            <div class="car-model-sub">AUD $399 · Sold out</div>
-          </div>
-          <div class="car-slide" id="sg-adults-14">
-            <div class="car-img">
-              <img src="images/segway/segway-certified-refurbished-segway-f3-pro-electric-kickscooter.webp" alt="F3 PRO Refurbished" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">F3 PRO Refurbished</div>
-            <div class="car-model-sub">AUD $899 · Sold out</div>
-          </div>
-          <div class="car-slide" id="sg-adults-15">
-            <div class="car-img">
-              <img src="images/segway/segway-certified-refurbished-segway-f3-pro-electric-kickscooter-2.webp" alt="F3 PRO Refurbished (B)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">F3 PRO Refurbished (B)</div>
-            <div class="car-model-sub">AUD $1,099 · Low stock</div>
-          </div>
-          <div class="car-slide" id="sg-adults-16">
-            <div class="car-img">
-              <img src="images/segway/segway-e3.webp" alt="E3" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">E3</div>
-            <div class="car-model-sub">AUD $999 · In stock</div>
-          </div>
-          <div class="car-nav">
-            <button class="car-btn" onclick="sgSlide('adults',-1)">&#8592;</button>
+          <div class="car-header">
+            <span class="car-counter"><span id="sg-adults-cur">1</span> / 17</span>
             <div class="car-progress"><div class="car-progress-bar" id="sg-adults-progress"></div></div>
-            <div class="car-counter"><span id="sg-adults-cur">1</span> / 17</div>
-            <button class="car-btn" onclick="sgSlide('adults',1)">&#8594;</button>
+          </div>
+          <div class="car-slide active" id="sga0"><div class="car-img"><img src="images/segway/segway-e2-pro.webp" alt="E2 Pro" onerror="this.style.display='none'"></div><div class="car-model-name">E2 Pro</div></div>
+          <div class="car-slide" id="sga1"><div class="car-img"><img src="images/segway/segway-max-g2.webp" alt="MAX G2" onerror="this.style.display='none'"></div><div class="car-model-name">MAX G2</div></div>
+          <div class="car-slide" id="sga2"><div class="car-img"><img src="images/segway/segway-max-g3.webp" alt="MAX G3" onerror="this.style.display='none'"></div><div class="car-model-name">MAX G3</div></div>
+          <div class="car-slide" id="sga3"><div class="car-img"><img src="images/segway/segway-zt3-pro.webp" alt="ZT3 Pro" onerror="this.style.display='none'"></div><div class="car-model-name">ZT3 Pro</div></div>
+          <div class="car-slide" id="sga4"><div class="car-img"><img src="images/segway/segway-e2.webp" alt="E2" onerror="this.style.display='none'"></div><div class="car-model-name">E2</div></div>
+          <div class="car-slide" id="sga5"><div class="car-img"><img src="images/segway/segway-e2-plus.webp" alt="E2 Plus" onerror="this.style.display='none'"></div><div class="car-model-name">E2 Plus</div></div>
+          <div class="car-slide" id="sga6"><div class="car-img"><img src="images/segway/segway-f3-pro.webp" alt="F3 PRO" onerror="this.style.display='none'"></div><div class="car-model-name">F3 PRO</div></div>
+          <div class="car-slide" id="sga7"><div class="car-img"><img src="images/segway/segway-e2-pro-certified-refurbished.webp" alt="E2 Pro Refurbished" onerror="this.style.display='none'"></div><div class="car-model-name">E2 Pro Refurbished</div></div>
+          <div class="car-slide" id="sga8"><div class="car-img"><img src="images/segway/segway-e3-pro.webp" alt="E3 PRO" onerror="this.style.display='none'"></div><div class="car-model-name">E3 PRO</div></div>
+          <div class="car-slide" id="sga9"><div class="car-img"><img src="images/segway/segway-f2.webp" alt="F2" onerror="this.style.display='none'"></div><div class="car-model-name">F2</div></div>
+          <div class="car-slide" id="sga10"><div class="car-img"><img src="images/segway/segway-f2-pro.webp" alt="F2 Pro" onerror="this.style.display='none'"></div><div class="car-model-name">F2 Pro</div></div>
+          <div class="car-slide" id="sga11"><div class="car-img"><img src="images/segway/segway-f3.webp" alt="F3" onerror="this.style.display='none'"></div><div class="car-model-name">F3</div></div>
+          <div class="car-slide" id="sga12"><div class="car-img"><img src="images/segway/segway-certified-refurbished-max-g3.webp" alt="Max G3 Refurbished" onerror="this.style.display='none'"></div><div class="car-model-name">Max G3 Refurbished</div></div>
+          <div class="car-slide" id="sga13"><div class="car-img"><img src="images/segway/segway-refurbished-e2-plus.webp" alt="E2 Plus Refurbished" onerror="this.style.display='none'"></div><div class="car-model-name">E2 Plus Refurbished</div></div>
+          <div class="car-slide" id="sga14"><div class="car-img"><img src="images/segway/segway-certified-refurbished-segway-f3-pro-electric-kickscooter.webp" alt="F3 PRO Refurbished" onerror="this.style.display='none'"></div><div class="car-model-name">F3 PRO Refurbished</div></div>
+          <div class="car-slide" id="sga15"><div class="car-img"><img src="images/segway/segway-certified-refurbished-segway-f3-pro-electric-kickscooter-2.webp" alt="F3 PRO Refurbished (B)" onerror="this.style.display='none'"></div><div class="car-model-name">F3 PRO Refurbished (B)</div></div>
+          <div class="car-slide" id="sga16"><div class="car-img"><img src="images/segway/segway-e3.webp" alt="E3" onerror="this.style.display='none'"></div><div class="car-model-name">E3</div></div>
+          <div class="car-controls">
+            <div class="car-btn" onclick="sgSlide('adults',-1)">‹</div>
+            <div class="car-btn" onclick="sgSlide('adults',1)">›</div>
           </div>
         </div>
+        <!-- Kids panel -->
         <div class="sg-panel" id="sgpanel-kids">
-          <div class="car-slide active" id="sg-kids-0">
-            <div class="car-img">
-              <img src="images/segway/segway-c2-lite.webp" alt="C2 Lite" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">C2 Lite</div>
-            <div class="car-model-sub">AUD $329 · In stock</div>
+          <div class="brand-services" style="margin-bottom:1rem">
+            <div class="bsvc">Kids scooter service</div>
+            <div class="bsvc">Battery replacement</div>
+            <div class="bsvc">Safety checks</div>
           </div>
-          <div class="car-slide" id="sg-kids-1">
-            <div class="car-img">
-              <img src="images/segway/segway-c2-pro.webp" alt="C2 Pro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">C2 Pro</div>
-            <div class="car-model-sub">AUD $499 · Sold out</div>
-          </div>
-          <div class="car-slide" id="sg-kids-2">
-            <div class="car-img">
-              <img src="images/segway/segway-c2.webp" alt="C2" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">C2</div>
-            <div class="car-model-sub">AUD $399 · Sold out</div>
-          </div>
-          <div class="car-nav">
-            <button class="car-btn" onclick="sgSlide('kids',-1)">&#8592;</button>
+          <div class="car-header">
+            <span class="car-counter"><span id="sg-kids-cur">1</span> / 3</span>
             <div class="car-progress"><div class="car-progress-bar" id="sg-kids-progress"></div></div>
-            <div class="car-counter"><span id="sg-kids-cur">1</span> / 3</div>
-            <button class="car-btn" onclick="sgSlide('kids',1)">&#8594;</button>
+          </div>
+          <div class="car-slide active" id="sgk0"><div class="car-img"><img src="images/segway/segway-c2-lite.webp" alt="C2 Lite" onerror="this.style.display='none'"></div><div class="car-model-name">C2 Lite</div></div>
+          <div class="car-slide" id="sgk1"><div class="car-img"><img src="images/segway/segway-c2-pro.webp" alt="C2 Pro" onerror="this.style.display='none'"></div><div class="car-model-name">C2 Pro</div></div>
+          <div class="car-slide" id="sgk2"><div class="car-img"><img src="images/segway/segway-c2.webp" alt="C2" onerror="this.style.display='none'"></div><div class="car-model-name">C2</div></div>
+          <div class="car-controls">
+            <div class="car-btn" onclick="sgSlide('kids',-1)">‹</div>
+            <div class="car-btn" onclick="sgSlide('kids',1)">›</div>
           </div>
         </div>
+        <!-- SuperScooter panel -->
         <div class="sg-panel" id="sgpanel-super">
-          <div class="car-slide active" id="sg-super-0">
-            <div class="car-img">
-              <img src="images/segway/segway-gt1.webp" alt="GT1" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">GT1</div>
-            <div class="car-model-sub">AUD $3,299 · Sold out</div>
+          <div class="brand-services" style="margin-bottom:1rem">
+            <div class="bsvc">High-performance models</div>
+            <div class="bsvc">Motor & battery faults</div>
+            <div class="bsvc">Controller diagnostics</div>
+            <div class="bsvc">Genuine parts only</div>
           </div>
-          <div class="car-slide" id="sg-super-1">
-            <div class="car-img">
-              <img src="images/segway/segway-gt2.webp" alt="GT2" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">GT2</div>
-            <div class="car-model-sub">AUD $3,999 · Low stock</div>
-          </div>
-          <div class="car-slide" id="sg-super-2">
-            <div class="car-img">
-              <img src="images/segway/segway-gt3-pro.webp" alt="GT3 PRO" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">GT3 PRO</div>
-            <div class="car-model-sub">AUD $5,499 · Low stock</div>
-          </div>
-          <div class="car-slide" id="sg-super-3">
-            <div class="car-img">
-              <img src="images/segway/segway-gt3.webp" alt="GT3" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" >
-              <div class="car-img-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:100%;height:100%"><div class="car-model-icon"><svg viewBox="0 0 24 24" stroke="var(--blue)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/><path d="M5 17H3V7h12l4 6v4h-2M9 17h6"/></svg></div></div>
-            </div>
-            <div class="car-model-name">GT3</div>
-            <div class="car-model-sub">AUD $2,999</div>
-          </div>
-          <div class="car-nav">
-            <button class="car-btn" onclick="sgSlide('super',-1)">&#8592;</button>
+          <div class="car-header">
+            <span class="car-counter"><span id="sg-super-cur">1</span> / 4</span>
             <div class="car-progress"><div class="car-progress-bar" id="sg-super-progress"></div></div>
-            <div class="car-counter"><span id="sg-super-cur">1</span> / 4</div>
-            <button class="car-btn" onclick="sgSlide('super',1)">&#8594;</button>
+          </div>
+          <div class="car-slide active" id="sgs0"><div class="car-img"><img src="images/segway/segway-gt1.webp" alt="GT1" onerror="this.style.display='none'"></div><div class="car-model-name">GT1</div></div>
+          <div class="car-slide" id="sgs1"><div class="car-img"><img src="images/segway/segway-gt2.webp" alt="GT2" onerror="this.style.display='none'"></div><div class="car-model-name">GT2</div></div>
+          <div class="car-slide" id="sgs2"><div class="car-img"><img src="images/segway/segway-gt3-pro.webp" alt="GT3 PRO" onerror="this.style.display='none'"></div><div class="car-model-name">GT3 PRO</div></div>
+          <div class="car-slide" id="sgs3"><div class="car-img"><img src="images/segway/segway-gt3.webp" alt="GT3" onerror="this.style.display='none'"></div><div class="car-model-name">GT3</div></div>
+          <div class="car-controls">
+            <div class="car-btn" onclick="sgSlide('super',-1)">‹</div>
+            <div class="car-btn" onclick="sgSlide('super',1)">›</div>
           </div>
         </div>
       </div>
-      <div class="rbrand-symptoms">
-        <div class="sym-label">Common symptoms</div>
-        <div class="sym-grid">
-          <div class="sym"><div class="sym-dot"></div>Reduced battery range</div>
-          <div class="sym"><div class="sym-dot"></div>Won't power on</div>
-          <div class="sym"><div class="sym-dot"></div>Error codes on display</div>
-          <div class="sym"><div class="sym-dot"></div>Flat or damaged tyres</div>
-          <div class="sym"><div class="sym-dot"></div>Weak or no brakes</div>
-          <div class="sym"><div class="sym-dot"></div>Motor stuttering</div>
-          <div class="sym"><div class="sym-dot"></div>Display / throttle fault</div>
-          <div class="sym"><div class="sym-dot"></div>Fold mechanism stuck</div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- TRUST BADGES -->
-  <div class="repair-trust">
-    <div class="rtbadge">
-      <div class="rtbadge-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 4.8L20 8l-4 3.9.9 5.6L12 15l-4.9 2.5.9-5.6L4 8l5.6-.8z"/></svg></div>
-      <div><h5>Genuine Parts</h5><p>Official Roborock &amp; Segway components only</p></div>
-    </div>
-    <div class="rtbadge">
-      <div class="rtbadge-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div>
-      <div><h5>Authorised Repairs</h5><p>Certified centre for both brands</p></div>
-    </div>
-    <div class="rtbadge">
-      <div class="rtbadge-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-      <div><h5>In &amp; Out of Warranty</h5><p>Warranty follows the official process</p></div>
     </div>
   </div>
 
-  <!-- REPAIR PROCESS -->
+  <!-- Repair process -->
   <div class="repair-proc">
-    <div class="repair-proc-head">
-      <div class="eyebrow">How it works</div>
-      <h2 style="font-size:clamp(1.4rem,2.5vw,2rem);margin-bottom:0">The repair process</h2>
-    </div>
+    <div class="eyebrow">How it works</div>
+    <h2 style="font-size:clamp(1.4rem,2.2vw,1.9rem)">The repair process.</h2>
     <div class="repair-proc-steps">
-      <div class="rp-step"><div class="rp-circle"><div class="rp-circle-num">01</div></div><h4>Drop it off</h4><p>Bring your device in — no appointment needed during business hours.</p></div>
-      <div class="rp-step"><div class="rp-circle"><div class="rp-circle-num">02</div></div><h4>Inspection &amp; diagnosis</h4><p>Full diagnostic run. Inspection fee applies for out-of-warranty devices.</p></div>
-      <div class="rp-step"><div class="rp-circle"><div class="rp-circle-num">03</div></div><h4>Clear quote</h4><p>Firm price before any work starts. No surprises, no hidden costs.</p></div>
-      <div class="rp-step"><div class="rp-circle"><div class="rp-circle-num">04</div></div><h4>Repaired &amp; tested</h4><p>Fixed with genuine parts and fully tested before collection.</p></div>
-    </div>
-    <div class="repair-proc-note">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-      <p><strong>In-warranty repairs</strong> follow the official Roborock or Segway process at no cost to you. Out-of-warranty repairs start with an inspection fee, then a firm quote before we proceed.</p>
-    </div>
-  </div>
-
-</section>
-
-<!-- ABOUT -->
-<section id="about">
-  <div class="about-layout">
-    <div class="about-text">
-      <div class="eyebrow">About Logic One SA</div>
-      <h2>Engineering-first.<br>Adelaide-based.</h2>
-      <p>Logic One SA is an Adelaide electronics engineering business with a hands-on approach — we design custom embedded systems and repair precision devices, and we take both seriously.</p>
-      <p>Our embedded design work is built on <strong>real engineering depth</strong> — not off-the-shelf modules bodged together. And our repair work goes beyond part-swapping — we diagnose at the circuit level and know these platforms inside out.</p>
-      <p>Every project and repair comes with <strong>straight talk and honest pricing.</strong> As an authorised repair centre for both Roborock and Segway, we handle warranty and out-of-warranty work — with a clear inspection fee and firm quote before any repair begins. We're based in South Australia and work with local businesses, makers and individuals.</p>
-      <div class="pill-row">
-        <span class="pill">Embedded Design</span>
-        <span class="pill">PCB Layout</span>
-        <span class="pill">Firmware Dev</span>
-        <span class="pill">IoT Integration</span>
-        <span class="pill">Roborock Repair</span>
-        <span class="pill">Segway Ninebot</span>
-        <span class="pill">Genuine Parts</span>
-        <span class="pill">Adelaide SA</span>
+      <div class="rpstep">
+        <div class="rpnum">01</div>
+        <h4>Lodge a Job</h4>
+        <p>Contact us or use the form below. We'll confirm receipt and arrange drop-off or freight.</p>
+      </div>
+      <div class="rpstep">
+        <div class="rpnum">02</div>
+        <h4>Inspect &amp; Quote</h4>
+        <p>We assess the fault. Warranty claims are lodged. Out-of-warranty repairs receive a quote before any work begins.</p>
+      </div>
+      <div class="rpstep">
+        <div class="rpnum">03</div>
+        <h4>Repair</h4>
+        <p>Approved repairs are carried out using genuine parts following manufacturer procedures.</p>
+      </div>
+      <div class="rpstep">
+        <div class="rpnum">04</div>
+        <h4>Return</h4>
+        <p>Your device is tested, documented and returned to you — or ready for collection.</p>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ── GET IN TOUCH ── -->
+<section id="book">
+  <div class="eyebrow">Get in touch</div>
+  <h2>Start a conversation.</h2>
+  <p class="sec-sub">Whether it's an embedded system project or a device repair — fill in the form and we'll get back to you within a few hours.</p>
+
+  <div class="book-layout">
+    <!-- Left: process -->
     <div>
-      <div class="stats-wrap">
-        <div class="stats-inner">
-          <div class="eyebrow" style="margin-bottom:1.75rem">By the numbers</div>
-          <div class="stats-grid">
-            <div class="stat"><div class="stat-val">96%</div><div class="stat-key">Repair success rate</div></div>
-            <div class="stat"><div class="stat-val">24h</div><div class="stat-key">Avg. repair turnaround</div></div>
-            <div class="stat"><div class="stat-val">E2E</div><div class="stat-key">Embedded design coverage</div></div>
-            <div class="stat"><div class="stat-val">Auth.</div><div class="stat-key">Authorised repair centre</div></div>
-          </div>
+      <div class="process">
+        <div class="pstep">
+          <div class="pnum">01</div>
+          <div><h4>Tell us what you need</h4><p>Describe your project or the issue with your device. The more detail the better.</p></div>
+        </div>
+        <div class="pstep">
+          <div class="pnum">02</div>
+          <div><h4>We get back to you</h4><p>We'll reply within a few hours to discuss scope, timeline and next steps.</p></div>
+        </div>
+        <div class="pstep">
+          <div class="pnum">03</div>
+          <div><h4>Inspection &amp; quote</h4><p>For repairs — an inspection fee applies, then a firm quote before we start. For design projects — a free scoping call.</p></div>
+        </div>
+        <div class="pstep">
+          <div class="pnum">04</div>
+          <div><h4>We get to work</h4><p>Repairs done same or next day. Design projects kicked off on an agreed timeline.</p></div>
         </div>
       </div>
     </div>
-  </div>
-</section>
 
-<!-- BOOKING -->
-<section id="book">
-  <div class="book-layout">
-    <div>
-      <div class="eyebrow">Get in touch</div>
-      <h2>Let's talk<br>about your project.</h2>
-      <p class="sec-sub" style="margin-bottom:0">Whether it's an embedded system project or a device repair — fill in the form and we'll get back to you within a few hours.</p>
-      <div class="process">
-        <div class="pstep"><div class="pnum">01</div><div><h4>Tell us what you need</h4><p>Describe your project or the issue with your device. The more detail the better.</p></div></div>
-        <div class="pstep"><div class="pnum">02</div><div><h4>We get back to you</h4><p>We'll reply within a few hours to discuss scope, timeline and next steps.</p></div></div>
-        <div class="pstep"><div class="pnum">03</div><div><h4>Inspection &amp; quote</h4><p>For repairs — an inspection fee applies, then a firm quote before we start. For design projects — a free scoping call.</p></div></div>
-        <div class="pstep"><div class="pnum">04</div><div><h4>We get to work</h4><p>Repairs done same or next day. Design projects kicked off on an agreed timeline.</p></div></div>
-      </div>
-    </div>
+    <!-- Right: form -->
     <div class="form-wrap">
       <div class="form-inner">
         <div id="booking-form">
           <div class="frow">
-            <div class="fg"><label>First name</label><input type="text" placeholder="Alex"></div>
-            <div class="fg"><label>Last name</label><input type="text" placeholder="Nguyen"></div>
+            <div class="fg"><label>First Name</label><input type="text" placeholder="Alex"></div>
+            <div class="fg"><label>Last Name</label><input type="text" placeholder="Nguyen"></div>
           </div>
-          <div class="fg"><label>Email</label><input type="email" placeholder="alex@example.com"></div>
+          <div class="fg"><label>Email</label><input type="email" placeholder="you@example.com"></div>
           <div class="fg"><label>Phone</label><input type="tel" placeholder="+61 4xx xxx xxx"></div>
           <div class="fg">
-            <label>Enquiry type</label>
+            <label>Enquiry Type</label>
             <select id="type-sel">
               <option value="" disabled selected>Select type</option>
               <option>Embedded Systems Design Project</option>
@@ -810,46 +525,41 @@
             </select>
           </div>
           <div class="fg"><label>Tell us about your project or issue</label><textarea placeholder="e.g. I need a custom ESP32 sensor board for an environmental monitor… or: My Roborock won't dock and shows an error…"></textarea></div>
-          <button class="btn-submit" onclick="submitForm()">Send Enquiry via Email</button>
+          <button class="btn-submit" onclick="submitForm()">Send Enquiry via Email →</button>
         </div>
         <div id="form-success">
-          <div class="check-ring">✓</div>
-          <h3>Enquiry Received</h3>
-          <p>Your email app should now open with your enquiry details. If it doesn’t, contact us directly by email.</p>
+          <div class="check-ring">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3>Enquiry Sent</h3>
+          <p>Your email app should now open with your enquiry details. If it doesn't, contact us directly at info@logicone.com.au</p>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- CONTACT -->
+<!-- ── CONTACT ── -->
 <section id="contact">
   <div class="eyebrow">Find us</div>
-  <h2>Get in touch.</h2>
-  <p class="sec-sub">Based in Adelaide, South Australia. Available for local and remote embedded design projects.</p>
+  <h2>Contact &amp; Location.</h2>
   <div class="contact-grid">
     <div class="cbox">
       <div class="clabel">Location</div>
-      <div class="cval">Adelaide, South Australia<br><span style="color:var(--muted);font-size:.82rem">Workshop address provided on booking</span></div>
+      <div class="cval">Adelaide, South Australia</div>
+      <div class="csub">Exact workshop address provided upon booking</div>
     </div>
     <div class="cbox">
-      <div class="clabel">Phone &amp; Email</div>
-      <div class="cval">
-        <a href="/cdn-cgi/l/email-protection#771e191118371b18101e141819125914181a591602"><span class="__cf_email__" data-cfemail="b8d1d6ded7f8d4d7dfd1dbd7d6dd96dbd7d596d9cd">[email&#160;protected]</span></a><br>
-        <span style="color:var(--muted);font-size:.82rem">Phone number to be added</span>
-      </div>
-      <div class="csub">We reply by email within 4 hours on business days (Mon – Fri, 10am – 5pm)</div>
+      <div class="clabel">Email</div>
+      <div class="cval"><a href="mailto:info@logicone.com.au">info@logicone.com.au</a></div>
+      <div class="csub">We reply within 4 hours on business days (Mon – Fri, 10am – 5pm)</div>
     </div>
     <div class="cbox">
-      <div class="clabel">Services</div>
-      <div class="cval">
-        <span style="color:var(--cyan)">●</span> Embedded Systems Design<br>
-        <span style="color:var(--blue)">●</span> Roborock Robot Vacuum Repair<br>
-        <span style="color:var(--blue2)">●</span> Segway Ninebot Scooter Repair
-      </div>
+      <div class="clabel">Hours</div>
+      <div class="cval">Mon – Fri, 10am – 5pm</div>
+      <div class="csub">ACST · Closed public holidays</div>
     </div>
   </div>
-  <div class="eyebrow" style="margin-bottom:1rem">Business hours</div>
   <div class="hours-grid">
     <div class="hcell"><div class="hday">Mon – Fri</div><div class="htime">10:00 am – 5:00 pm</div></div>
     <div class="hcell"><div class="hday">Saturday</div><div class="htime closed">Closed</div></div>
@@ -869,31 +579,32 @@
 
 <!-- FOOTER -->
 <footer>
-  <div class="foot-copy">© 2026 Logic One SA · Adelaide SA · ABN to be added · Electronics Engineering &amp; Repair</div>
+  <div class="foot-copy">© 2025 Logic One SA · Adelaide, SA · ABN XX XXX XXX XXX</div>
   <div class="foot-right">
-    <a href="#services">Services</a>
-    <a href="#embedded">Embedded</a>
+    <a href="#embedded">Embedded Systems</a>
     <a href="#repairs">Repairs</a>
-    <a href="#about">About</a>
     <a href="#book">Contact</a>
   </div>
 </footer>
 
-
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 function toggleMenu(){
   const m=document.getElementById('mob');
-  const spans=document.querySelectorAll('#ham span');
-  m.classList.toggle('open');
-  const isOpen=m.classList.contains('open');
-  spans[0].style.transform=isOpen?'rotate(45deg) translate(5px,5px)':'';
-  spans[1].style.opacity=isOpen?'0':'1';
-  spans[2].style.transform=isOpen?'rotate(-45deg) translate(5px,-5px)':'';
+  const h=document.getElementById('ham');
+  const open=m.classList.toggle('open');
+  const spans=h.querySelectorAll('span');
+  if(open){
+    spans[0].style.transform='translateY(7px) rotate(45deg)';
+    spans[1].style.opacity='0';
+    spans[2].style.transform='translateY(-7px) rotate(-45deg)';
+  } else {
+    spans.forEach(s=>{s.style.transform='';s.style.opacity='1';});
+  }
 }
-document.addEventListener('click',function(e){
+document.addEventListener('click',e=>{
   const m=document.getElementById('mob');
   const h=document.getElementById('ham');
-  if(m&&m.classList.contains('open')&&!m.contains(e.target)&&!h.contains(e.target)){
+  if(m.classList.contains('open')&&!m.contains(e.target)&&!h.contains(e.target)){
     m.classList.remove('open');
     document.querySelectorAll('#ham span').forEach(s=>{s.style.transform='';s.style.opacity='1';});
   }
@@ -902,68 +613,25 @@ document.addEventListener('click',function(e){
 function submitForm(){
   const fields=document.querySelectorAll('#booking-form input,#booking-form select,#booking-form textarea');
   let ok=true;
-  fields.forEach(f=>{ if(!f.value.trim()) ok=false; });
-  if(!ok){
-    alert('Please fill in all fields before submitting.');
-    return;
-  }
-
+  fields.forEach(f=>{if(!f.value.trim())ok=false;});
+  if(!ok){alert('Please fill in all fields before submitting.');return;}
   const first=document.querySelector('input[placeholder="Alex"]').value.trim();
   const last=document.querySelector('input[placeholder="Nguyen"]').value.trim();
   const email=document.querySelector('input[type="email"]').value.trim();
   const phone=document.querySelector('input[type="tel"]').value.trim();
   const enquiry=document.getElementById('type-sel').value.trim();
   const details=document.querySelector('textarea').value.trim();
-
-  const subject = encodeURIComponent('Website enquiry - ' + enquiry);
-  const body = encodeURIComponent(
-`Name: ${first} ${last}
-
-Email: ${email}
-Phone: ${phone}
-Enquiry type: ${enquiry}
-
-Details:
-${details}`
-  );
-
-  window.location.href = `mailto:info@logicone.com.au?subject=${subject}&body=${body}`;
+  const subject=encodeURIComponent('Website enquiry - '+enquiry);
+  const body=encodeURIComponent('Name: '+first+' '+last+'\n\nEmail: '+email+'\nPhone: '+phone+'\nEnquiry type: '+enquiry+'\n\nDetails:\n'+details);
+  window.location.href='mailto:info@logicone.com.au?subject='+subject+'&body='+body;
   document.getElementById('booking-form').style.display='none';
   document.getElementById('form-success').style.display='block';
 }
 
-const carData={
-  rr:{idx:0,total:20,timer:null},
-  sg:{idx:0,total:17,timer:null}
-};
-function carUpdate(brand){
-  const d=carData[brand];
-  document.querySelectorAll('.car-slide[id^="'+brand+'"]').forEach((el,i)=>{
-    el.classList.toggle('active',i===d.idx);
-  });
-  const cur=document.getElementById(brand+'-cur');
-  if(cur)cur.textContent=d.idx+1;
-  const bar=document.getElementById(brand+'-progress');
-  if(bar)bar.style.width=((d.idx+1)/d.total*100)+'%';
-}
-function carSlide(brand,dir){
-  const d=carData[brand];
-  d.idx=(d.idx+dir+d.total)%d.total;
-  carUpdate(brand);
-  resetAutoplay(brand);
-}
-function resetAutoplay(brand){
-  const d=carData[brand];
-  clearInterval(d.timer);
-  d.timer=setInterval(()=>{d.idx=(d.idx+1)%d.total;carUpdate(brand);},3000);
-}
-resetAutoplay('rr');
-resetAutoplay('sg');
-
-const deckState={embed:{idx:0,total:5},'repair-hero':{idx:0,total:5}};
+/* ── Deck carousel ── */
+const deckState={'embed':{idx:0,total:5},'repair-hero':{idx:0,total:5}};
 function updateDeckDots(name){
-  const dots=document.querySelectorAll('#'+name+'-dots .deck-dot');
-  dots.forEach((d,i)=>d.classList.toggle('active',i===deckState[name].idx));
+  document.querySelectorAll('#'+name+'-dots .deck-dot').forEach((d,i)=>d.classList.toggle('active',i===deckState[name].idx));
 }
 function deckGo(name,idx){
   deckState[name].idx=idx;
@@ -973,62 +641,70 @@ function deckGo(name,idx){
 function deckTick(name){
   const s=deckState[name];
   s.idx=(s.idx+1)%s.total;
-  document.getElementById(name+'-track').style.transform='translateX(-'+s.idx*100+'%)';
+  deckGo(name,s.idx);
 }
-/* Auto-scroll image decks */
 setInterval(()=>deckTick('embed'),3500);
 setInterval(()=>deckTick('repair-hero'),4000);
 
-/* Segway tab carousel */
-const sgState = {
-  adults: {idx:0, total:17, timer:null},
-  kids:   {idx:0, total:3,   timer:null},
-  super:  {idx:0, total:4,   timer:null}
-};
-let sgActive = 'adults';
-function sgTab(cat){
-  sgActive = cat;
-  document.querySelectorAll('.sg-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('sgtab-'+cat).classList.add('active');
-  document.querySelectorAll('.sg-panel').forEach(p=>p.style.display='none');
-  document.getElementById('sgpanel-'+cat).style.display='block';
+/* ── Roborock carousel ── */
+const rrState={idx:0,total:20,timer:null};
+function rrUpdate(){
+  document.querySelectorAll('[id^="rr"]').forEach((el,i)=>el.classList.toggle('active',i===rrState.idx));
+  const cur=document.getElementById('rr-cur');
+  if(cur)cur.textContent=rrState.idx+1;
+  const bar=document.getElementById('rr-progress');
+  if(bar)bar.style.width=((rrState.idx+1)/rrState.total*100)+'%';
 }
+function carSlide(brand,dir){
+  if(brand==='rr'){
+    rrState.idx=(rrState.idx+dir+rrState.total)%rrState.total;
+    rrUpdate();
+    clearInterval(rrState.timer);
+    rrState.timer=setInterval(()=>{rrState.idx=(rrState.idx+1)%rrState.total;rrUpdate();},3000);
+  }
+}
+rrState.timer=setInterval(()=>{rrState.idx=(rrState.idx+1)%rrState.total;rrUpdate();},3000);
+
+/* ── Segway carousel ── */
+const sgState={
+  adults:{idx:0,total:17,timer:null},
+  kids:{idx:0,total:3,timer:null},
+  super:{idx:0,total:4,timer:null}
+};
 function sgUpdate(cat){
   const s=sgState[cat];
-  document.querySelectorAll('#sgpanel-'+cat+' .car-slide').forEach((el,i)=>el.classList.toggle('active',i===s.idx));
+  const prefix={adults:'sga',kids:'sgk',super:'sgs'}[cat];
+  document.querySelectorAll('[id^="'+prefix+'"]').forEach((el,i)=>el.classList.toggle('active',i===s.idx));
   const cur=document.getElementById('sg-'+cat+'-cur');
-  if(cur) cur.textContent=s.idx+1;
+  if(cur)cur.textContent=s.idx+1;
   const bar=document.getElementById('sg-'+cat+'-progress');
-  if(bar) bar.style.width=((s.idx+1)/s.total*100)+'%';
+  if(bar)bar.style.width=((s.idx+1)/s.total*100)+'%';
 }
 function sgSlide(cat,dir){
   const s=sgState[cat];
   s.idx=(s.idx+dir+s.total)%s.total;
   sgUpdate(cat);
-  sgResetAuto(cat);
+  clearInterval(s.timer);
+  s.timer=setInterval(()=>{s.idx=(s.idx+1)%s.total;sgUpdate(cat);},3500);
 }
-function sgResetAuto(cat){
-  clearInterval(sgState[cat].timer);
-  sgState[cat].timer=setInterval(()=>{sgState[cat].idx=(sgState[cat].idx+1)%sgState[cat].total;sgUpdate(cat);},3500);
+function sgTab(cat){
+  document.querySelectorAll('.sg-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sgtab-'+cat).classList.add('active');
+  document.querySelectorAll('.sg-panel').forEach(p=>p.style.display='none');
+  document.getElementById('sgpanel-'+cat).style.display='block';
 }
 ['adults','kids','super'].forEach(c=>{
-  document.getElementById('sgpanel-'+c).style.display = c==='adults'?'block':'none';
-  sgResetAuto(c);
+  sgState[c].timer=setInterval(()=>{sgState[c].idx=(sgState[c].idx+1)%sgState[c].total;sgUpdate(c);},3500);
 });
 </script>
 
-<!-- Netlify Identity: handles invite tokens and redirects to dashboard after login -->
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 <script>
-  if (window.netlifyIdentity) {
-    window.netlifyIdentity.on("init", user => {
-      if (!user) {
-        window.netlifyIdentity.on("login", () => {
-          document.location.href = "/dashboard.html";
-        });
-      }
-    });
-  }
+if(window.netlifyIdentity){
+  window.netlifyIdentity.on("init",user=>{
+    if(!user){window.netlifyIdentity.on("login",()=>{document.location.href="/dashboard.html";});}
+  });
+}
 </script>
 </body>
 </html>
