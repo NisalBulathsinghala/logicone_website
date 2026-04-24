@@ -30,7 +30,7 @@ nav::after{
   content:'';position:absolute;bottom:0;left:10%;right:10%;height:1px;
   background:linear-gradient(90deg,transparent,var(--blue),var(--cyan),var(--blue),transparent);opacity:.22
 }
-.logo{display:flex;align-items:center;text-decoration:none}
+.logo{display:flex;align-items:center;text-decoration:none;gap:12px}
 .logo img{height:38px;width:auto;display:block}
 nav ul{display:flex;gap:1.5rem;list-style:none}
 nav a{

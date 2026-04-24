@@ -6,6 +6,7 @@
 <meta name="color-scheme" content="light">
 <title>Logic One SA — Repair Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="images/logo.png">
 <!-- LO_CONFIG_PLACEHOLDER -->
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -84,9 +85,10 @@
     background: none; border: none; cursor: pointer;
     color: var(--text-sidebar); opacity: 0.4;
     transition: opacity 0.15s; padding: 4px;
-    margin-left: auto; flex-shrink: 0;
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
     display: flex; align-items: center; justify-content: center;
   }
+
   .sidebar-collapse-btn:hover { opacity: 1; }
   .sidebar-collapse-btn svg { transition: transform 0.25s ease; width: 16px; height: 16px; }
   .sidebar.collapsed .sidebar-collapse-btn svg { transform: rotate(180deg); }
@@ -95,15 +97,14 @@
     padding: 24px 20px;
     border-bottom: 1px solid rgba(255,255,255,0.06);
     display: flex; align-items: center; gap: 12px;
+    position: relative;
   }
 
   .brand-icon {
     width: 38px; height: 38px;
-    background: linear-gradient(135deg, var(--accent), #0077b6);
     border-radius: var(--radius-sm);
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Orbitron', sans-serif;
-    font-weight: 800; font-size: 14px; color: white;
+    flex-shrink: 0; overflow: hidden;
   }
 
   .brand-text {
@@ -492,7 +493,68 @@
   .d-val { font-size: 13.5px; font-weight: 500; line-height: 1.4; }
   .d-mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12.5px; color: #6366f1; }
 
-  /* ===== LOADING ===== */
+  /* ===== SMS TEMPLATES ===== */
+  .sms-panel {
+    margin-top: 20px;
+    border-top: 1px solid var(--border-light);
+    padding-top: 18px;
+  }
+
+  .sms-panel-title {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+
+  .sms-grid {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .sms-card {
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    background: var(--sms-bg, var(--bg-surface-hover));
+    transition: border-color 0.15s;
+  }
+
+  .sms-card:hover { border-color: var(--sms-color, var(--border)); }
+
+  .sms-card-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .sms-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 700;
+    color: var(--sms-color, var(--text-primary));
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  .sms-copy-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer; transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .sms-copy-btn:hover {
+    background: var(--sms-bg);
+    color: var(--sms-color);
+    border-color: var(--sms-color);
+  }
+
+  .sms-text {
+    font-size: 13px; line-height: 1.55;
+    color: var(--text-primary);
+  }
   .loading-overlay {
     display: none; position: absolute; inset: 0;
     background: rgba(255,255,255,0.85); z-index: 50;
@@ -571,7 +633,7 @@
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-brand">
-    <div class="brand-icon">L1</div>
+    <div class="brand-icon"><img src="images/logo.png" alt="Logic One" style="width:100%;height:100%;object-fit:contain;border-radius:var(--radius-sm);"></div>
     <div class="brand-text-wrap">
       <div class="brand-text">LOGIC ONE</div>
       <div class="brand-sub">Repair Dashboard</div>
@@ -710,7 +772,7 @@
 
 <!-- DETAIL MODAL -->
 <div class="modal-overlay" id="detailModal">
-  <div class="modal" style="width:580px;">
+  <div class="modal" style="width:620px;">
     <div class="modal-header"><h2 id="dTitle">Job Details</h2><button class="modal-close" onclick="closeModal('detailModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-body" id="dBody"></div>
     <div class="modal-footer" id="dFoot"></div>
@@ -782,6 +844,7 @@ document.addEventListener('DOMContentLoaded', () => {
   buildBoard();
   loadData();
 
+  // Restore sidebar collapsed state
   if (localStorage.getItem('sidebarCollapsed') === 'true') {
     document.getElementById('sidebar').classList.add('collapsed');
   }
@@ -995,7 +1058,74 @@ function showDetail(j) {
     h += `<div style="margin-top:16px;"><a href="${j.driveFolder}" target="_blank" class="btn btn-secondary" style="text-decoration:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> Open Drive Folder</a></div>`;
   }
 
+  // ── SMS Templates ───────────────────────────────────────────
+  const firstName = (j.name || '').split(' ')[0];
+  const device = `${j.brand} ${j.model}`.trim();
+
+  const SMS_TEMPLATES = [
+    {
+      label: 'Received',
+      icon: '<polyline points="20 6 9 17 4 12"/>',
+      color: '#6366f1',
+      bg: 'rgba(99,102,241,0.08)',
+      text: `Hi ${firstName}, this is Logic One SA. We have received your ${device} (Job ID: ${j.jobId}) and it is now in our workshop queue. We will be in touch once the initial inspection is complete. Thank you!`
+    },
+    {
+      label: 'Parts Ordered',
+      icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+      color: '#f59e0b',
+      bg: 'rgba(245,158,11,0.08)',
+      text: `Hi ${firstName}, an update on your ${device} (Job ID: ${j.jobId}): we have identified the fault and ordered the required parts. We will contact you as soon as they arrive and the repair is complete. Thank you for your patience!`
+    },
+    {
+      label: 'Repair Done',
+      icon: '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+      color: '#10b981',
+      bg: 'rgba(16,185,129,0.08)',
+      text: `Hi ${firstName}, great news! Your ${device} (Job ID: ${j.jobId}) has been repaired and is ready for collection. Our workshop is open Mon–Fri 9am–5pm. Please bring this message as reference. Thank you for choosing Logic One SA!`
+    },
+    {
+      label: 'Cannot Repair',
+      icon: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+      color: '#ef4444',
+      bg: 'rgba(239,68,68,0.08)',
+      text: `Hi ${firstName}, unfortunately after thorough inspection we are unable to repair your ${device} (Job ID: ${j.jobId}). Please contact us to arrange collection of your device. We apologise for any inconvenience. Thank you.`
+    },
+  ];
+
+  h += `
+    <div class="sms-panel">
+      <div class="sms-panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        SMS Templates
+      </div>
+      <div class="sms-grid">`;
+
+  SMS_TEMPLATES.forEach((t, i) => {
+    h += `
+        <div class="sms-card" style="--sms-color:${t.color};--sms-bg:${t.bg};">
+          <div class="sms-card-top">
+            <div class="sms-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" style="color:${t.color};">${t.icon}</svg>
+              ${t.label}
+            </div>
+            <button class="sms-copy-btn" onclick="copySms(${i}, '${j.jobId}')" id="smsBtn${i}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              Copy
+            </button>
+          </div>
+          <div class="sms-text" id="smsText${i}">${t.text}</div>
+        </div>`;
+  });
+
+  h += `
+      </div>
+    </div>`;
+
   document.getElementById('dBody').innerHTML = h;
+
+  // Store templates for copy function
+  window._smsTemplates = SMS_TEMPLATES;
 
   let fh = `<div style="display:flex;align-items:center;gap:10px;flex:1;"><span style="font-size:12px;color:var(--text-secondary);font-weight:600;">Move to:</span><select id="dSel" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Inter',sans-serif;">`;
   COLS.forEach(c => { fh += `<option value="${c.id}" ${c.id === j.status ? 'selected' : ''}>${c.label}</option>`; });
@@ -1003,6 +1133,37 @@ function showDetail(j) {
   document.getElementById('dFoot').innerHTML = fh;
 
   openModal('detailModal');
+}
+
+async function copySms(index, jobId) {
+  const template = window._smsTemplates[index];
+  if (!template) return;
+
+  try {
+    await navigator.clipboard.writeText(template.text);
+    const btn = document.getElementById('smsBtn' + index);
+    const orig = btn.innerHTML;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+    btn.style.background = 'rgba(16,185,129,0.15)';
+    btn.style.color = '#059669';
+    btn.style.borderColor = 'rgba(16,185,129,0.3)';
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }, 2500);
+  } catch (err) {
+    // Fallback for browsers that block clipboard API
+    const el = document.createElement('textarea');
+    el.value = template.text;
+    el.style.position = 'fixed'; el.style.opacity = '0';
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast('success', 'SMS copied to clipboard');
+  }
 }
 
 function moveFromDetail(id) {
