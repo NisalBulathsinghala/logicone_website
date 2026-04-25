@@ -248,17 +248,33 @@ async function jsOpenJob(jobId) {
   document.getElementById('viewTitle').textContent = jobId;
   jsSetSaveIndicator(false);
 
-  // Try to load saved sheet from Drive
-  if (cfg.appsScriptUrl && j.driveFolder) {
-    try {
-      const result = await callScript({ action: 'loadJobSheet', jobId });
-      if (result.ok && result.data) {
-        jsLoadFromData(result.data);
-        jsSetSaveIndicator(true, result.data.savedAt);
-        showToast('success', 'Job sheet loaded from Drive');
+  if (!cfg.appsScriptUrl || !j.driveFolder) return;
+
+  // Step 1: Always load timestamps.json first — updated on every kanban move
+  try {
+    const tsResult = await callScript({ action: 'loadTimestamps', jobId });
+    if (tsResult.ok && tsResult.data) {
+      // Merge Drive timestamps onto the job object — Drive is source of truth
+      j.statusTimestamps = Object.assign({}, j.statusTimestamps || {}, tsResult.data);
+      jsRenderTimeline(j);
+    }
+  } catch(e) {}
+
+  // Step 2: Load saved job sheet data (repair notes, parts, cost etc.)
+  try {
+    const sheetResult = await callScript({ action: 'loadJobSheet', jobId });
+    if (sheetResult.ok && sheetResult.data) {
+      const saved = sheetResult.data;
+      // Merge saved timestamps too, Drive timestamps take priority
+      if (saved.statusTimestamps) {
+        j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
+        jsRenderTimeline(j);
       }
-    } catch(e) {}
-  }
+      jsLoadFromData(saved);
+      jsSetSaveIndicator(true, saved.savedAt);
+      showToast('success', 'Job sheet loaded');
+    }
+  } catch(e) {}
 }
 
 
@@ -372,11 +388,21 @@ function jsSetStatus(el) {
   const newStatus = el.textContent.trim();
   if (jsCurrentJob) {
     if (!jsCurrentJob.statusTimestamps) jsCurrentJob.statusTimestamps = parseTimestamps(jsCurrentJob);
+    // Only record the first time a status is entered — never overwrite
     if (!jsCurrentJob.statusTimestamps[newStatus]) {
       jsCurrentJob.statusTimestamps[newStatus] = new Date().toISOString();
     }
     jsCurrentJob.status = newStatus;
     jsRenderTimeline(jsCurrentJob);
+    // Persist to Drive immediately
+    if (cfg.appsScriptUrl && jsCurrentJob.driveFolder) {
+      callScript({
+        action: 'saveTimestamps',
+        jobId: jsCurrentJob.jobId,
+        driveFolder: jsCurrentJob.driveFolder,
+        timestamps: JSON.stringify(jsCurrentJob.statusTimestamps)
+      });
+    }
   }
 }
 

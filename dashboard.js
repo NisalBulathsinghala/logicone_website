@@ -110,7 +110,15 @@ async function fetchSheet() {
       }
       // Seed Intake timestamp from submission timestamp if missing
       if (!o.statusTimestamps['Intake'] && o.ts) {
-        try { o.statusTimestamps['Intake'] = new Date(o.ts * 86400000 - 2209161600000 + new Date('1899-12-30').getTime() * -1 + new Date('1899-12-30').getTime()).toISOString(); } catch(e) {}
+        // o.ts from Sheets is a serial number (days since 1899-12-30)
+        // Convert to JS date: (serialDays - 25569) * 86400 * 1000
+        try {
+          const serial = parseFloat(o.ts);
+          if (!isNaN(serial) && serial > 40000) {
+            const ms = (serial - 25569) * 86400 * 1000;
+            o.statusTimestamps['Intake'] = new Date(ms).toISOString();
+          }
+        } catch(e) {}
       }
       return o;
     }).filter(j => j.jobId || j.name);
@@ -408,22 +416,32 @@ async function moveJob(id, newStatus) {
   const j = jobs.find(x => x.jobId === id);
   if (!j || j.status === newStatus) return;
   const oldStatus = j.status;
-  j.status = newStatus;
-  // Record timestamp for this status
+
+  // Record timestamp — only set once per status (don't overwrite if re-entering)
   if (!j.statusTimestamps) j.statusTimestamps = {};
-  j.statusTimestamps[newStatus] = new Date().toISOString();
+  if (!j.statusTimestamps[newStatus]) {
+    j.statusTimestamps[newStatus] = new Date().toISOString();
+  }
+  j.status = newStatus;
   renderAll();
 
   if (cfg.appsScriptUrl) {
-    const result = await callScript({
-      action: 'updateStatus', jobId: id, status: newStatus,
-      statusTimestamps: JSON.stringify(j.statusTimestamps)
-    });
-    if (!result.ok) {
-      showToast('error', 'Status update failed: ' + result.error);
+    // 1. Update status column in sheet
+    const statusResult = await callScript({ action: 'updateStatus', jobId: id, status: newStatus });
+    if (!statusResult.ok) {
+      showToast('error', 'Status update failed: ' + statusResult.error);
       j.status = oldStatus;
-      delete j.statusTimestamps[newStatus];
       renderAll();
+      return;
+    }
+    // 2. Persist timestamps to Drive immediately — this is the source of truth
+    if (j.driveFolder) {
+      await callScript({
+        action: 'saveTimestamps',
+        jobId: id,
+        driveFolder: j.driveFolder,
+        timestamps: JSON.stringify(j.statusTimestamps)
+      });
     }
   }
 }
