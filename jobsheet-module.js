@@ -229,6 +229,18 @@ function jsRenderJobList() {
 
 function jsFilterJobs() { jsRenderJobList(); }
 
+function jsCloseSheet() {
+  jsCurrentJob = null;
+  jsParts = [];
+  document.getElementById('jsSheetForm').style.display = 'none';
+  document.getElementById('jsJobPicker').style.display = 'block';
+  document.getElementById('jsTopbarRight').style.display = 'none';
+  document.getElementById('jsBackToList').style.display = 'none';
+  document.getElementById('jsJobTitle').textContent = 'Select a job to open its sheet';
+  document.getElementById('viewTitle').textContent = 'JOB SHEETS';
+  jsRenderJobList();
+}
+
 function jsOpenJobFromDetail(jobId) {
   switchView('jobsheet');
   jsOpenJob(jobId);
@@ -244,6 +256,7 @@ async function jsOpenJob(jobId) {
   document.getElementById('jsJobPicker').style.display = 'none';
   document.getElementById('jsSheetForm').style.display = 'block';
   document.getElementById('jsTopbarRight').style.display = 'flex';
+  document.getElementById('jsBackToList').style.display = 'inline-flex';
   document.getElementById('jsJobTitle').textContent = jobId + ' — ' + (j.name||'') + ' (' + (j.brand||'') + ' ' + (j.model||'') + ')';
   document.getElementById('viewTitle').textContent = jobId;
   jsSetSaveIndicator(false);
