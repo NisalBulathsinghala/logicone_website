@@ -532,7 +532,7 @@
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <h3>Enquiry Sent</h3>
-          <p>Your email app should now open with your enquiry details. If it doesn't, contact us directly at info@logicone.com.au</p>
+          <p>Thanks for getting in touch. We'll get back to you within a few hours on business days (Mon – Fri, 10am – 5pm).</p>
         </div>
       </div>
     </div>
@@ -566,16 +566,14 @@
     <div class="hcell"><div class="hday">Sunday</div><div class="htime closed">Closed</div></div>
     <div class="hcell"><div class="hday">Public Holidays</div><div class="htime closed">Closed</div></div>
   </div>
-  <div class="map-wrap" style="padding:0;overflow:hidden;border-radius:8px;height:340px">
-    <iframe
-      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d10627.257359319576!2d138.65097724774338!3d-34.82671700164074!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6ab0b5b776afd975%3A0x5033654628ebca0!2sPara%20Vista%20SA%205093!5e1!3m2!1sen!2sau!4v1777039298496!5m2!1sen!2sau"
-      width="100%"
-      height="100%"
-      style="border:0;display:block"
-      allowfullscreen=""
-      loading="lazy"
-      referrerpolicy="no-referrer-when-downgrade">
-    </iframe>
+  <div class="map-wrap">
+    <div class="map-grid-bg"></div>
+    <div class="map-glow"></div>
+    <div class="map-pin-wrap">
+      <div class="map-pin"></div>
+      <div class="map-label">Logic One SA</div>
+      <div class="map-sub">Adelaide, South Australia</div>
+    </div>
   </div>
 </section>
 
@@ -612,22 +610,48 @@ document.addEventListener('click',e=>{
   }
 });
 
-function submitForm(){
+async function submitForm(){
   const fields=document.querySelectorAll('#booking-form input,#booking-form select,#booking-form textarea');
   let ok=true;
   fields.forEach(f=>{if(!f.value.trim())ok=false;});
   if(!ok){alert('Please fill in all fields before submitting.');return;}
+
   const first=document.querySelector('input[placeholder="Alex"]').value.trim();
   const last=document.querySelector('input[placeholder="Nguyen"]').value.trim();
   const email=document.querySelector('input[type="email"]').value.trim();
   const phone=document.querySelector('input[type="tel"]').value.trim();
   const enquiry=document.getElementById('type-sel').value.trim();
   const details=document.querySelector('textarea').value.trim();
-  const subject=encodeURIComponent('Website enquiry - '+enquiry);
-  const body=encodeURIComponent('Name: '+first+' '+last+'\n\nEmail: '+email+'\nPhone: '+phone+'\nEnquiry type: '+enquiry+'\n\nDetails:\n'+details);
-  window.location.href='mailto:info@logicone.com.au?subject='+subject+'&body='+body;
-  document.getElementById('booking-form').style.display='none';
-  document.getElementById('form-success').style.display='block';
+
+  const btn=document.querySelector('.btn-submit');
+  btn.textContent='Sending…';
+  btn.disabled=true;
+
+  try {
+    const res=await fetch('https://formspree.io/f/mvzdlzkq',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({
+        name:first+' '+last,
+        email,
+        phone,
+        enquiry_type:enquiry,
+        message:details
+      })
+    });
+    if(res.ok){
+      document.getElementById('booking-form').style.display='none';
+      document.getElementById('form-success').style.display='block';
+    } else {
+      btn.textContent='Send Enquiry via Email →';
+      btn.disabled=false;
+      alert('Something went wrong. Please try again or email us directly at info@logicone.com.au');
+    }
+  } catch(e){
+    btn.textContent='Send Enquiry via Email →';
+    btn.disabled=false;
+    alert('Could not send. Please check your connection or email us at info@logicone.com.au');
+  }
 }
 
 /* ── Deck carousel ── */
