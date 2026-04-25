@@ -507,9 +507,9 @@ function jsRenderParts() {
       <td><input type="text" value="${(p.partno||'').replace(/"/g,'&quot;')}" oninput="jsParts[${i}].partno=this.value" placeholder="Part #" style="width:120px"></td>
       <td><input type="text" value="${(p.loc||'').replace(/"/g,'&quot;')}" oninput="jsParts[${i}].loc=this.value" placeholder="Location" style="width:100px"></td>
       <td><input type="text" value="${(p.name||'').replace(/"/g,'&quot;')}" oninput="jsParts[${i}].name=this.value" placeholder="Part name" style="width:100%"></td>
-      <td><input type="number" value="${p.qty}" min="1" oninput="jsParts[${i}].qty=this.value;jsCalcCost()" style="width:55px"></td>
-      <td><input type="number" value="${p.price}" min="0" step="0.01" oninput="jsParts[${i}].price=this.value;jsCalcCost()" placeholder="0.00" style="width:88px"></td>
-      <td style="text-align:right;font-weight:500;padding-right:10px;">$${line}</td>
+      <td><input type="text" inputmode="decimal" value="${p.qty}" oninput="jsParts[${i}].qty=this.value;jsCalcCost()" style="width:55px;text-align:center;"></td>
+      <td><input type="text" inputmode="decimal" value="${p.price}" oninput="jsParts[${i}].price=this.value;jsCalcCost()" placeholder="0.00" style="width:88px;text-align:right;"></td>
+      <td class="js-line-total" style="text-align:right;font-weight:500;padding-right:10px;">$${line}</td>
       <td><button class="js-parts-del" onclick="jsRemovePart(${i})">×</button></td>
     </tr>`;
   }).join('');
@@ -524,7 +524,21 @@ function jsCalcCost() {
   document.getElementById('jsCPartsTotal').textContent = '$' + partsSum.toFixed(2);
   document.getElementById('jsCSubtotal').textContent   = '$' + sub.toFixed(2);
   document.getElementById('jsCTotal').textContent      = '$' + total.toFixed(2);
-  jsRenderParts();
+  // Update only the line-total cells (don't rebuild inputs — that loses focus & blocks decimals)
+  jsUpdateLineTotals();
+}
+
+function jsUpdateLineTotals() {
+  const rows = document.querySelectorAll('#jsPartsBody tr');
+  rows.forEach((tr, i) => {
+    const p = jsParts[i];
+    if (!p) return;
+    const cell = tr.querySelector('.js-line-total');
+    if (cell) {
+      const line = ((parseFloat(p.qty)||0)*(parseFloat(p.price)||0)).toFixed(2);
+      cell.textContent = '$' + line;
+    }
+  });
 }
 
 function jsCollectData() {

@@ -241,9 +241,9 @@
           <div style="display:flex;justify-content:flex-end;">
             <div class="js-cost-box">
               <div class="js-cost-row"><span>Parts Total</span><span id="jsCPartsTotal">$0.00</span></div>
-              <div class="js-cost-row"><span>Postage &amp; Handling</span><input class="js-cost-inp" type="number" id="jsFPostage" placeholder="0.00" step="0.01" min="0" oninput="jsCalcCost()"></div>
+              <div class="js-cost-row"><span>Postage &amp; Handling</span><input class="js-cost-inp" type="text" inputmode="decimal" id="jsFPostage" placeholder="0.00" oninput="jsCalcCost()"></div>
               <div class="js-cost-row"><span>Sub-Total</span><span id="jsCSubtotal">$0.00</span></div>
-              <div class="js-cost-row"><span>Discount</span><input class="js-cost-inp" type="number" id="jsFDiscount" placeholder="0.00" step="0.01" min="0" oninput="jsCalcCost()"></div>
+              <div class="js-cost-row"><span>Discount</span><input class="js-cost-inp" type="text" inputmode="decimal" id="jsFDiscount" placeholder="0.00" oninput="jsCalcCost()"></div>
               <div class="js-cost-row js-cost-total"><span>Total</span><span id="jsCTotal">$0.00</span></div>
             </div>
           </div>
