@@ -251,8 +251,11 @@ async function jsOpenJob(jobId) {
   if (!j) return;
   jsCurrentJob = j;
   jsParts = [];
+
+  // Populate read-only intake fields immediately
   jsPopulateIntake(j);
-  jsRenderTimeline(j);
+
+  // Show the form
   document.getElementById('jsJobPicker').style.display = 'none';
   document.getElementById('jsSheetForm').style.display = 'block';
   document.getElementById('jsTopbarRight').style.display = 'flex';
@@ -260,34 +263,52 @@ async function jsOpenJob(jobId) {
   document.getElementById('jsJobTitle').textContent = jobId + ' — ' + (j.name||'') + ' (' + (j.brand||'') + ' ' + (j.model||'') + ')';
   document.getElementById('viewTitle').textContent = jobId;
   jsSetSaveIndicator(false);
+  jsRenderTimeline(j);
 
-  if (!cfg.appsScriptUrl || !j.driveFolder) return;
+  // No Apps Script configured — just show fresh defaults
+  if (!cfg.appsScriptUrl || !j.driveFolder) {
+    jsResetEditableFields(j);
+    return;
+  }
 
-  // Step 1: Always load timestamps.json first — updated on every kanban move
+  // Show loading state on the save indicator while fetching
+  const ind = document.getElementById('jsSaveInd');
+  if (ind) { ind.className = 'js-save-ind'; ind.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" style="animation:spin 0.7s linear infinite"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg> Loading…'; }
+
+  let driveDataLoaded = false;
+
+  // Step 1: Load timestamps.json — written on every kanban drag
   try {
     const tsResult = await callScript({ action: 'loadTimestamps', jobId });
     if (tsResult.ok && tsResult.data) {
-      // Merge Drive timestamps onto the job object — Drive is source of truth
       j.statusTimestamps = Object.assign({}, j.statusTimestamps || {}, tsResult.data);
       jsRenderTimeline(j);
     }
-  } catch(e) {}
+  } catch(e) { console.warn('loadTimestamps failed:', e); }
 
-  // Step 2: Load saved job sheet data (repair notes, parts, cost etc.)
+  // Step 2: Load saved job sheet data (repair notes, parts, cost, remarks etc.)
   try {
     const sheetResult = await callScript({ action: 'loadJobSheet', jobId });
     if (sheetResult.ok && sheetResult.data) {
       const saved = sheetResult.data;
-      // Merge saved timestamps too, Drive timestamps take priority
+      // Merge saved timestamps, Drive timestamps.json takes priority
       if (saved.statusTimestamps) {
         j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
         jsRenderTimeline(j);
       }
       jsLoadFromData(saved);
       jsSetSaveIndicator(true, saved.savedAt);
-      showToast('success', 'Job sheet loaded');
+      driveDataLoaded = true;
+    } else {
+      console.log('loadJobSheet result:', sheetResult);
     }
-  } catch(e) {}
+  } catch(e) { console.warn('loadJobSheet failed:', e); }
+
+  // If nothing loaded from Drive, show fresh defaults
+  if (!driveDataLoaded) {
+    jsResetEditableFields(j);
+    jsSetSaveIndicator(false);
+  }
 }
 
 
@@ -334,6 +355,7 @@ function jsRenderTimeline(j) {
 }
 
 function jsPopulateIntake(j) {
+  // Header IDs
   document.getElementById('jsDispJobId').textContent = j.jobId || '—';
   document.getElementById('jsDispCaseNo').textContent = j.caseNo || '—';
   if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
@@ -342,6 +364,7 @@ function jsPopulateIntake(j) {
   } else {
     document.getElementById('jsDispDrive').innerHTML = '<span class="js-id-muted">Not linked</span>';
   }
+  // Read-only intake fields from Google Sheet
   document.getElementById('jsFName').value = j.name || '';
   document.getElementById('jsFPhone').value = j.phone || '';
   document.getElementById('jsFEmail').value = j.email || '';
@@ -351,6 +374,10 @@ function jsPopulateIntake(j) {
   document.getElementById('jsFSerial').value = j.serial || '';
   document.getElementById('jsFWarranty').value = j.warranty || '';
   document.getElementById('jsFIssue').value = j.issue || '';
+}
+
+// Only called when no saved Drive data exists — sets sensible defaults for a fresh job sheet
+function jsResetEditableFields(j) {
   document.getElementById('jsFDate').valueAsDate = new Date();
   document.getElementById('jsFFTech').value = '';
   document.getElementById('jsFETA').value = '';
@@ -360,14 +387,13 @@ function jsPopulateIntake(j) {
   document.getElementById('jsFCustRemark').value = j.issue || '';
   document.getElementById('jsFRepairRemark').value = '';
   document.getElementById('jsFinalRemark').value = '';
+  document.getElementById('jsFOtherGoods').value = '';
   document.querySelectorAll('.js-svc-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
-  // Auto-set warranty type
   if ((j.warranty||'').toLowerCase().includes('in warranty')) {
     const btn = [...document.querySelectorAll('.js-svc-btn')].find(b => b.textContent.includes('In Warranty'));
     if (btn) jsSetSvc(btn, 'In Warranty Repair');
   }
-  // Status from sheet
   const sp = [...document.querySelectorAll('.js-status-pill')].find(p => p.textContent.trim() === (j.status||'Intake'));
   if (sp) sp.classList.add('active');
   jsBuildChecklist(j.accessories || '');
@@ -494,39 +520,60 @@ function jsCollectData() {
 }
 
 function jsLoadFromData(data) {
-  if (data.tech)         document.getElementById('jsFFTech').value = data.tech;
-  if (data.date)         document.getElementById('jsFDate').value  = data.date;
-  if (data.eta)          document.getElementById('jsFETA').value   = data.eta;
-  if (data.otherGoods)   document.getElementById('jsFOtherGoods').value = data.otherGoods;
+  // Always set all editable fields — use '' fallback so even empty values restore correctly
+  document.getElementById('jsFFTech').value = data.tech || '';
+  document.getElementById('jsFDate').value  = data.date || '';
+  document.getElementById('jsFETA').value   = data.eta  || '';
+  document.getElementById('jsFOtherGoods').value = data.otherGoods || '';
+  document.getElementById('jsFPostage').value  = data.postage  != null ? data.postage  : '';
+  document.getElementById('jsFDiscount').value = data.discount != null ? data.discount : '';
+  document.getElementById('jsFCustRemark').value   = data.custRemark   || '';
+  document.getElementById('jsFRepairRemark').value = data.repairRemark || '';
+  document.getElementById('jsFinalRemark').value   = data.finalRemark  || '';
+
+  // Service type
+  document.querySelectorAll('.js-svc-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('jsFSvcType').value = data.svcType || '';
   if (data.svcType) {
-    document.getElementById('jsFSvcType').value = data.svcType;
     const btn = [...document.querySelectorAll('.js-svc-btn')].find(b => b.textContent.trim() === data.svcType);
     if (btn) btn.classList.add('active');
   }
+
+  // Checklist — rebuild from saved list (build first so elements exist)
   if (data.checklist && Array.isArray(data.checklist)) {
+    // If checklist elements don't exist yet, build them first
+    const grid = document.getElementById('jsChecklist');
+    if (!grid.children.length && jsCurrentJob) {
+      jsBuildChecklist(jsCurrentJob.accessories || '');
+    }
     document.querySelectorAll('.js-check-item').forEach(el => {
       const cb = el.querySelector('input');
       const lbl = el.textContent.trim();
-      const v = data.checklist.includes(lbl);
-      cb.checked = v; el.classList.toggle('checked', v);
+      const checked = data.checklist.includes(lbl);
+      cb.checked = checked;
+      el.classList.toggle('checked', checked);
     });
   }
-  jsParts = data.parts || [];
-  if (data.postage)  document.getElementById('jsFPostage').value  = data.postage;
-  if (data.discount) document.getElementById('jsFDiscount').value = data.discount;
-  if (data.custRemark)   document.getElementById('jsFCustRemark').value   = data.custRemark;
-  if (data.repairRemark) document.getElementById('jsFRepairRemark').value = data.repairRemark;
-  if (data.finalRemark)  document.getElementById('jsFinalRemark').value   = data.finalRemark;
+
+  // Parts
+  jsParts = Array.isArray(data.parts) ? data.parts : [];
+
+  // Status pill
+  document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
   if (data.status) {
-    document.querySelectorAll('.js-status-pill').forEach(p => {
-      p.classList.toggle('active', p.textContent.trim() === data.status);
-    });
+    const pill = [...document.querySelectorAll('.js-status-pill')].find(p => p.textContent.trim() === data.status);
+    if (pill) pill.classList.add('active');
   }
+
+  // Timestamps — Drive timestamps.json already merged into jsCurrentJob before this runs
+  // Only apply saved timestamps for statuses not already in Drive data
   if (data.statusTimestamps && jsCurrentJob) {
-    jsCurrentJob.statusTimestamps = data.statusTimestamps;
+    jsCurrentJob.statusTimestamps = Object.assign({}, data.statusTimestamps, jsCurrentJob.statusTimestamps);
     jsRenderTimeline(jsCurrentJob);
   }
-  jsRenderParts(); jsCalcCost();
+
+  jsRenderParts();
+  jsCalcCost();
 }
 
 async function jsSaveSheet() {
