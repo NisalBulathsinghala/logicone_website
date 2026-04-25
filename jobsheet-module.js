@@ -10,6 +10,7 @@
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 28px; background: var(--bg-surface);
   border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 16px;
+  position: sticky; top: 0; z-index: 50;
 }
 .js-topbar-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
 .js-topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
@@ -139,6 +140,24 @@
 .js-status-pill.js-done.active { background: rgba(16,185,129,0.1); border-color: #10b981; color: #065f46; }
 .js-drive-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent); text-decoration: none; font-weight: 500; }
 .js-drive-link:hover { text-decoration: underline; }
+/* Job sheet loading overlay */
+#jsLoadingOverlay {
+  position: sticky; top: 52px; left: 0; right: 0; bottom: 0;
+  height: calc(100vh - 52px); z-index: 200;
+  background: rgba(240,242,245,0.93); backdrop-filter: blur(3px);
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+}
+#jsLoadingOverlay.show { display: flex; }
+#jsLoadingOverlay .js-spinner {
+  width: 32px; height: 32px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+#jsLoadingOverlay .js-loading-msg {
+  font-size: 13px; font-weight: 500; color: var(--text-secondary);
+}
+
 @media (max-width: 900px) {
   .js-fg3 { grid-template-columns: 1fr 1fr; }
   .js-checklist { grid-template-columns: repeat(2, 1fr); }
@@ -246,6 +265,18 @@ function jsOpenJobFromDetail(jobId) {
   jsOpenJob(jobId);
 }
 
+function jsShowLoadingOverlay(msg) {
+  const el = document.getElementById('jsLoadingOverlay');
+  const msgEl = document.getElementById('jsLoadingMsg');
+  if (el) { el.classList.add('show'); }
+  if (msgEl) msgEl.textContent = msg || 'Loading…';
+}
+
+function jsHideLoadingOverlay() {
+  const el = document.getElementById('jsLoadingOverlay');
+  if (el) el.classList.remove('show');
+}
+
 async function jsOpenJob(jobId) {
   const j = jobs.find(x => x.jobId === jobId);
   if (!j) return;
@@ -255,7 +286,7 @@ async function jsOpenJob(jobId) {
   // Populate read-only intake fields immediately
   jsPopulateIntake(j);
 
-  // Show the form
+  // Show the form with loading overlay covering editable content
   document.getElementById('jsJobPicker').style.display = 'none';
   document.getElementById('jsSheetForm').style.display = 'block';
   document.getElementById('jsTopbarRight').style.display = 'flex';
@@ -271,27 +302,29 @@ async function jsOpenJob(jobId) {
     return;
   }
 
-  // Show loading state on the save indicator while fetching
-  const ind = document.getElementById('jsSaveInd');
-  if (ind) { ind.className = 'js-save-ind'; ind.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" style="animation:spin 0.7s linear infinite"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg> Loading…'; }
+  // Show loading overlay
+  jsShowLoadingOverlay('Loading job sheet…');
 
   let driveDataLoaded = false;
 
-  // Step 1: Load timestamps.json — written on every kanban drag
+  // Step 1: Load timestamps.json — pass driveFolder directly, no sheet lookup needed
   try {
-    const tsResult = await callScript({ action: 'loadTimestamps', jobId });
+    const tsResult = await callScript({ action: 'loadTimestamps', jobId, driveFolder: j.driveFolder });
     if (tsResult.ok && tsResult.data) {
       j.statusTimestamps = Object.assign({}, j.statusTimestamps || {}, tsResult.data);
       jsRenderTimeline(j);
+    } else {
+      console.log('loadTimestamps:', tsResult);
     }
-  } catch(e) { console.warn('loadTimestamps failed:', e); }
+  } catch(e) { console.warn('loadTimestamps error:', e); }
 
-  // Step 2: Load saved job sheet data (repair notes, parts, cost, remarks etc.)
+  // Step 2: Load saved job sheet JSON — pass driveFolder directly
+  jsShowLoadingOverlay('Loading saved data…');
   try {
-    const sheetResult = await callScript({ action: 'loadJobSheet', jobId });
+    const sheetResult = await callScript({ action: 'loadJobSheet', jobId, driveFolder: j.driveFolder });
+    console.log('loadJobSheet response:', JSON.stringify(sheetResult).substring(0, 200));
     if (sheetResult.ok && sheetResult.data) {
       const saved = sheetResult.data;
-      // Merge saved timestamps, Drive timestamps.json takes priority
       if (saved.statusTimestamps) {
         j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
         jsRenderTimeline(j);
@@ -300,11 +333,13 @@ async function jsOpenJob(jobId) {
       jsSetSaveIndicator(true, saved.savedAt);
       driveDataLoaded = true;
     } else {
-      console.log('loadJobSheet result:', sheetResult);
+      console.warn('loadJobSheet not found or error:', sheetResult);
     }
-  } catch(e) { console.warn('loadJobSheet failed:', e); }
+  } catch(e) { console.warn('loadJobSheet error:', e); }
 
-  // If nothing loaded from Drive, show fresh defaults
+  // Hide overlay — show form with loaded (or fresh) data
+  jsHideLoadingOverlay();
+
   if (!driveDataLoaded) {
     jsResetEditableFields(j);
     jsSetSaveIndicator(false);

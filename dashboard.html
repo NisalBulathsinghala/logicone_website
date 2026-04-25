@@ -104,7 +104,7 @@
   </div>
 
   <!-- JOB SHEET VIEW -->
-  <div class="view" id="view-jobsheet" style="position:relative;overflow-y:auto;">
+  <div class="view" id="view-jobsheet" style="position:relative;overflow-y:auto;display:flex;flex-direction:column;">
     <div class="js-topbar">
       <div class="js-topbar-left">
         <button class="btn btn-secondary js-back-btn" onclick="switchView('kanban')">
@@ -151,7 +151,11 @@
     </div>
 
     <!-- Job sheet form (shown when job is open) -->
-    <div id="jsSheetForm" class="js-section" style="display:none;">
+    <div id="jsSheetForm" class="js-section" style="display:none;position:relative;">
+      <div id="jsLoadingOverlay">
+        <div class="js-spinner"></div>
+        <div class="js-loading-msg" id="jsLoadingMsg">Loading job sheet…</div>
+      </div>
       <div class="js-sheet-wrap">
 
         <!-- Header -->
@@ -251,14 +255,8 @@
           </div>
         </div>
 
-        <!-- Status Timeline -->
-        <div class="js-card">
-          <div class="js-card-title">Status History</div>
-          <div class="js-timeline" id="jsTimeline"></div>
-        </div>
-
         <!-- Status -->
-        <div class="js-card" style="margin-bottom:40px;">
+        <div class="js-card">
           <div class="js-card-title">Job Status</div>
           <div class="js-status-flow" id="jsStatusFlow">
             <div class="js-status-pill" onclick="jsSetStatus(this)">Intake</div>
@@ -269,6 +267,12 @@
             <div class="js-status-pill" onclick="jsSetStatus(this)">Complete</div>
             <div class="js-status-pill js-done" onclick="jsSetStatus(this)">Collected</div>
           </div>
+        </div>
+
+        <!-- Status Timeline -->
+        <div class="js-card" style="margin-bottom:40px;">
+          <div class="js-card-title">Status History</div>
+          <div class="js-timeline" id="jsTimeline"></div>
         </div>
 
       </div><!-- /js-sheet-wrap -->
