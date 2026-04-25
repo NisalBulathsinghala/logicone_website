@@ -10,10 +10,9 @@
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 28px; background: var(--bg-surface);
   border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 16px;
-  position: sticky; top: 0; z-index: 10;
 }
-/* Scope sticky to only apply inside view-jobsheet */
-#view-jobsheet .js-topbar {
+/* Sticky only inside the job sheet view's own scroll container */
+#view-jobsheet.active .js-topbar {
   position: sticky; top: 0; z-index: 10;
 }
 .js-topbar-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
