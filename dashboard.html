@@ -104,7 +104,7 @@
   </div>
 
   <!-- JOB SHEET VIEW -->
-  <div class="view" id="view-jobsheet" style="position:relative;overflow-y:auto;display:flex;flex-direction:column;">
+  <div class="view" id="view-jobsheet" style="position:relative;display:flex;flex-direction:column;overflow:hidden;">
     <div class="js-topbar">
       <div class="js-topbar-left">
         <button class="btn btn-secondary js-back-btn" onclick="switchView('kanban')">
@@ -136,6 +136,9 @@
         </button>
       </div>
     </div>
+
+    <!-- Scrollable content area -->
+    <div id="jsScrollArea" style="flex:1;overflow-y:auto;position:relative;">
 
     <!-- Job picker table (shown when no job selected) -->
     <div id="jsJobPicker" class="js-section">
@@ -277,6 +280,8 @@
 
       </div><!-- /js-sheet-wrap -->
     </div><!-- /jsSheetForm -->
+
+    </div><!-- /jsScrollArea -->
   </div><!-- /view-jobsheet -->
 
 </main>

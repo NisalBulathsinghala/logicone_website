@@ -565,10 +565,9 @@ async function callScript(data) {
     const text = await r.text();
     try {
       const json = JSON.parse(text);
-      if (json.result === 'ok') return { ok: true };
+      if (json.result === 'ok') return { ok: true, data: json.data || null };
       return { ok: false, error: json.msg || json.result || 'Unknown error' };
     } catch {
-      // Could not parse JSON — log the raw response for debugging
       return { ok: false, error: 'Bad response: ' + text.substring(0, 120) };
     }
   } catch (err) {

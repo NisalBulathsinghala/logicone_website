@@ -10,7 +10,11 @@
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 28px; background: var(--bg-surface);
   border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 16px;
-  position: sticky; top: 0; z-index: 50;
+  position: sticky; top: 0; z-index: 10;
+}
+/* Scope sticky to only apply inside view-jobsheet */
+#view-jobsheet .js-topbar {
+  position: sticky; top: 0; z-index: 10;
 }
 .js-topbar-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
 .js-topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
@@ -198,7 +202,7 @@
 @media print {
   .sidebar, .js-topbar, .js-parts-del, .js-add-part-btn { display: none !important; }
   .main-content { height: auto; overflow: visible; }
-  #view-jobsheet { overflow: visible; }
+  #view-jobsheet, #jsScrollArea { overflow: visible; height: auto; }
   .js-card { box-shadow: none; page-break-inside: avoid; }
 }
   `;
