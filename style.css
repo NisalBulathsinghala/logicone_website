@@ -81,7 +81,7 @@ h1 .grad{display:block;background:linear-gradient(90deg,#55ccee,var(--cyan));-we
 .img-stack-card:nth-child(1){width:78%;height:78%;top:12%;right:0;transform:rotate(4deg);opacity:.2}
 .img-stack-card:nth-child(2){width:84%;height:84%;top:5%;right:3%;transform:rotate(1.5deg);opacity:.45}
 .img-stack-card:nth-child(3){width:90%;height:90%;top:0;left:0;transform:rotate(-1deg);opacity:1}
-.img-stack-card img{width:100%;height:100%;object-fit:contain;padding:1.5rem}
+.img-stack-card img{width:100%;height:100%;object-fit:cover;padding:0}
 .img-stack-placeholder{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem}
 .img-stack-placeholder svg{opacity:.18;color:var(--cyan)}
 .img-stack-placeholder span{font-family:var(--mono);font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--cyan);opacity:.3}
