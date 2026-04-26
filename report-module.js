@@ -27,10 +27,12 @@
   background: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(4px);
   display: none; align-items: center; justify-content: center;
-  z-index: 9999;
+  z-index: 9000;
   padding: 24px;
 }
 .lo-report-overlay.show { display: flex; }
+/* Ensure toasts always sit above the report modal */
+.toast { z-index: 10000 !important; }
 .lo-report-modal {
   background: #fff;
   border-radius: 12px;
@@ -91,7 +93,6 @@
 .lor-header-left { display: flex; align-items: center; gap: 14px; }
 .lor-logo {
   height: 56px; width: auto;
-  background: #0a0e1a; padding: 5px 9px; border-radius: 6px;
 }
 .lor-brand-name {
   font-family: 'Orbitron', sans-serif;
@@ -557,6 +558,41 @@
     });
   }
 
+  // ── Upload report PDF via POST ──────────────────────────────
+  // The dashboard's callScript() sends data as a URL query
+  // parameter, which works fine for small JSON job sheets but
+  // fails on PDFs (URL length limit). This sends the payload
+  // in the request body instead.
+  //
+  // Important: Apps Script web apps don't allow CORS preflight
+  // requests, so we must use Content-Type: text/plain (a "simple
+  // request" that doesn't trigger preflight). The Apps Script
+  // side reads the body via e.postData.contents.
+  async function uploadReportToDrive(payload) {
+    if (typeof cfg === 'undefined' || !cfg || !cfg.appsScriptUrl) {
+      return { ok: false, error: 'Apps Script not configured' };
+    }
+    try {
+      const r = await fetch(cfg.appsScriptUrl, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+      });
+      const text = await r.text();
+      try {
+        const json = JSON.parse(text);
+        if (json.result === 'ok') return { ok: true, data: json.data || null };
+        return { ok: false, error: json.msg || json.result || 'Unknown error' };
+      } catch {
+        return { ok: false, error: 'Bad response: ' + text.substring(0, 160) };
+      }
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }
+
+
   // ── Find a job by ID across known data sources ──────────────
   function findJobById(jobId) {
     // dashboard.js exposes `jobs` array; fallback to filtered() result
@@ -753,7 +789,7 @@
       const base64 = await blobToBase64(blob);
       const filename = buildFilename(data);
 
-      const result = await callScript({
+      const result = await uploadReportToDrive({
         action: 'saveReport',
         jobId: data.jobId,
         driveFolder: data.driveFolder,
