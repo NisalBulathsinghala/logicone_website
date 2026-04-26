@@ -248,6 +248,8 @@
   let jsPDFLoaded = false;
   let currentReportData = null;
   let logoDataUrl = null;
+  let logoNaturalW = 0;
+  let logoNaturalH = 0;
 
   // ── Utility ─────────────────────────────────────────────────
   const esc = (s) => {
@@ -460,7 +462,7 @@
     });
   }
 
-  // ── Load logo as data URL (so html2canvas can capture it) ───
+  // ── Load logo as data URL and measure natural dimensions ────
   async function preloadLogo() {
     if (logoDataUrl) return logoDataUrl;
     try {
@@ -472,6 +474,15 @@
         fr.onerror = rej;
         fr.readAsDataURL(blob);
       });
+      // Measure actual dimensions so addImage never stretches
+      const dims = await new Promise((res) => {
+        const img = new Image();
+        img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => res({ w: 0, h: 0 });
+        img.src = logoDataUrl;
+      });
+      logoNaturalW = dims.w;
+      logoNaturalH = dims.h;
       return logoDataUrl;
     } catch (e) {
       console.warn('Logo preload failed:', e);
@@ -799,9 +810,12 @@
     // ── Render the report ─────────────────────────────────────
 
     // Header band — logo + brand name left, doc type right
-    // Logo actual dimensions: 619×307px → ratio 2.016:1
+    // Logo dimensions come from the preloaded image's natural size
+    // so jsPDF never has to guess and will never stretch it.
     const LOGO_H = 20;
-    const LOGO_W = LOGO_H * (619 / 307);     // ~40.3mm
+    const LOGO_W = (logoNaturalW && logoNaturalH)
+      ? LOGO_H * (logoNaturalW / logoNaturalH)
+      : LOGO_H * (619 / 307);  // fallback to known ratio
 
     if (logoDataUrl) {
       try {
