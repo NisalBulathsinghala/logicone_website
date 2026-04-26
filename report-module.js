@@ -798,32 +798,34 @@
 
     // ── Render the report ─────────────────────────────────────
 
-    // Header band
-    const headerH = 22;
-    // Logo on left
+    // Header band — logo + brand name left, doc type right
+    // Logo actual dimensions: 619×307px → ratio 2.016:1
+    const LOGO_H = 20;
+    const LOGO_W = LOGO_H * (619 / 307);     // ~40.3mm
+
     if (logoDataUrl) {
       try {
-        // 16mm tall, scale width proportionally — we don't know exact ratio here
-        // so let jsPDF preserve aspect ratio with explicit dimensions.
-        // Original logo ~617×295 → ratio ~2.09. 16mm tall → ~33.5mm wide.
-        pdf.addImage(logoDataUrl, 'PNG', MARGIN, y, 33.5, 16, undefined, 'FAST');
-      } catch (e) { /* logo may have failed to load — skip silently */ }
+        pdf.addImage(logoDataUrl, 'PNG', MARGIN, y, LOGO_W, LOGO_H, undefined, 'FAST');
+      } catch (e) { /* logo unavailable — skip */ }
     }
-    // Brand name + tag
-    const brandX = MARGIN + 37;
-    setText(C.ink, 14, 'bold');
-    pdf.text('LOGIC ONE SA', brandX, y + 6, { charSpace: 0.6 });
-    setText(C.inkSoft, 8, 'normal');
-    pdf.text('Electronics Engineering · Authorised Repairs', brandX, y + 11);
 
-    // Right side: doc type + id + date
+    // Brand name: vertically centred within logo height
+    const brandX = MARGIN + LOGO_W + 5;
+    setText(C.ink, 15, 'bold');
+    pdf.text('LOGIC ONE SA', brandX, y + LOGO_H * 0.42, { charSpace: 0.6 });
+    setText(C.inkSoft, 8, 'normal');
+    pdf.text('Electronics Engineering · Authorised Repairs', brandX, y + LOGO_H * 0.68);
+
+    // Right side: vertically aligned to match
     setText(C.accent, 11, 'bold');
-    pdf.text('REPAIR REPORT', MARGIN + CONTENT_W, y + 6, { align: 'right', charSpace: 0.8 });
-    setText(C.ink, 10, 'normal');
+    pdf.text('REPAIR REPORT', MARGIN + CONTENT_W, y + LOGO_H * 0.30, { align: 'right', charSpace: 0.8 });
+    setText(C.ink, 9, 'normal');
     pdf.setFont('courier', 'normal');
-    pdf.text(String(data.jobId || '—'), MARGIN + CONTENT_W, y + 12, { align: 'right' });
+    pdf.text(String(data.jobId || '—'), MARGIN + CONTENT_W, y + LOGO_H * 0.57, { align: 'right' });
     setText(C.inkSoft, 9, 'normal');
-    pdf.text(fmtDate(new Date().toISOString()), MARGIN + CONTENT_W, y + 17, { align: 'right' });
+    pdf.text(fmtDate(new Date().toISOString()), MARGIN + CONTENT_W, y + LOGO_H * 0.78, { align: 'right' });
+
+    const headerH = LOGO_H + 4;
 
     y += headerH;
     // Heavy horizontal rule under header
