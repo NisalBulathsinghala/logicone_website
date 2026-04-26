@@ -199,10 +199,10 @@ body {
 .btn-secondary { background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border); }
 .btn-secondary:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
 
-.search-bar { position: relative; width: 200px; flex-shrink: 1; min-width: 100px; }
+.search-bar { position: relative; flex-shrink: 1; }
 
 .search-bar input {
-  width: 100%; padding: 7px 12px 7px 34px;
+  width: 180px; padding: 7px 12px 7px 34px;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   font-size: 13px; font-family: 'Inter', sans-serif;
   outline: none; transition: border-color 0.15s; background: var(--bg-primary);
