@@ -73,13 +73,17 @@
 }
 .lo-report-preview {
   background: #fff;
-  max-width: 794px; margin: 0 auto;
-  padding: 36px 44px 44px;
+  width: 794px;       /* A4 width @ 96dpi */
+  max-width: 100%;
+  min-height: 1123px; /* A4 height @ 96dpi */
+  margin: 0 auto;
+  padding: 56px 56px 64px;  /* ~15mm visual margin */
   box-shadow: 0 4px 20px rgba(15,23,42,0.08);
   border-radius: 4px;
   font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
   font-size: 14px; line-height: 1.5;
   color: #0f172a;
+  box-sizing: border-box;
 }
 
 /* Report content styles (scoped to .lo-report-preview) */
@@ -503,41 +507,58 @@
   }
 
   // ── Build PDF blob from preview DOM ─────────────────────────
+  // The preview is sized to A4 proportions (794 × 1123px @ 96dpi)
+  // with internal padding that acts as the printed margin. We
+  // capture it and place it edge-to-edge on the A4 page, so the
+  // PDF is a 1:1 match of the preview.
   async function buildPdfBlob() {
     await ensureLibs();
     const preview = document.getElementById('loReportPreview');
+
+    // Force layout so html2canvas measures the right height
+    const fullHeight = Math.max(preview.scrollHeight, preview.offsetHeight);
+
     const canvas = await html2canvas(preview, {
-      scale: 2,
+      // 1.5x is plenty sharp for a document. 2x roughly doubles
+      // the file size for marginal visual gain on this content.
+      scale: 1.5,
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
+      width: preview.offsetWidth,
+      height: fullHeight,
+      windowWidth: preview.offsetWidth,
+      windowHeight: fullHeight,
     });
 
-    // jsPDF — A4 portrait (210 x 297 mm). Width in pt for image scaling.
+    // jsPDF — A4 portrait (210 × 297 mm)
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pdf = new jsPDF({
+      unit: 'mm', format: 'a4', orientation: 'portrait',
+      compress: true,
+    });
     const pageW = 210;
     const pageH = 297;
-    const margin = 0; // preview already includes its own padding equivalent to print margins
 
-    const imgW = pageW - margin * 2;
+    // Scale captured canvas so its width equals A4 width.
+    // JPEG @ 0.88 quality cuts payload size by ~6-10x vs PNG
+    // for documents like this (mostly white space + text).
+    const imgW = pageW;
     const imgH = canvas.height * (imgW / canvas.width);
-    const imgData = canvas.toDataURL('image/png');
+    const imgData = canvas.toDataURL('image/jpeg', 0.88);
 
-    if (imgH <= pageH - margin * 2) {
-      pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH);
+    if (imgH <= pageH + 1) {
+      // Single page — just place the image
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgW, imgH, undefined, 'FAST');
     } else {
-      // Multi-page: slice the canvas
+      // Multi-page: shift the same tall image up by one page-height each iteration
+      let position = 0;
       let remaining = imgH;
-      let yPos = 0;
-      const pageContentH = pageH - margin * 2;
       while (remaining > 0) {
-        pdf.addImage(imgData, 'PNG', margin, margin - yPos, imgW, imgH);
-        remaining -= pageContentH;
-        if (remaining > 0) {
-          pdf.addPage();
-          yPos += pageContentH;
-        }
+        pdf.addImage(imgData, 'JPEG', 0, -position, imgW, imgH, undefined, 'FAST');
+        remaining -= pageH;
+        position += pageH;
+        if (remaining > 0) pdf.addPage();
       }
     }
 
