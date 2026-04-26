@@ -183,7 +183,7 @@ body {
   font-size: 16px; font-weight: 700; letter-spacing: 0.5px;
 }
 
-.topbar-actions { display: flex; align-items: center; gap: 10px; }
+.topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -199,7 +199,7 @@ body {
 .btn-secondary { background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border); }
 .btn-secondary:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
 
-.search-bar { position: relative; max-width: 240px; }
+.search-bar { position: relative; width: 200px; flex-shrink: 1; min-width: 100px; }
 
 .search-bar input {
   width: 100%; padding: 7px 12px 7px 34px;

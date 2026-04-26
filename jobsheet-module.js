@@ -463,16 +463,32 @@ function jsSetStatus(el) {
   document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   const newStatus = el.textContent.trim();
-  if (jsCurrentJob) {
-    if (!jsCurrentJob.statusTimestamps) jsCurrentJob.statusTimestamps = parseTimestamps(jsCurrentJob);
-    // Only record the first time a status is entered — never overwrite
-    if (!jsCurrentJob.statusTimestamps[newStatus]) {
-      jsCurrentJob.statusTimestamps[newStatus] = new Date().toISOString();
-    }
-    jsCurrentJob.status = newStatus;
-    jsRenderTimeline(jsCurrentJob);
-    // Persist to Drive immediately
-    if (cfg.appsScriptUrl && jsCurrentJob.driveFolder) {
+  if (!jsCurrentJob) return;
+
+  const oldStatus = jsCurrentJob.status;
+  if (newStatus === oldStatus) return;
+
+  if (!jsCurrentJob.statusTimestamps) jsCurrentJob.statusTimestamps = parseTimestamps(jsCurrentJob);
+  // Only record the first time a status is entered — never overwrite
+  if (!jsCurrentJob.statusTimestamps[newStatus]) {
+    jsCurrentJob.statusTimestamps[newStatus] = new Date().toISOString();
+  }
+  jsCurrentJob.status = newStatus;
+  jsRenderTimeline(jsCurrentJob);
+
+  // Update the jobs array so kanban re-renders with the new status
+  const jobInList = jobs.find(j => j.jobId === jsCurrentJob.jobId);
+  if (jobInList) {
+    jobInList.status = newStatus;
+    jobInList.statusTimestamps = jsCurrentJob.statusTimestamps;
+    renderAll(); // refresh kanban cards and list
+  }
+
+  if (cfg.appsScriptUrl) {
+    // Update status in sheet
+    callScript({ action: 'updateStatus', jobId: jsCurrentJob.jobId, status: newStatus });
+    // Persist timestamps to Drive
+    if (jsCurrentJob.driveFolder) {
       callScript({
         action: 'saveTimestamps',
         jobId: jsCurrentJob.jobId,
