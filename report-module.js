@@ -335,7 +335,7 @@
         <div class="lor-header-right">
           <div class="lor-doc-type">Repair Report</div>
           <div class="lor-doc-id">${esc(d.jobId || '—')}</div>
-          <div class="lor-doc-date">${fmtDate(d.date)}</div>
+          <div class="lor-doc-date">${fmtDate(new Date().toISOString())}</div>
         </div>
       </header>
 
@@ -388,7 +388,7 @@
 
       <footer class="lor-footer">
         <div><span class="lor-stamp">Repair Report</span> · Job ${esc(d.jobId || '—')}</div>
-        <div>Generated ${fmtDate(new Date().toISOString())}</div>
+        <div>${fmtDate(new Date().toISOString())}</div>
       </footer>
     `;
   }
@@ -689,7 +689,7 @@
     const safe = (s) => String(s || '').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
     const id = safe(data.jobId) || 'JobSheet';
     const name = safe(data.name);
-    const dateStr = (data.date || new Date().toISOString().slice(0,10)).replace(/-/g, '');
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     return `${id}_Repair-Report${name ? '_' + name : ''}_${dateStr}.pdf`;
   }
 
