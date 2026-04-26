@@ -6,7 +6,7 @@
    Drive folder via Apps Script.
 
    Dependencies:
-   - jsPDF + html2canvas (loaded on-demand from CDN)
+   - jsPDF (loaded on-demand from CDN — vector PDF only, no rasterisation)
    - Existing globals from dashboard.js / jobsheet-module.js:
        cfg, callScript, showToast, jsCurrentJob,
        jsCollectData, jobs (or filtered())
@@ -246,7 +246,6 @@
 
   // ── State ───────────────────────────────────────────────────
   let jsPDFLoaded = false;
-  let html2canvasLoaded = false;
   let currentReportData = null;
   let logoDataUrl = null;
 
@@ -480,7 +479,7 @@
     }
   }
 
-  // ── Lazy-load jsPDF & html2canvas from CDN ──────────────────
+  // ── Lazy-load jsPDF from CDN ────────────────────────────────
   function loadScript(src) {
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
@@ -492,12 +491,6 @@
   }
 
   async function ensureLibs() {
-    if (!html2canvasLoaded) {
-      if (typeof html2canvas === 'undefined') {
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-      }
-      html2canvasLoaded = true;
-    }
     if (!jsPDFLoaded) {
       if (typeof window.jspdf === 'undefined') {
         await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
@@ -506,61 +499,398 @@
     }
   }
 
-  // ── Build PDF blob from preview DOM ─────────────────────────
-  // The preview is sized to A4 proportions (794 × 1123px @ 96dpi)
-  // with internal padding that acts as the printed margin. We
-  // capture it and place it edge-to-edge on the A4 page, so the
-  // PDF is a 1:1 match of the preview.
+  // ── Build PDF blob using native jsPDF drawing primitives ────
+  // Vector PDF — text is selectable/copyable, file is small,
+  // logo embeds as a small JPEG (only raster element).
+  // This renders the same content as renderCustomerReport(),
+  // laid out for A4 with 15mm margins.
   async function buildPdfBlob() {
     await ensureLibs();
-    const preview = document.getElementById('loReportPreview');
-
-    // Force layout so html2canvas measures the right height
-    const fullHeight = Math.max(preview.scrollHeight, preview.offsetHeight);
-
-    const canvas = await html2canvas(preview, {
-      // 1.5x is plenty sharp for a document. 2x roughly doubles
-      // the file size for marginal visual gain on this content.
-      scale: 1.5,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      width: preview.offsetWidth,
-      height: fullHeight,
-      windowWidth: preview.offsetWidth,
-      windowHeight: fullHeight,
-    });
-
-    // jsPDF — A4 portrait (210 × 297 mm)
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({
-      unit: 'mm', format: 'a4', orientation: 'portrait',
-      compress: true,
+      unit: 'mm', format: 'a4', orientation: 'portrait', compress: true,
     });
-    const pageW = 210;
-    const pageH = 297;
 
-    // Scale captured canvas so its width equals A4 width.
-    // JPEG @ 0.88 quality cuts payload size by ~6-10x vs PNG
-    // for documents like this (mostly white space + text).
-    const imgW = pageW;
-    const imgH = canvas.height * (imgW / canvas.width);
-    const imgData = canvas.toDataURL('image/jpeg', 0.88);
+    // ── Layout constants (mm) ─────────────────────────────────
+    const PAGE_W = 210, PAGE_H = 297;
+    const MARGIN = 15;
+    const CONTENT_W = PAGE_W - MARGIN * 2;          // 180mm
+    const COL_GAP = 8;
+    const COL_W = (CONTENT_W - COL_GAP) / 2;        // 86mm
 
-    if (imgH <= pageH + 1) {
-      // Single page — just place the image
-      pdf.addImage(imgData, 'JPEG', 0, 0, imgW, imgH, undefined, 'FAST');
-    } else {
-      // Multi-page: shift the same tall image up by one page-height each iteration
-      let position = 0;
-      let remaining = imgH;
-      while (remaining > 0) {
-        pdf.addImage(imgData, 'JPEG', 0, -position, imgW, imgH, undefined, 'FAST');
-        remaining -= pageH;
-        position += pageH;
-        if (remaining > 0) pdf.addPage();
+    // ── Colours ───────────────────────────────────────────────
+    const C = {
+      ink:        [15, 23, 42],
+      inkSoft:    [71, 85, 105],
+      inkMute:    [148, 163, 184],
+      rule:       [226, 232, 240],
+      ruleStrong: [203, 213, 225],
+      accent:     [0, 102, 204],
+      accentDeep: [0, 61, 128],
+      bg:         [245, 247, 250],
+      ok:         [4, 120, 87],
+      okSoft:     [209, 250, 229],
+      warn:       [180, 83, 9],
+      warnSoft:   [254, 243, 199],
+    };
+
+    const data = currentReportData;
+    let y = MARGIN;  // running cursor
+
+    // ── Helpers ───────────────────────────────────────────────
+    const setText = (rgb, size, weight) => {
+      pdf.setTextColor(rgb[0], rgb[1], rgb[2]);
+      pdf.setFontSize(size);
+      pdf.setFont('helvetica', weight || 'normal');
+    };
+    const setDraw = (rgb, w) => {
+      pdf.setDrawColor(rgb[0], rgb[1], rgb[2]);
+      pdf.setLineWidth(w || 0.2);
+    };
+    const setFill = (rgb) => pdf.setFillColor(rgb[0], rgb[1], rgb[2]);
+
+    // Estimate height a wrapped string will take at given font size & weight.
+    // Returns { lines: [...], height: mm }
+    const wrap = (text, maxW, size) => {
+      pdf.setFontSize(size);
+      const lines = pdf.splitTextToSize(String(text || ''), maxW);
+      const lineH = size * 0.352778 * 1.25; // pt -> mm with 1.25 line-height
+      return { lines, height: lines.length * lineH, lineH };
+    };
+
+    // Draw a section title — small uppercase, tinted, with a thin rule
+    const drawSectionTitle = (label) => {
+      // Add breathing room before each new section
+      y += 4;
+      setText(C.inkSoft, 8, 'bold');
+      pdf.text(label.toUpperCase(), MARGIN, y, { charSpace: 0.5 });
+      // rule under
+      setDraw(C.rule, 0.2);
+      pdf.line(MARGIN, y + 1.5, MARGIN + CONTENT_W, y + 1.5);
+      y += 5.5;
+    };
+
+    // Draw a small uppercase label + value (used in field grids)
+    // Returns the height consumed.
+    const drawField = (x, yTop, w, label, value, opts) => {
+      const o = opts || {};
+      // Label
+      setText(C.inkMute, 7, 'bold');
+      pdf.text(String(label || '').toUpperCase(), x, yTop + 2.5, { charSpace: 0.4 });
+
+      // Pill (warranty) gets a rounded coloured background
+      if (o.pill && value) {
+        const pillText = String(value);
+        const isInWarranty = isWarranty(pillText);
+        const fillCol = isInWarranty ? C.okSoft : C.warnSoft;
+        const txtCol  = isInWarranty ? C.ok      : C.warn;
+        setText(txtCol, 8, 'bold');
+        const tw = pdf.getTextWidth(pillText.toUpperCase());
+        const padX = 2.5, pillH = 4.5;
+        setFill(fillCol);
+        pdf.roundedRect(x, yTop + 5, tw + padX * 2, pillH, 1.5, 1.5, 'F');
+        setText(txtCol, 8, 'bold');
+        pdf.text(pillText.toUpperCase(), x + padX, yTop + 8.2, { charSpace: 0.3 });
+        return 4 + pillH + 3;
       }
+
+      // Value
+      const isMono = !!o.mono;
+      const fontSize = isMono ? 9 : 10;
+      setText(C.ink, fontSize, 'normal');
+      if (isMono) pdf.setFont('courier', 'normal');
+      const v = (value === undefined || value === null || value === '') ? '—' : String(value);
+      const w_ = wrap(v, w, fontSize);
+      const lineH = 4.4;
+      let lineY = yTop + 6.8;
+      w_.lines.forEach((ln, i) => {
+        pdf.text(ln, x, lineY + i * lineH);
+      });
+      const valueBlockH = Math.max(lineH, w_.lines.length * lineH);
+      return 4 + valueBlockH + 3;
+    };
+
+    // Draw a 2-column field grid. fields = [{label, value, mono?, pill?}, ...]
+    const drawFieldGrid = (fields) => {
+      let leftY = y, rightY = y;
+      fields.forEach((f, i) => {
+        const isLeft = i % 2 === 0;
+        const x = isLeft ? MARGIN : MARGIN + COL_W + COL_GAP;
+        const yy = isLeft ? leftY : rightY;
+        const consumed = drawField(x, yy, COL_W, f.label, f.value, { mono: f.mono, pill: f.pill });
+        if (isLeft) leftY = yy + consumed; else rightY = yy + consumed;
+      });
+      y = Math.max(leftY, rightY) + 2;
+    };
+
+    // Draw a prose block with optional bullet list.
+    // Auto-detects bullets ("- " or "• " at start of each line).
+    const drawProseBlock = (text) => {
+      const empty = !text || !String(text).trim();
+      const padding = 4;
+      const innerW = CONTENT_W - padding * 2;
+
+      if (empty) {
+        // Empty state — italic muted text on bg
+        const blockH = 9;
+        setFill(C.bg);
+        pdf.rect(MARGIN, y, CONTENT_W, blockH, 'F');
+        // Left accent bar
+        setFill(C.accent);
+        pdf.rect(MARGIN, y, 0.8, blockH, 'F');
+        setText(C.inkMute, 9, 'italic');
+        pdf.text('No notes recorded.', MARGIN + padding, y + 6);
+        y += blockH + 3;
+        return;
+      }
+
+      const raw = String(text);
+      const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const isList = lines.length > 1 && lines.every(l => l.startsWith('-') || l.startsWith('•'));
+
+      // Pre-measure to know block height
+      const fontSize = 10;
+      let totalLines = [];
+      if (isList) {
+        const bulletIndent = 5;
+        const bulletInnerW = innerW - bulletIndent;
+        lines.forEach(rawLine => {
+          const cleaned = rawLine.replace(/^[-•]\s*/, '');
+          const wrapped = wrap(cleaned, bulletInnerW, fontSize);
+          wrapped.lines.forEach((ln, i) => totalLines.push({ text: ln, bullet: i === 0 ? '•' : '' }));
+        });
+      } else {
+        const wrapped = wrap(raw, innerW, fontSize);
+        wrapped.lines.forEach(ln => totalLines.push({ text: ln, bullet: '' }));
+      }
+
+      const lineH = 4.6;
+      const blockH = padding * 2 + totalLines.length * lineH;
+
+      // Page break if needed
+      if (y + blockH > PAGE_H - MARGIN) {
+        pdf.addPage(); y = MARGIN;
+      }
+
+      // Background
+      setFill(C.bg);
+      pdf.rect(MARGIN, y, CONTENT_W, blockH, 'F');
+      // Accent bar
+      setFill(C.accent);
+      pdf.rect(MARGIN, y, 0.8, blockH, 'F');
+
+      // Text
+      setText(C.ink, fontSize, 'normal');
+      let ty = y + padding + 3.4;
+      totalLines.forEach(item => {
+        if (item.bullet) {
+          pdf.text('•', MARGIN + padding, ty);
+          pdf.text(item.text, MARGIN + padding + 4, ty);
+        } else {
+          pdf.text(item.text, MARGIN + padding, ty);
+        }
+        ty += lineH;
+      });
+
+      y += blockH + 3;
+    };
+
+    // Draw a parts table. Columns: Part / No / Qty / Unit / Total
+    const drawPartsTable = (parts) => {
+      const cols = [
+        { key: 'name',  title: 'Part / Description', w: 78,  align: 'left'  },
+        { key: 'partNo',title: 'Part No.',           w: 38,  align: 'left'  },
+        { key: 'qty',   title: 'Qty',                w: 14,  align: 'right' },
+        { key: 'unit',  title: 'Unit',               w: 22,  align: 'right' },
+        { key: 'total', title: 'Total',              w: 28,  align: 'right' },
+      ];
+      // Verify total = CONTENT_W (180mm)
+      const xOf = (idx) => {
+        let x = MARGIN;
+        for (let i = 0; i < idx; i++) x += cols[i].w;
+        return x;
+      };
+
+      // Header row
+      setText(C.inkMute, 7, 'bold');
+      cols.forEach((c, i) => {
+        const x = xOf(i);
+        const tx = c.align === 'right' ? x + c.w - 1 : x + 1;
+        pdf.text(c.title.toUpperCase(), tx, y + 3, {
+          align: c.align === 'right' ? 'right' : 'left',
+          charSpace: 0.4,
+        });
+      });
+      setDraw(C.ruleStrong, 0.3);
+      pdf.line(MARGIN, y + 5, MARGIN + CONTENT_W, y + 5);
+      y += 7;
+
+      // Body
+      if (!parts || !parts.length) {
+        setText(C.inkMute, 9, 'italic');
+        pdf.text('No parts used or replaced.', MARGIN, y + 1);
+        y += 6;
+        return;
+      }
+
+      setText(C.ink, 10, 'normal');
+      parts.forEach(p => {
+        const qty = Number(p.qty ?? p.quantity ?? 1);
+        const price = Number(p.price ?? p.unitPrice ?? 0);
+        const total = qty * price;
+        const name = String(p.name || p.partName || p.part || '—');
+        const partNo = String(p.partNo || p.partNumber || p.sku || '');
+
+        // Wrap the name column
+        const nameWrap = wrap(name, cols[0].w - 2, 10);
+        const rowH = Math.max(6, nameWrap.lines.length * 4.4 + 2);
+
+        // Page break if needed
+        if (y + rowH > PAGE_H - MARGIN - 30) {
+          pdf.addPage(); y = MARGIN;
+        }
+
+        // Cell text
+        setText(C.ink, 10, 'normal');
+        nameWrap.lines.forEach((ln, i) => {
+          pdf.text(ln, xOf(0) + 1, y + 4 + i * 4.4);
+        });
+        pdf.text(partNo, xOf(1) + 1, y + 4);
+        pdf.text(String(qty), xOf(2) + cols[2].w - 1, y + 4, { align: 'right' });
+        pdf.text(fmtMoney(price), xOf(3) + cols[3].w - 1, y + 4, { align: 'right' });
+        pdf.text(fmtMoney(total), xOf(4) + cols[4].w - 1, y + 4, { align: 'right' });
+
+        // Row separator
+        setDraw(C.rule, 0.2);
+        pdf.line(MARGIN, y + rowH, MARGIN + CONTENT_W, y + rowH);
+        y += rowH;
+      });
+    };
+
+    // Draw the totals block (only if any monetary values present)
+    const drawTotals = (d) => {
+      const hasMoney = Number(d.total) || Number(d.subtotal) || Number(d.partsTotal) || Number(d.postage);
+      if (!hasMoney) return;
+      y += 3;
+      const labelX = MARGIN + CONTENT_W - 60;
+      const valueX = MARGIN + CONTENT_W;
+      const rows = [
+        ['Parts subtotal', fmtMoney(d.partsTotal)],
+        ['Postage',        fmtMoney(d.postage)],
+        ['Discount',       (Number(d.discount) || 0) > 0 ? '−' + fmtMoney(d.discount) : fmtMoney(d.discount)],
+        ['Subtotal',       fmtMoney(d.subtotal)],
+      ];
+      setText(C.ink, 10, 'normal');
+      rows.forEach(([lab, val]) => {
+        pdf.text(lab, labelX, y + 4);
+        pdf.text(val, valueX, y + 4, { align: 'right' });
+        y += 6;
+      });
+      // Total — heavy rule above + bigger blue text
+      setDraw(C.ink, 0.5);
+      pdf.line(labelX, y, valueX, y);
+      y += 5;
+      setText(C.accentDeep, 12, 'bold');
+      pdf.text('Total (AUD)', labelX, y);
+      pdf.text(fmtMoney(d.total), valueX, y, { align: 'right' });
+      y += 4;
+    };
+
+    // ── Render the report ─────────────────────────────────────
+
+    // Header band
+    const headerH = 22;
+    // Logo on left
+    if (logoDataUrl) {
+      try {
+        // 16mm tall, scale width proportionally — we don't know exact ratio here
+        // so let jsPDF preserve aspect ratio with explicit dimensions.
+        // Original logo ~617×295 → ratio ~2.09. 16mm tall → ~33.5mm wide.
+        pdf.addImage(logoDataUrl, 'PNG', MARGIN, y, 33.5, 16, undefined, 'FAST');
+      } catch (e) { /* logo may have failed to load — skip silently */ }
     }
+    // Brand name + tag
+    const brandX = MARGIN + 37;
+    setText(C.ink, 14, 'bold');
+    pdf.text('LOGIC ONE SA', brandX, y + 6, { charSpace: 0.6 });
+    setText(C.inkSoft, 8, 'normal');
+    pdf.text('Electronics Engineering · Authorised Repairs', brandX, y + 11);
+
+    // Right side: doc type + id + date
+    setText(C.accent, 11, 'bold');
+    pdf.text('REPAIR REPORT', MARGIN + CONTENT_W, y + 6, { align: 'right', charSpace: 0.8 });
+    setText(C.ink, 10, 'normal');
+    pdf.setFont('courier', 'normal');
+    pdf.text(String(data.jobId || '—'), MARGIN + CONTENT_W, y + 12, { align: 'right' });
+    setText(C.inkSoft, 9, 'normal');
+    pdf.text(fmtDate(new Date().toISOString()), MARGIN + CONTENT_W, y + 17, { align: 'right' });
+
+    y += headerH;
+    // Heavy horizontal rule under header
+    setDraw(C.ink, 0.6);
+    pdf.line(MARGIN, y, MARGIN + CONTENT_W, y);
+    y += 6;
+
+    // Customer
+    drawSectionTitle('Customer');
+    drawFieldGrid([
+      { label: 'Name',    value: data.name },
+      { label: 'Contact', value: [data.phone, data.email].filter(Boolean).join(' · ') },
+    ]);
+
+    // Device
+    drawSectionTitle('Device');
+    drawFieldGrid([
+      { label: 'Type',           value: data.deviceType },
+      { label: 'Brand & Model',  value: [data.brand, data.model].filter(Boolean).join(' ') },
+      { label: 'Serial Number',  value: data.serial, mono: true },
+      { label: 'Warranty',       value: data.warranty, pill: true },
+      { label: 'Service Type',   value: data.svcType },
+      { label: 'Items Received', value: (data.checklist && data.checklist.length) ? data.checklist.join(', ') : '' },
+    ]);
+
+    // Reported Issue
+    drawSectionTitle('Reported Issue');
+    drawProseBlock(data.custRemark || data.issue);
+
+    // Work Performed
+    drawSectionTitle('Work Performed');
+    drawProseBlock(data.repairRemark);
+
+    // Outcome (only if present)
+    if (data.finalRemark) {
+      drawSectionTitle('Outcome');
+      drawProseBlock(data.finalRemark);
+    }
+
+    // Parts & Charges
+    drawSectionTitle('Parts & Charges');
+    drawPartsTable(data.parts);
+    drawTotals(data);
+    y += 4;
+
+    // Signature block
+    if (y > PAGE_H - MARGIN - 30) { pdf.addPage(); y = MARGIN; }
+    const sigY = y + 6;
+    const sigW = (CONTENT_W - 16) / 2;
+    setDraw(C.ink, 0.3);
+    pdf.line(MARGIN, sigY, MARGIN + sigW, sigY);
+    pdf.line(MARGIN + sigW + 16, sigY, MARGIN + CONTENT_W, sigY);
+    setText(C.inkMute, 7, 'bold');
+    pdf.text('TECHNICIAN', MARGIN, sigY + 4, { charSpace: 0.4 });
+    pdf.text('CUSTOMER SIGNATURE', MARGIN + sigW + 16, sigY + 4, { charSpace: 0.4 });
+    setText(C.inkSoft, 9, 'normal');
+    pdf.text(String(data.tech || ''), MARGIN, sigY + 9);
+    y = sigY + 14;
+
+    // Footer — anchor to bottom of last page
+    const footY = PAGE_H - MARGIN;
+    setDraw(C.rule, 0.2);
+    pdf.line(MARGIN, footY - 5, MARGIN + CONTENT_W, footY - 5);
+    setText(C.inkMute, 8, 'bold');
+    pdf.text(`REPAIR REPORT  ·  Job ${data.jobId || '—'}`, MARGIN, footY - 1, { charSpace: 0.4 });
+    setText(C.inkMute, 8, 'normal');
+    pdf.text(fmtDate(new Date().toISOString()), MARGIN + CONTENT_W, footY - 1, { align: 'right' });
 
     return pdf.output('blob');
   }
