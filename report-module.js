@@ -242,6 +242,77 @@
 }
 .lo-row-report-btn:hover { background: #e6f0fb; color: #0066cc; }
 .lo-row-report-btn svg { width: 16px; height: 16px; }
+
+/* ── Photo picker ──────────────────────────────────────────── */
+.lo-photo-panel {
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 16px 24px;
+  flex-shrink: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.lo-photo-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.lo-photo-panel-title {
+  font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: #475569;
+}
+.lo-photo-panel-hint { font-size: 11px; color: #94a3b8; }
+.lo-photo-loading { font-size: 12px; color: #94a3b8; font-style: italic; padding: 8px 0; }
+.lo-photo-group { margin-bottom: 14px; }
+.lo-photo-group-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #94a3b8;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.lo-photo-group-toggle {
+  font-size: 11px; font-weight: 500; color: #0066cc;
+  background: none; border: 0; cursor: pointer; padding: 0;
+  font-family: inherit;
+}
+.lo-photo-group-toggle:hover { text-decoration: underline; }
+.lo-photo-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+}
+.lo-photo-item {
+  position: relative; cursor: pointer;
+  border-radius: 6px; overflow: hidden;
+  border: 2px solid transparent;
+  transition: border-color 0.15s;
+  aspect-ratio: 4/3;
+  background: #e2e8f0;
+}
+.lo-photo-item.selected { border-color: #0066cc; }
+.lo-photo-item img {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+.lo-photo-item-check {
+  position: absolute; top: 4px; right: 4px;
+  width: 18px; height: 18px;
+  background: #0066cc; border-radius: 50%;
+  display: none; align-items: center; justify-content: center;
+}
+.lo-photo-item.selected .lo-photo-item-check { display: flex; }
+.lo-photo-item-check svg { width: 10px; height: 10px; color: white; }
+.lo-photo-item-name {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(15,23,42,0.55);
+  color: #fff; font-size: 9px; padding: 2px 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: none;
+}
+.lo-photo-item:hover .lo-photo-item-name { display: block; }
+.lo-photo-count {
+  font-size: 12px; color: #0066cc; font-weight: 600;
+}
+.lo-photo-empty { font-size: 12px; color: #94a3b8; font-style: italic; }
 `;
 
   // ── State ───────────────────────────────────────────────────
@@ -250,6 +321,9 @@
   let logoDataUrl = null;
   let logoNaturalW = 0;
   let logoNaturalH = 0;
+  let photoList = [];        // [{ id, name, subfolder, thumbUrl }]
+  let selectedPhotoIds = new Set();
+  let photoBase64Cache = {}; // id → base64 string
 
   // ── Utility ─────────────────────────────────────────────────
   const esc = (s) => {
@@ -430,6 +504,18 @@
             <div class="lo-report-loading-msg" id="loReportLoadingMsg">Generating PDF…</div>
           </div>
           <div class="lo-report-preview" id="loReportPreview"></div>
+        </div>
+        <div class="lo-photo-panel" id="loPhotoPanel" style="display:none;">
+          <div class="lo-photo-panel-header">
+            <div class="lo-photo-panel-title">
+              📷 Add Photos
+              <span class="lo-photo-count" id="loPhotoCount" style="margin-left:8px;"></span>
+            </div>
+            <div class="lo-photo-panel-hint" id="loPhotoPanelHint">Select photos to include in the report</div>
+          </div>
+          <div id="loPhotoPickerBody">
+            <div class="lo-photo-loading">Loading photos from Drive…</div>
+          </div>
         </div>
         <div class="lo-report-footer">
           <div class="lo-report-footer-info" id="loReportFooterInfo">Will save as: <strong id="loReportFilename">—</strong></div>
@@ -908,6 +994,80 @@
     setText(C.inkMute, 8, 'normal');
     pdf.text(fmtDate(new Date().toISOString()), MARGIN + CONTENT_W, footY - 1, { align: 'right' });
 
+    // ── Photos page (if any selected) ─────────────────────────
+    if (selectedPhotoIds.size > 0) {
+      showLoading(true, 'Fetching photos…');
+      const photoData = await fetchPhotoBase64s(
+        [...selectedPhotoIds],
+        data.driveFolder,
+      );
+      showLoading(true, 'Embedding photos…');
+
+      const orderedIds = photoList
+        .map(p => p.id)
+        .filter(id => selectedPhotoIds.has(id) && photoData[id]);
+
+      if (orderedIds.length) {
+        pdf.addPage();
+        let py = MARGIN;
+
+        // Page header matching main doc style
+        setText(C.inkSoft, 8, 'bold');
+        pdf.text('INSPECTION PHOTOS', MARGIN, py, { charSpace: 0.5 });
+        setDraw(C.rule, 0.2);
+        pdf.line(MARGIN, py + 1.5, MARGIN + CONTENT_W, py + 1.5);
+        py += 7;
+
+        // 2 per row — each photo occupies half the content width with a gap
+        const COL_COUNT = 2;
+        const PHOTO_GAP = 5;
+        const PHOTO_W = (CONTENT_W - PHOTO_GAP * (COL_COUNT - 1)) / COL_COUNT; // ~87.5mm
+        const PHOTO_H = PHOTO_W * 0.75; // 4:3 ratio → ~65.6mm
+
+        for (let i = 0; i < orderedIds.length; i++) {
+          const id = orderedIds[i];
+          const col = i % COL_COUNT;
+          const x = MARGIN + col * (PHOTO_W + PHOTO_GAP);
+
+          // Start new row
+          if (col === 0 && i > 0) py += PHOTO_H + PHOTO_GAP;
+
+          // Page break if needed
+          if (py + PHOTO_H > PAGE_H - MARGIN - 10) {
+            pdf.addPage();
+            py = MARGIN;
+            // Repeat section header on continuation pages
+            setText(C.inkSoft, 8, 'bold');
+            pdf.text('INSPECTION PHOTOS (continued)', MARGIN, py, { charSpace: 0.5 });
+            setDraw(C.rule, 0.2);
+            pdf.line(MARGIN, py + 1.5, MARGIN + CONTENT_W, py + 1.5);
+            py += 7;
+          }
+
+          try {
+            const b64 = photoData[id];
+            const dataUrl = `data:image/jpeg;base64,${b64}`;
+            pdf.addImage(dataUrl, 'JPEG', x, py, PHOTO_W, PHOTO_H, undefined, 'FAST');
+          } catch (e) {
+            // If image fails, draw a placeholder rect
+            setFill(C.bg);
+            pdf.rect(x, py, PHOTO_W, PHOTO_H, 'F');
+            setText(C.inkMute, 9, 'normal');
+            pdf.text('Image unavailable', x + PHOTO_W / 2, py + PHOTO_H / 2, { align: 'center' });
+          }
+        }
+
+        // Footer on photos page
+        const fY = PAGE_H - MARGIN;
+        setDraw(C.rule, 0.2);
+        pdf.line(MARGIN, fY - 5, MARGIN + CONTENT_W, fY - 5);
+        setText(C.inkMute, 8, 'bold');
+        pdf.text(`REPAIR REPORT  ·  Job ${data.jobId || '—'}`, MARGIN, fY - 1, { charSpace: 0.4 });
+        setText(C.inkMute, 8, 'normal');
+        pdf.text(fmtDate(new Date().toISOString()), MARGIN + CONTENT_W, fY - 1, { align: 'right' });
+      }
+    }
+
     return pdf.output('blob');
   }
 
@@ -959,6 +1119,145 @@
     }
   }
 
+  // ── Photo picker ────────────────────────────────────────────
+
+  // Call Apps Script to list photos from all 4 photo subfolders
+  async function fetchPhotoList(driveFolder) {
+    if (!driveFolder || typeof cfg === 'undefined' || !cfg || !cfg.appsScriptUrl) return [];
+    try {
+      const url = `${cfg.appsScriptUrl}?payload=${encodeURIComponent(JSON.stringify({
+        action: 'listPhotos',
+        driveFolder,
+      }))}`;
+      const r = await fetch(url, { redirect: 'follow' });
+      const json = await r.json();
+      if (json.result === 'ok') return json.data || [];
+      console.warn('listPhotos failed:', json.msg);
+      return [];
+    } catch (e) {
+      console.warn('listPhotos error:', e);
+      return [];
+    }
+  }
+
+  // Fetch selected photos as base64 from Apps Script (via POST — could be large)
+  async function fetchPhotoBase64s(ids, driveFolder) {
+    if (!ids.length || !driveFolder) return {};
+    // Return any already-cached ones
+    const missing = ids.filter(id => !photoBase64Cache[id]);
+    if (missing.length) {
+      try {
+        const r = await fetch(cfg.appsScriptUrl, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'fetchPhotos', fileIds: missing, driveFolder }),
+        });
+        const text = await r.text();
+        const json = JSON.parse(text);
+        if (json.result === 'ok' && json.data) {
+          Object.assign(photoBase64Cache, json.data);
+        }
+      } catch (e) {
+        console.warn('fetchPhotos error:', e);
+      }
+    }
+    const result = {};
+    ids.forEach(id => { if (photoBase64Cache[id]) result[id] = photoBase64Cache[id]; });
+    return result;
+  }
+
+  // Render the photo picker after photos are loaded
+  function renderPhotoPicker() {
+    const body = document.getElementById('loPhotoPickerBody');
+    const panel = document.getElementById('loPhotoPanel');
+    if (!body || !panel) return;
+
+    if (!photoList.length) {
+      body.innerHTML = `<div class="lo-photo-empty">No photos found in Drive folder.</div>`;
+      panel.style.display = '';
+      return;
+    }
+
+    // Group by subfolder
+    const groups = {};
+    photoList.forEach(p => {
+      if (!groups[p.subfolder]) groups[p.subfolder] = [];
+      groups[p.subfolder].push(p);
+    });
+
+    const subfoldersOrdered = [
+      '01_Receiving Photos',
+      '02_Inspection Photos',
+      '03_Testing Photos',
+      '04_Shipping Photos',
+    ].filter(s => groups[s]);
+
+    body.innerHTML = subfoldersOrdered.map(subfolder => {
+      const photos = groups[subfolder];
+      const label = subfolder.replace(/^\d+_/, '').replace(' Photos', '');
+      return `
+        <div class="lo-photo-group" data-subfolder="${esc(subfolder)}">
+          <div class="lo-photo-group-label">
+            <span>${esc(label)}</span>
+            <button class="lo-photo-group-toggle" onclick="window.reportPhotoToggleGroup('${esc(subfolder)}')">Select all</button>
+          </div>
+          <div class="lo-photo-grid">
+            ${photos.map(p => `
+              <div class="lo-photo-item" id="lophoto_${esc(p.id)}"
+                   onclick="window.reportPhotoToggle('${esc(p.id)}')"
+                   title="${esc(p.name)}">
+                <img src="${esc(p.thumbUrl)}" alt="${esc(p.name)}"
+                     onerror="this.style.display='none'">
+                <div class="lo-photo-item-name">${esc(p.name)}</div>
+                <div class="lo-photo-item-check">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    panel.style.display = '';
+    updatePhotoCount();
+  }
+
+  function updatePhotoCount() {
+    const el = document.getElementById('loPhotoCount');
+    if (!el) return;
+    const n = selectedPhotoIds.size;
+    el.textContent = n ? `(${n} selected)` : '';
+  }
+
+  window.reportPhotoToggle = function (id) {
+    if (selectedPhotoIds.has(id)) {
+      selectedPhotoIds.delete(id);
+      document.getElementById('lophoto_' + id)?.classList.remove('selected');
+    } else {
+      selectedPhotoIds.add(id);
+      document.getElementById('lophoto_' + id)?.classList.add('selected');
+    }
+    updatePhotoCount();
+  };
+
+  window.reportPhotoToggleGroup = function (subfolder) {
+    const group = document.querySelector(`[data-subfolder="${subfolder}"]`);
+    if (!group) return;
+    const items = group.querySelectorAll('.lo-photo-item');
+    const ids = [...items].map(el => el.id.replace('lophoto_', ''));
+    const allSelected = ids.every(id => selectedPhotoIds.has(id));
+    const btn = group.querySelector('.lo-photo-group-toggle');
+    if (allSelected) {
+      ids.forEach(id => { selectedPhotoIds.delete(id); document.getElementById('lophoto_' + id)?.classList.remove('selected'); });
+      if (btn) btn.textContent = 'Select all';
+    } else {
+      ids.forEach(id => { selectedPhotoIds.add(id); document.getElementById('lophoto_' + id)?.classList.add('selected'); });
+      if (btn) btn.textContent = 'Deselect all';
+    }
+    updatePhotoCount();
+  };
 
   // ── Find a job by ID across known data sources ──────────────
   function findJobById(jobId) {
@@ -1072,6 +1371,17 @@
     injectStyles(); buildModal();
     currentReportData = data;
 
+    // Reset photo state for fresh open
+    photoList = [];
+    selectedPhotoIds = new Set();
+    photoBase64Cache = {};
+    const photoPanel = document.getElementById('loPhotoPanel');
+    if (photoPanel) {
+      photoPanel.style.display = 'none';
+      const body = document.getElementById('loPhotoPickerBody');
+      if (body) body.innerHTML = '<div class="lo-photo-loading">Loading photos from Drive…</div>';
+    }
+
     if (!alreadyOpen) {
       document.getElementById('loReportOverlay').classList.add('show');
     }
@@ -1086,6 +1396,14 @@
     document.getElementById('loReportFilename').textContent = buildFilename(data);
 
     showLoading(false);
+
+    // Load photo list in background — doesn't block the preview
+    if (data.driveFolder) {
+      fetchPhotoList(data.driveFolder).then(photos => {
+        photoList = photos;
+        renderPhotoPicker();
+      });
+    }
   }
 
   function buildFilename(data) {
