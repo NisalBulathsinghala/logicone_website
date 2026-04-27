@@ -367,7 +367,17 @@ function showDetail(j) {
 
   let fh = `<div style="display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap;"><span style="font-size:12px;color:var(--text-secondary);font-weight:600;">Move to:</span><select id="dSel" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Inter',sans-serif;">`;
   COLS.forEach(c => { fh += `<option value="${c.id}" ${c.id === j.status ? 'selected' : ''}>${c.label}</option>`; });
-  fh += `</select><button class="btn btn-primary" onclick="moveFromDetail('${j.jobId}')">Update</button></div><button class="btn btn-secondary" onclick="jsOpenJobFromDetail('${j.jobId}');closeModal('detailModal');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Job Sheet</button>`;
+  fh += `</select><button class="btn btn-primary" onclick="moveFromDetail('${j.jobId}')">Update</button></div>`;
+
+  // Zoho invoice button — only for out-of-warranty jobs
+  if (j.warranty === 'Out of Warranty') {
+    fh += `<button class="btn btn-zoho" id="zohoInvBtn" onclick="createZohoInvoice(${JSON.stringify(j).replace(/"/g, '&quot;')})">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Create Zoho Invoice
+    </button>`;
+  }
+
+  fh += `<button class="btn btn-secondary" onclick="jsOpenJobFromDetail('${j.jobId}');closeModal('detailModal');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Job Sheet</button>`;
   document.getElementById('dFoot').innerHTML = fh;
 
   openModal('detailModal');
@@ -534,6 +544,12 @@ async function submitNewJob() {
       resetNewJobForm();
       showToast('success', '✓ ' + newJob.jobId + ' saved to sheet — reloading…');
       await fetchSheet(); // pulls fresh data including Drive folder URL
+
+      // ── If out-of-warranty, open detail modal so Zoho button is visible ──
+      if (newJob.warranty === 'Out of Warranty') {
+        const saved = jobs.find(j => j.jobId === newJob.jobId) || newJob;
+        showDetail(saved);
+      }
     } else {
       // Sheet failed — show error inside modal, don't close
       const errDiv = document.getElementById('nJobError');
@@ -552,6 +568,54 @@ async function submitNewJob() {
 
   btn.disabled = false;
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Job';
+}
+
+// ── createZohoInvoice ─────────────────────────────────────────
+// Called by the "Create Zoho Invoice" button in the detail modal.
+async function createZohoInvoice(job) {
+  const btn = document.getElementById('zohoInvBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
+  }
+
+  try {
+    const res = await fetch('/.netlify/functions/zoho-invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId:  job.jobId,
+        name:   job.name,
+        email:  job.email,
+        phone:  job.phone,
+        brand:  job.brand,
+        model:  job.model,
+        serial: job.serial,
+        issue:  job.issue,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      const contactNote = data.isNewContact ? ' · new customer created' : ' · existing customer';
+      showToast('success', `✓ Draft invoice ${data.invoiceNumber} created in Zoho${contactNote}`);
+      // Update button to show it's done
+      if (btn) {
+        btn.textContent = `✓ ${data.invoiceNumber}`;
+        btn.style.background = 'rgba(5,150,105,0.12)';
+        btn.style.color = '#059669';
+        btn.style.borderColor = 'rgba(5,150,105,0.3)';
+        btn.disabled = true;
+      }
+    } else {
+      showToast('error', 'Zoho error: ' + (data.error || 'Unknown error'));
+      if (btn) { btn.disabled = false; btn.textContent = 'Create Zoho Invoice'; }
+    }
+  } catch (err) {
+    showToast('error', 'Zoho error: ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Create Zoho Invoice'; }
+  }
 }
 
 // ── callScript ────────────────────────────────────────────────
