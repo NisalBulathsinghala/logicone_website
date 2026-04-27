@@ -321,6 +321,9 @@
   let logoDataUrl = null;
   let logoNaturalW = 0;
   let logoNaturalH = 0;
+  let companyNameDataUrl = null;
+  let companyNameW = 0;
+  let companyNameH = 0;
   let photoList = [];        // [{ id, name, subfolder, thumbUrl }]
   let selectedPhotoIds = new Set();
   let photoBase64Cache = {}; // id → base64 string
@@ -552,6 +555,7 @@
   async function preloadLogo() {
     if (logoDataUrl) return logoDataUrl;
     try {
+      // Load logo icon
       const r = await fetch('images/logo.png');
       const blob = await r.blob();
       logoDataUrl = await new Promise((res, rej) => {
@@ -560,7 +564,6 @@
         fr.onerror = rej;
         fr.readAsDataURL(blob);
       });
-      // Measure actual dimensions so addImage never stretches
       const dims = await new Promise((res) => {
         const img = new Image();
         img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight });
@@ -569,6 +572,29 @@
       });
       logoNaturalW = dims.w;
       logoNaturalH = dims.h;
+
+      // Load company name image (optional — falls back to text if missing)
+      try {
+        const r2 = await fetch('images/logo_text.png');
+        const blob2 = await r2.blob();
+        companyNameDataUrl = await new Promise((res, rej) => {
+          const fr = new FileReader();
+          fr.onload = () => res(fr.result);
+          fr.onerror = rej;
+          fr.readAsDataURL(blob2);
+        });
+        const dims2 = await new Promise((res) => {
+          const img = new Image();
+          img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight });
+          img.onerror = () => res({ w: 0, h: 0 });
+          img.src = companyNameDataUrl;
+        });
+        companyNameW = dims2.w;
+        companyNameH = dims2.h;
+      } catch (e) {
+        // company-name.png not found — will fall back to helvetica text
+      }
+
       return logoDataUrl;
     } catch (e) {
       console.warn('Logo preload failed:', e);
@@ -677,25 +703,25 @@
 
       // Pill (warranty) gets a rounded coloured background
       if (o.pill && value) {
-        const pillText = String(value);
+        const pillText = String(value).toUpperCase();
         const isInWarranty = isWarranty(pillText);
         const fillCol = isInWarranty ? C.okSoft : C.warnSoft;
         const txtCol  = isInWarranty ? C.ok      : C.warn;
+        // Set font BEFORE measuring so getTextWidth uses the correct size
         setText(txtCol, 8, 'bold');
-        const tw = pdf.getTextWidth(pillText.toUpperCase());
-        const padX = 2.5, pillH = 4.5;
+        const tw = pdf.getTextWidth(pillText);
+        const padX = 3, padY = 1.5, pillH = 5.5;
         setFill(fillCol);
-        pdf.roundedRect(x, yTop + 5, tw + padX * 2, pillH, 1.5, 1.5, 'F');
+        pdf.roundedRect(x, yTop + 4.5, tw + padX * 2, pillH, 1.5, 1.5, 'F');
+        // Re-set after setFill (setFill changes fill colour, text colour stays)
         setText(txtCol, 8, 'bold');
-        pdf.text(pillText.toUpperCase(), x + padX, yTop + 8.2, { charSpace: 0.3 });
+        pdf.text(pillText, x + padX, yTop + 4.5 + pillH * 0.68, { charSpace: 0.2 });
         return 4 + pillH + 3;
       }
 
-      // Value
-      const isMono = !!o.mono;
-      const fontSize = isMono ? 9 : 10;
+      // Value — helvetica throughout (no courier)
+      const fontSize = o.mono ? 9 : 10;
       setText(C.ink, fontSize, 'normal');
-      if (isMono) pdf.setFont('courier', 'normal');
       const v = (value === undefined || value === null || value === '') ? '—' : String(value);
       const w_ = wrap(v, w, fontSize);
       const lineH = 4.4;
@@ -895,13 +921,12 @@
 
     // ── Render the report ─────────────────────────────────────
 
-    // Header band — logo + brand name left, doc type right
-    // Logo dimensions come from the preloaded image's natural size
-    // so jsPDF never has to guess and will never stretch it.
+    // Header band — logo icon left, company name image + tagline centre-left,
+    // doc type right. Everything measured from actual image dimensions.
     const LOGO_H = 20;
     const LOGO_W = (logoNaturalW && logoNaturalH)
       ? LOGO_H * (logoNaturalW / logoNaturalH)
-      : LOGO_H * (619 / 307);  // fallback to known ratio
+      : LOGO_H * (619 / 307);
 
     if (logoDataUrl) {
       try {
@@ -909,21 +934,35 @@
       } catch (e) { /* logo unavailable — skip */ }
     }
 
-    // Brand name: vertically centred within logo height
-    const brandX = MARGIN + LOGO_W + 5;
-    setText(C.ink, 15, 'bold');
-    pdf.text('LOGIC ONE SA', brandX, y + LOGO_H * 0.42, { charSpace: 0.6 });
-    setText(C.inkSoft, 8, 'normal');
-    pdf.text('Electronics Engineering · Authorised Repairs', brandX, y + LOGO_H * 0.68);
+    // Company name — use image if available, otherwise fall back to helvetica text
+    const brandX = MARGIN + LOGO_W + 4;
+    if (companyNameDataUrl && companyNameW && companyNameH) {
+      // Scale company-name image to ~8mm tall, preserving ratio
+      const cnH = 8;
+      const cnW = cnH * (companyNameW / companyNameH);
+      try {
+        pdf.addImage(companyNameDataUrl, 'PNG', brandX, y + LOGO_H * 0.22, cnW, cnH, undefined, 'FAST');
+      } catch (e) {
+        setText(C.ink, 13, 'bold');
+        pdf.text('LOGIC ONE SA', brandX, y + LOGO_H * 0.42, { charSpace: 0.5 });
+      }
+      setText(C.inkSoft, 8, 'normal');
+      pdf.text('Electronics Engineering · Authorised Repairs', brandX, y + LOGO_H * 0.68);
+    } else {
+      setText(C.ink, 13, 'bold');
+      pdf.text('LOGIC ONE SA', brandX, y + LOGO_H * 0.42, { charSpace: 0.5 });
+      setText(C.inkSoft, 8, 'normal');
+      pdf.text('Electronics Engineering · Authorised Repairs', brandX, y + LOGO_H * 0.68);
+    }
 
-    // Right side: vertically aligned to match
+    // Right side — right-aligned to MARGIN + CONTENT_W
+    const rightX = MARGIN + CONTENT_W;
     setText(C.accent, 11, 'bold');
-    pdf.text('REPAIR REPORT', MARGIN + CONTENT_W, y + LOGO_H * 0.30, { align: 'right', charSpace: 0.8 });
+    pdf.text('REPAIR REPORT', rightX, y + LOGO_H * 0.30, { align: 'right', charSpace: 0.8 });
     setText(C.ink, 9, 'normal');
-    pdf.setFont('courier', 'normal');
-    pdf.text(String(data.jobId || '—'), MARGIN + CONTENT_W, y + LOGO_H * 0.57, { align: 'right' });
+    pdf.text(String(data.jobId || '—'), rightX, y + LOGO_H * 0.57, { align: 'right' });
     setText(C.inkSoft, 9, 'normal');
-    pdf.text(fmtDate(new Date().toISOString()), MARGIN + CONTENT_W, y + LOGO_H * 0.78, { align: 'right' });
+    pdf.text(fmtDate(new Date().toISOString()), rightX, y + LOGO_H * 0.78, { align: 'right' });
 
     const headerH = LOGO_H + 4;
 
@@ -1046,8 +1085,13 @@
 
           try {
             const b64 = photoData[id];
-            const dataUrl = `data:image/jpeg;base64,${b64}`;
-            pdf.addImage(dataUrl, 'JPEG', x, py, PHOTO_W, PHOTO_H, undefined, 'FAST');
+            // Detect format from filename — Apps Script converts HEIC to JPEG
+            const photoMeta = photoList.find(p => p.id === id);
+            const fname = (photoMeta && photoMeta.name || '').toLowerCase();
+            const fmt = fname.endsWith('.png') ? 'PNG' : 'JPEG';
+            const mime = fmt === 'PNG' ? 'image/png' : 'image/jpeg';
+            const dataUrl = `data:${mime};base64,${b64}`;
+            pdf.addImage(dataUrl, fmt, x, py, PHOTO_W, PHOTO_H, undefined, 'FAST');
           } catch (e) {
             // If image fails, draw a placeholder rect
             setFill(C.bg);
