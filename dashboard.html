@@ -272,6 +272,22 @@
           </div>
         </div>
 
+        <!-- Zoho Books Actions -->
+        <div class="js-card" id="jsZohoCard" style="display:none;">
+          <div class="js-card-title">Zoho Books</div>
+          <div class="js-status-flow" style="flex-wrap:wrap;">
+            <button class="js-zoho-btn" id="jsZohoBtnInvoice" onclick="jsCreateZohoInvoice()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              Create Inspection Invoice
+            </button>
+            <button class="js-zoho-btn js-zoho-btn-quote" id="jsZohoBtnQuote" onclick="jsCreateZohoQuote()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="16 17 12 13 8 17"/><line x1="12" y1="13" x2="12" y2="21"/></svg>
+              Create Quote
+            </button>
+          </div>
+          <div id="jsZohoStatus" style="margin-top:12px;font-size:12px;color:var(--text-secondary);display:none;"></div>
+        </div>
+
         <!-- Status Timeline -->
         <div class="js-card" style="margin-bottom:40px;">
           <div class="js-card-title">Status History</div>

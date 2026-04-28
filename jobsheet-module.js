@@ -141,6 +141,20 @@
 .js-status-pill:hover { border-color: var(--accent); }
 .js-status-pill.active { background: rgba(0,180,216,0.1); border-color: var(--accent); color: #0369a1; }
 .js-status-pill.js-done.active { background: rgba(16,185,129,0.1); border-color: #10b981; color: #065f46; }
+.js-zoho-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 18px; font-size: 12.5px; font-weight: 500; font-family: 'Inter', sans-serif;
+  border: 1px solid rgba(231,76,60,0.25); border-radius: 30px; cursor: pointer;
+  background: rgba(231,76,60,0.07); color: #c0392b; transition: all 0.15s;
+}
+.js-zoho-btn:hover:not(:disabled) { background: rgba(231,76,60,0.15); }
+.js-zoho-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.js-zoho-btn-quote {
+  background: rgba(99,102,241,0.07); color: #4338ca;
+  border-color: rgba(99,102,241,0.25);
+}
+.js-zoho-btn-quote:hover:not(:disabled) { background: rgba(99,102,241,0.15); }
+.js-zoho-btn.done { background: rgba(5,150,105,0.1); color: #065f46; border-color: rgba(5,150,105,0.3); }
 .js-drive-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent); text-decoration: none; font-weight: 500; }
 .js-drive-link:hover { text-decoration: underline; }
 /* Job sheet loading overlay */
@@ -298,6 +312,7 @@ async function jsOpenJob(jobId) {
   document.getElementById('viewTitle').textContent = jobId;
   jsSetSaveIndicator(false);
   jsRenderTimeline(j);
+  jsUpdateZohoCard(j);
 
   // No Apps Script configured — just show fresh defaults
   if (!cfg.appsScriptUrl || !j.driveFolder) {
@@ -697,5 +712,120 @@ function jsSetSaveIndicator(saved, at) {
   } else {
     el.className = 'js-save-ind';
     el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Not saved`;
+  }
+}
+
+// ============================================================
+// ZOHO BOOKS ACTIONS
+// ============================================================
+
+// Show Zoho card only for out-of-warranty jobs
+function jsUpdateZohoCard(j) {
+  const card = document.getElementById('jsZohoCard');
+  if (!card) return;
+  card.style.display = (j && j.warranty === 'Out of Warranty') ? 'block' : 'none';
+  // Reset status line when opening a new job
+  const status = document.getElementById('jsZohoStatus');
+  if (status) { status.style.display = 'none'; status.textContent = ''; }
+}
+
+function jsSetZohoStatus(msg, type) {
+  const el = document.getElementById('jsZohoStatus');
+  if (!el) return;
+  el.style.display = 'block';
+  el.style.color = type === 'error' ? '#dc2626' : type === 'success' ? '#059669' : 'var(--text-secondary)';
+  el.textContent = msg;
+}
+
+async function jsCreateZohoInvoice() {
+  const j = jsCurrentJob;
+  if (!j) return;
+  const btn = document.getElementById('jsZohoBtnInvoice');
+  btn.disabled = true;
+  btn.textContent = 'Creating…';
+  jsSetZohoStatus('Creating inspection invoice in Zoho Books…', 'info');
+
+  try {
+    const res = await fetch('/.netlify/functions/zoho-invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'invoice',
+        jobId: j.jobId, name: j.name, email: j.email,
+        phone: j.phone, brand: j.brand, model: j.model,
+        serial: j.serial, issue: j.issue,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      btn.classList.add('done');
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg> ${data.invoiceNumber}`;
+      jsSetZohoStatus(`✓ Draft invoice ${data.invoiceNumber} created${data.isNewContact ? ' · new customer added' : ''}`, 'success');
+      showToast('success', `Zoho invoice ${data.invoiceNumber} created`);
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Create Inspection Invoice';
+      jsSetZohoStatus('Error: ' + (data.error || 'Unknown error'), 'error');
+      showToast('error', 'Zoho invoice failed');
+    }
+  } catch(err) {
+    btn.disabled = false;
+    btn.textContent = 'Create Inspection Invoice';
+    jsSetZohoStatus('Error: ' + err.message, 'error');
+    showToast('error', 'Zoho error: ' + err.message);
+  }
+}
+
+async function jsCreateZohoQuote() {
+  const j = jsCurrentJob;
+  if (!j) return;
+
+  // Collect current parts from the sheet
+  const data = jsCollectData();
+  if (!data.parts || data.parts.length === 0) {
+    jsSetZohoStatus('No parts found — add parts to the job sheet before creating a quote.', 'error');
+    showToast('error', 'Add parts to the job sheet first');
+    return;
+  }
+
+  const btn = document.getElementById('jsZohoBtnQuote');
+  btn.disabled = true;
+  btn.textContent = 'Creating…';
+  jsSetZohoStatus('Creating quote in Zoho Books…', 'info');
+
+  try {
+    const res = await fetch('/.netlify/functions/zoho-invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'quote',
+        jobId: j.jobId, name: j.name, email: j.email,
+        phone: j.phone, brand: j.brand, model: j.model,
+        serial: j.serial, issue: j.issue,
+        parts: data.parts,
+        postage: data.postage,
+        discount: data.discount,
+      }),
+    });
+    const data2 = await res.json();
+    if (data2.ok) {
+      btn.classList.add('done');
+      btn.style.background = 'rgba(5,150,105,0.1)';
+      btn.style.color = '#065f46';
+      btn.style.borderColor = 'rgba(5,150,105,0.3)';
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg> ${data2.estimateNumber}`;
+      jsSetZohoStatus(`✓ Draft quote ${data2.estimateNumber} created`, 'success');
+      showToast('success', `Zoho quote ${data2.estimateNumber} created`);
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Create Quote';
+      jsSetZohoStatus('Error: ' + (data2.error || 'Unknown error'), 'error');
+      showToast('error', 'Zoho quote failed');
+    }
+  } catch(err) {
+    btn.disabled = false;
+    btn.textContent = 'Create Quote';
+    jsSetZohoStatus('Error: ' + err.message, 'error');
+    showToast('error', 'Zoho error: ' + err.message);
   }
 }
