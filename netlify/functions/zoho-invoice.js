@@ -118,7 +118,7 @@ async function createEstimate(token, contactId, job) {
     customer_id: contactId,
     reference_number: job.jobId,
     status: 'draft',
-    subject,
+    custom_subject: subject,
     notes: job.issue || '',
     line_items: lineItems,
   };
