@@ -575,7 +575,7 @@
 
       // Load company name image (optional — falls back to text if missing)
       try {
-        const r2 = await fetch('images/logo_text.png');
+        const r2 = await fetch('images/company-name.png');
         const blob2 = await r2.blob();
         companyNameDataUrl = await new Promise((res, rej) => {
           const fr = new FileReader();
@@ -1057,25 +1057,50 @@
         pdf.line(MARGIN, py + 1.5, MARGIN + CONTENT_W, py + 1.5);
         py += 7;
 
-        // 2 per row — each photo occupies half the content width with a gap
+        // 2 per row — fixed column width, height derived from each image's
+        // actual aspect ratio so nothing ever stretches.
         const COL_COUNT = 2;
         const PHOTO_GAP = 5;
         const PHOTO_W = (CONTENT_W - PHOTO_GAP * (COL_COUNT - 1)) / COL_COUNT; // ~87.5mm
-        const PHOTO_H = PHOTO_W * 0.75; // 4:3 ratio → ~65.6mm
 
-        for (let i = 0; i < orderedIds.length; i++) {
-          const id = orderedIds[i];
-          const col = i % COL_COUNT;
-          const x = MARGIN + col * (PHOTO_W + PHOTO_GAP);
+        // Helper: measure natural image dimensions from base64 data URL
+        const measureImage = (dataUrl) => new Promise((res) => {
+          const img = new Image();
+          img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight });
+          img.onerror = () => res({ w: 4, h: 3 }); // fallback 4:3
+          img.src = dataUrl;
+        });
 
-          // Start new row
-          if (col === 0 && i > 0) py += PHOTO_H + PHOTO_GAP;
+        // Pre-measure all images so we can compute correct row heights
+        const photoMetas = [];
+        for (const id of orderedIds) {
+          const b64 = photoData[id];
+          const meta = photoList.find(p => p.id === id);
+          const fname = (meta && meta.name || '').toLowerCase();
+          const fmt = fname.endsWith('.png') ? 'PNG' : 'JPEG';
+          const mime = fmt === 'PNG' ? 'image/png' : 'image/jpeg';
+          const dataUrl = `data:${mime};base64,${b64}`;
+          const dims = await measureImage(dataUrl);
+          // Compute height to fit PHOTO_W while preserving aspect ratio
+          const ratio = dims.h > 0 ? dims.w / dims.h : 4 / 3;
+          const imgH = PHOTO_W / ratio;
+          // Cap height at a reasonable max (A4 half-page) to avoid portrait shots filling the whole page
+          const PHOTO_H = Math.min(imgH, 120);
+          // If portrait, centre it within the capped height
+          const actualH = Math.min(imgH, PHOTO_H);
+          photoMetas.push({ id, dataUrl, fmt, dims, PHOTO_H: actualH });
+        }
+
+        // Layout in rows of 2
+        for (let i = 0; i < photoMetas.length; i += COL_COUNT) {
+          const row = photoMetas.slice(i, i + COL_COUNT);
+          // Row height = max height across both columns in this row
+          const rowH = Math.max(...row.map(p => p.PHOTO_H));
 
           // Page break if needed
-          if (py + PHOTO_H > PAGE_H - MARGIN - 10) {
+          if (py + rowH > PAGE_H - MARGIN - 10) {
             pdf.addPage();
             py = MARGIN;
-            // Repeat section header on continuation pages
             setText(C.inkSoft, 8, 'bold');
             pdf.text('INSPECTION PHOTOS (continued)', MARGIN, py, { charSpace: 0.5 });
             setDraw(C.rule, 0.2);
@@ -1083,22 +1108,21 @@
             py += 7;
           }
 
-          try {
-            const b64 = photoData[id];
-            // Detect format from filename — Apps Script converts HEIC to JPEG
-            const photoMeta = photoList.find(p => p.id === id);
-            const fname = (photoMeta && photoMeta.name || '').toLowerCase();
-            const fmt = fname.endsWith('.png') ? 'PNG' : 'JPEG';
-            const mime = fmt === 'PNG' ? 'image/png' : 'image/jpeg';
-            const dataUrl = `data:${mime};base64,${b64}`;
-            pdf.addImage(dataUrl, fmt, x, py, PHOTO_W, PHOTO_H, undefined, 'FAST');
-          } catch (e) {
-            // If image fails, draw a placeholder rect
-            setFill(C.bg);
-            pdf.rect(x, py, PHOTO_W, PHOTO_H, 'F');
-            setText(C.inkMute, 9, 'normal');
-            pdf.text('Image unavailable', x + PHOTO_W / 2, py + PHOTO_H / 2, { align: 'center' });
-          }
+          row.forEach((p, col) => {
+            const x = MARGIN + col * (PHOTO_W + PHOTO_GAP);
+            try {
+              // Centre photo vertically within row height
+              const yOffset = (rowH - p.PHOTO_H) / 2;
+              pdf.addImage(p.dataUrl, p.fmt, x, py + yOffset, PHOTO_W, p.PHOTO_H, undefined, 'FAST');
+            } catch (e) {
+              setFill(C.bg);
+              pdf.rect(x, py, PHOTO_W, rowH, 'F');
+              setText(C.inkMute, 9, 'normal');
+              pdf.text('Image unavailable', x + PHOTO_W / 2, py + rowH / 2, { align: 'center' });
+            }
+          });
+
+          py += rowH + PHOTO_GAP;
         }
 
         // Footer on photos page
