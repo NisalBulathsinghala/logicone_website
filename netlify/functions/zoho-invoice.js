@@ -82,7 +82,6 @@ async function createEstimate(token, contactId, job) {
     .filter(p => p.name && parseFloat(p.qty) > 0)
     .map(p => ({
       name: p.name,
-      description: p.partno ? `Part No: ${p.partno}` : undefined,
       rate: parseFloat(p.price) || 0,
       quantity: parseFloat(p.qty) || 1,
     }));
