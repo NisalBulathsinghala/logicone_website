@@ -90,6 +90,9 @@ async function createEstimate(token, contactId, job) {
     lineItems.push({ name: 'Postage & Handling', rate: parseFloat(job.postage), quantity: 1 });
   }
 
+  // Deduct inspection fee already paid
+  lineItems.push({ name: 'Less: Inspection Fee Paid', rate: -INSPECTION_FEE, quantity: 1 });
+
   if (!lineItems.length) throw new Error('No valid line items — add parts with names and quantities first.');
 
   const body = {
