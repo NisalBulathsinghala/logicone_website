@@ -24,11 +24,12 @@ async function getAccessToken() {
 }
 
 async function findContact(token, email) {
-  const url = `${ZOHO_API_BASE}/contacts?organization_id=${ORG_ID}&contact_type=customer&search_text=${encodeURIComponent(email)}`;
+  const url = `${ZOHO_API_BASE}/contacts?organization_id=${ORG_ID}&contact_type=customer&email=${encodeURIComponent(email)}`;
   const res = await fetch(url, { headers: { Authorization: `Zoho-oauthtoken ${token}` } });
   const data = await res.json();
   console.log('findContact:', res.status, JSON.stringify(data).substring(0, 400));
   if (!data.contacts || !data.contacts.length) return null;
+  // Strict email match
   const match = data.contacts.find(c =>
     c.email === email ||
     (c.contact_persons && c.contact_persons.some(p => p.email === email))
@@ -76,7 +77,7 @@ async function createInvoice(token, contactId, job) {
     reference_number: job.jobId,
     status: 'draft',
     subject,
-    notes: job.issue || '',
+    notes: `${subject}\n\nFault: ${job.issue || ''}`,
     line_items: [{
       name: 'Inspection Fee',
       description: `Out-of-warranty inspection — ${job.brand} ${job.model}`,
@@ -119,7 +120,7 @@ async function createEstimate(token, contactId, job) {
     reference_number: job.jobId,
     status: 'draft',
     custom_subject: subject,
-    notes: job.issue || '',
+    notes: `${subject}\n\nFault: ${job.issue || ''}`,
     line_items: lineItems,
   };
 
