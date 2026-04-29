@@ -175,9 +175,34 @@
   font-size: 13px; font-weight: 500; color: var(--text-secondary);
 }
 
+/* Stage notes grid */
+.js-stage-notes {
+  display: flex; flex-direction: column; gap: 14px;
+}
+.js-stage-note-block {
+  display: flex; flex-direction: column; gap: 7px;
+}
+.js-stage-note-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--text-secondary);
+}
+.js-stage-note-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.js-stage-textarea {
+  width: 100%; padding: 10px 12px; font-family: 'Inter', sans-serif;
+  font-size: 13px; line-height: 1.7; resize: vertical; min-height: 110px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--text-primary);
+  transition: border-color 0.15s;
+}
+.js-stage-textarea:focus { outline: none; border-color: var(--accent); }
+
 @media (max-width: 900px) {
   .js-fg3 { grid-template-columns: 1fr 1fr; }
   .js-checklist { grid-template-columns: repeat(2, 1fr); }
+
   .js-section { padding: 16px; }
   .js-topbar { padding: 12px 16px; }
 }
@@ -438,7 +463,10 @@ function jsResetEditableFields(j) {
   document.getElementById('jsFPostage').value = '';
   document.getElementById('jsFDiscount').value = '';
   document.getElementById('jsFCustRemark').value = j.issue || '';
-  document.getElementById('jsFRepairRemark').value = '';
+  document.getElementById('jsFInspectionNote').value = '';
+  document.getElementById('jsFRepairingNote').value  = '';
+  document.getElementById('jsFTestingNote').value    = '';
+  document.getElementById('jsFQcNote').value         = '';
   document.getElementById('jsFinalRemark').value = '';
   document.getElementById('jsFOtherGoods').value = '';
   document.querySelectorAll('.js-svc-btn').forEach(b => b.classList.remove('active'));
@@ -594,7 +622,10 @@ function jsCollectData() {
     subtotal:   parseFloat(document.getElementById('jsCSubtotal').textContent.replace('$',''))||0,
     total:      parseFloat(document.getElementById('jsCTotal').textContent.replace('$',''))||0,
     custRemark:   document.getElementById('jsFCustRemark').value,
-    repairRemark: document.getElementById('jsFRepairRemark').value,
+    inspectionNote: document.getElementById('jsFInspectionNote').value,
+    repairingNote:  document.getElementById('jsFRepairingNote').value,
+    testingNote:    document.getElementById('jsFTestingNote').value,
+    qcNote:         document.getElementById('jsFQcNote').value,
     finalRemark:  document.getElementById('jsFinalRemark').value,
     status,
     statusTimestamps: jsCurrentJob ? parseTimestamps(jsCurrentJob) : {},
@@ -611,7 +642,10 @@ function jsLoadFromData(data) {
   document.getElementById('jsFPostage').value  = data.postage  != null ? data.postage  : '';
   document.getElementById('jsFDiscount').value = data.discount != null ? data.discount : '';
   document.getElementById('jsFCustRemark').value   = data.custRemark   || '';
-  document.getElementById('jsFRepairRemark').value = data.repairRemark || '';
+  document.getElementById('jsFInspectionNote').value = data.inspectionNote || '';
+  document.getElementById('jsFRepairingNote').value  = data.repairingNote  || '';
+  document.getElementById('jsFTestingNote').value    = data.testingNote    || '';
+  document.getElementById('jsFQcNote').value         = data.qcNote         || '';
   document.getElementById('jsFinalRemark').value   = data.finalRemark  || '';
 
   // Service type
@@ -694,8 +728,8 @@ async function jsSaveSheet() {
 function jsExportCSV() {
   const d = jsCollectData();
   const partsStr = d.parts.map(p => `${p.partno}:${p.name}(${p.qty}x$${p.price})`).join('; ');
-  const headers = ['Job ID','Case Number','Customer','Phone','Email','Device','Brand','Model','Serial','Warranty','Service Type','Technician','Date','ETA','Status','Parts','Parts Total','Postage','Discount','Total','Repair Remark','Final Remark'];
-  const row = [d.jobId,d.caseNo,d.name,d.phone,d.email,d.deviceType,d.brand,d.model,d.serial,d.warranty,d.svcType,d.tech,d.date,d.eta,d.status,partsStr,d.partsTotal,d.postage,d.discount,d.total,d.repairRemark,d.finalRemark];
+  const headers = ['Job ID','Case Number','Customer','Phone','Email','Device','Brand','Model','Serial','Warranty','Service Type','Technician','Date','ETA','Status','Parts','Parts Total','Postage','Discount','Total','Inspection Notes','Repairing Notes','Testing Notes','QC Notes','Final Remark'];
+  const row = [d.jobId,d.caseNo,d.name,d.phone,d.email,d.deviceType,d.brand,d.model,d.serial,d.warranty,d.svcType,d.tech,d.date,d.eta,d.status,partsStr,d.partsTotal,d.postage,d.discount,d.total,d.inspectionNote,d.repairingNote,d.testingNote,d.qcNote,d.finalRemark];
   const csv = [headers,row].map(r => r.map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download = `job-${d.jobId||'export'}.csv`; a.click();

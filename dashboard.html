@@ -214,12 +214,38 @@
           <div class="js-f" style="margin-top:12px;"><label>Other Items</label><input type="text" id="jsFOtherGoods" placeholder="Any additional items…"></div>
         </div>
 
-        <!-- Repair Notes (before parts) -->
+        <!-- Stage Notes -->
         <div class="js-card">
-          <div class="js-card-title">Repair Notes</div>
-          <div class="js-f">
-            <label>Technician Notes</label>
-            <textarea id="jsFRepairRemark" placeholder="Record diagnosis findings, steps taken, observations, test results…" style="min-height:160px;font-size:13.5px;line-height:1.7;"></textarea>
+          <div class="js-card-title">Stage Notes</div>
+          <div class="js-stage-notes">
+            <div class="js-stage-note-block">
+              <div class="js-stage-note-header">
+                <div class="js-stage-note-dot" style="background:#6366f1;"></div>
+                <span>Inspection</span>
+              </div>
+              <textarea id="jsFInspectionNote" placeholder="Visual inspection findings, condition of device on arrival, any physical damage noted…" class="js-stage-textarea"></textarea>
+            </div>
+            <div class="js-stage-note-block">
+              <div class="js-stage-note-header">
+                <div class="js-stage-note-dot" style="background:#f59e0b;"></div>
+                <span>Repairing</span>
+              </div>
+              <textarea id="jsFRepairingNote" placeholder="Steps taken, parts replaced, procedures followed, any complications…" class="js-stage-textarea"></textarea>
+            </div>
+            <div class="js-stage-note-block">
+              <div class="js-stage-note-header">
+                <div class="js-stage-note-dot" style="background:#0ea5e9;"></div>
+                <span>Testing</span>
+              </div>
+              <textarea id="jsFTestingNote" placeholder="Test results, performance checks, issues verified as resolved…" class="js-stage-textarea"></textarea>
+            </div>
+            <div class="js-stage-note-block">
+              <div class="js-stage-note-header">
+                <div class="js-stage-note-dot" style="background:#10b981;"></div>
+                <span>QC</span>
+              </div>
+              <textarea id="jsFQcNote" placeholder="Quality control sign-off, final check results, ready for collection…" class="js-stage-textarea"></textarea>
+            </div>
           </div>
         </div>
 
