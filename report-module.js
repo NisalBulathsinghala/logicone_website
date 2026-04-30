@@ -90,22 +90,22 @@
 .lo-report-preview * { box-sizing: border-box; }
 
 .lor-header {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 24px; padding-bottom: 18px;
-  border-bottom: 2px solid #0f172a; margin-bottom: 24px;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 24px; padding-bottom: 14px;
+  border-bottom: 2px solid #0f172a; margin-bottom: 20px;
 }
-.lor-header-left { display: flex; align-items: center; gap: 14px; }
-.lor-logo {
-  height: 56px; width: auto;
-}
+.lor-header-left { display: flex; align-items: center; gap: 12px; }
+.lor-logo { height: 42px; width: auto; }
+.lor-logo-text { height: 26px; width: auto; max-width: 160px; display: block; margin-bottom: 3px; }
+.lor-brand-block { display: flex; flex-direction: column; justify-content: center; }
 .lor-brand-name {
   font-family: 'Orbitron', sans-serif;
-  font-weight: 900; font-size: 17px;
+  font-weight: 900; font-size: 14px;
   letter-spacing: 0.1em; text-transform: uppercase;
-  color: #0f172a; line-height: 1;
+  color: #0f172a; line-height: 1; margin-bottom: 3px;
 }
-.lor-brand-tag { margin-top: 4px; font-size: 11px; color: #475569; letter-spacing: 0.04em; }
-.lor-header-right { text-align: right; }
+.lor-brand-tag { font-size: 10.5px; color: #475569; letter-spacing: 0.04em; }
+.lor-header-right { text-align: right; flex-shrink: 0; }
 .lor-doc-type {
   font-family: 'Orbitron', sans-serif;
   font-weight: 700; font-size: 13px;
@@ -417,8 +417,11 @@
       <header class="lor-header">
         <div class="lor-header-left">
           <img src="${logoSrc}" alt="Logic One SA" class="lor-logo" crossorigin="anonymous">
-          <div>
-            <div class="lor-brand-name">Logic One SA</div>
+          <div class="lor-brand-block">
+            ${logoDataUrl ? '' : '<div class="lor-brand-name">Logic One SA</div>'}
+            <img src="images/logo_text.png" alt="Logic One SA" class="lor-logo-text" crossorigin="anonymous"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+            <div class="lor-brand-name" style="display:none">Logic One SA</div>
             <div class="lor-brand-tag">Electronics Engineering · Authorised Repairs</div>
           </div>
         </div>
@@ -932,56 +935,63 @@
 
     // ── Render the report ─────────────────────────────────────
 
-    // Header band — logo icon left, company name image + tagline centre-left,
-    // doc type right. Everything measured from actual image dimensions.
-    const LOGO_H = 20;
+    // ── Header layout ─────────────────────────────────────────
+    // Left: icon logo + text logo image stacked vertically
+    // Right: REPAIR REPORT + job ID + date, vertically centred
+    // Horizontal rule spans full width below header
+
+    const HEADER_H = 22; // total header block height in mm
+
+    // Left: icon logo — fixed 14mm height
+    const LOGO_H = 14;
     const LOGO_W = (logoNaturalW && logoNaturalH)
       ? LOGO_H * (logoNaturalW / logoNaturalH)
-      : LOGO_H * (619 / 307);
+      : LOGO_H;
 
     if (logoDataUrl) {
       try {
         pdf.addImage(logoDataUrl, 'PNG', MARGIN, y, LOGO_W, LOGO_H, undefined, 'FAST');
-      } catch (e) { /* logo unavailable — skip */ }
+      } catch (e) { /* skip */ }
     }
 
-    // Company name — use image if available, otherwise fall back to helvetica text
-    const brandX = MARGIN + LOGO_W + 4;
+    // Text logo image — placed to the right of icon, scaled to 10mm tall
+    const textLogoX = MARGIN + LOGO_W + 3;
     if (companyNameDataUrl && companyNameW && companyNameH) {
-      // Scale company-name image to ~8mm tall, preserving ratio
-      const cnH = 8;
-      const cnW = cnH * (companyNameW / companyNameH);
+      const cnH = 10;
+      // Scale by height, but cap width at 60mm so wide images don't overflow
+      const cnWRaw = cnH * (companyNameW / companyNameH);
+      const cnW = Math.min(cnWRaw, 60);
       try {
-        pdf.addImage(companyNameDataUrl, 'PNG', brandX, y + LOGO_H * 0.22, cnW, cnH, undefined, 'FAST');
+        pdf.addImage(companyNameDataUrl, 'PNG', textLogoX, y + 1, cnW, cnH, undefined, 'FAST');
       } catch (e) {
-        setText(C.ink, 13, 'bold');
-        pdf.text('LOGIC ONE SA', brandX, y + LOGO_H * 0.42, { charSpace: 0.5 });
+        setText(C.ink, 12, 'bold');
+        pdf.text('LOGIC ONE SA', textLogoX, y + 7, { charSpace: 0.5 });
       }
-      setText(C.inkSoft, 8, 'normal');
-      pdf.text('Electronics Engineering · Authorised Repairs', brandX, y + LOGO_H * 0.68);
+      // Tagline below text logo with a small gap
+      setText(C.inkSoft, 7.5, 'normal');
+      pdf.text('Electronics Engineering · Authorised Repairs', textLogoX, y + 13.5);
     } else {
-      setText(C.ink, 13, 'bold');
-      pdf.text('LOGIC ONE SA', brandX, y + LOGO_H * 0.42, { charSpace: 0.5 });
-      setText(C.inkSoft, 8, 'normal');
-      pdf.text('Electronics Engineering · Authorised Repairs', brandX, y + LOGO_H * 0.68);
+      setText(C.ink, 12, 'bold');
+      pdf.text('LOGIC ONE SA', textLogoX, y + 7, { charSpace: 0.5 });
+      setText(C.inkSoft, 7.5, 'normal');
+      pdf.text('Electronics Engineering · Authorised Repairs', textLogoX, y + 13.5);
     }
 
-    // Right side — right-aligned to MARGIN + CONTENT_W
+    // Right side: doc type block, vertically centred in header
     const rightX = MARGIN + CONTENT_W;
     setText(C.accent, 11, 'bold');
-    pdf.text('REPAIR REPORT', rightX, y + LOGO_H * 0.30, { align: 'right', charSpace: 0.8 });
+    pdf.text('REPAIR REPORT', rightX, y + 6, { align: 'right', charSpace: 0.8 });
     setText(C.ink, 9, 'normal');
-    pdf.text(String(data.jobId || '—'), rightX, y + LOGO_H * 0.57, { align: 'right' });
-    setText(C.inkSoft, 9, 'normal');
-    pdf.text(fmtDate(new Date().toISOString()), rightX, y + LOGO_H * 0.78, { align: 'right' });
+    pdf.text(String(data.jobId || '—'), rightX, y + 12, { align: 'right' });
+    setText(C.inkSoft, 8.5, 'normal');
+    pdf.text(fmtDate(new Date().toISOString()), rightX, y + 18, { align: 'right' });
 
-    const headerH = LOGO_H + 4;
+    y += HEADER_H;
 
-    y += headerH;
     // Heavy horizontal rule under header
-    setDraw(C.ink, 0.6);
+    setDraw(C.ink, 0.7);
     pdf.line(MARGIN, y, MARGIN + CONTENT_W, y);
-    y += 6;
+    y += 7;
 
     // Customer
     drawSectionTitle('Customer');
@@ -1073,10 +1083,13 @@
       );
       showLoading(true, 'Embedding photos…');
 
+      console.log('selectedPhotoIds:', [...selectedPhotoIds]);
+      console.log('photoData keys:', Object.keys(photoData));
       const orderedIds = photoList
         .map(p => p.id)
         .filter(id => selectedPhotoIds.has(id) && photoData[id]);
 
+      console.log('orderedIds to embed:', orderedIds.length);
       if (orderedIds.length) {
         pdf.addPage();
         let py = MARGIN;
@@ -1230,7 +1243,11 @@
       }))}`;
       const r = await fetch(url, { redirect: 'follow' });
       const json = await r.json();
-      if (json.result === 'ok') return json.data || [];
+      console.log('listPhotos response:', JSON.stringify(json).substring(0, 300));
+      if (json.result === 'ok') {
+        console.log('listPhotos: found', (json.data||[]).length, 'photos');
+        return json.data || [];
+      }
       console.warn('listPhotos failed:', json.msg);
       return [];
     } catch (e) {
@@ -1253,9 +1270,13 @@
           body: JSON.stringify({ action: 'fetchPhotos', fileIds: missing, driveFolder }),
         });
         const text = await r.text();
+        console.log('fetchPhotos raw response:', text.substring(0, 200));
         const json = JSON.parse(text);
         if (json.result === 'ok' && json.data) {
+          console.log('fetchPhotos: got base64 for', Object.keys(json.data).length, 'photos');
           Object.assign(photoBase64Cache, json.data);
+        } else {
+          console.warn('fetchPhotos failed:', json.result, json.msg);
         }
       } catch (e) {
         console.warn('fetchPhotos error:', e);
@@ -1263,6 +1284,7 @@
     }
     const result = {};
     ids.forEach(id => { if (photoBase64Cache[id]) result[id] = photoBase64Cache[id]; });
+    console.log('fetchPhotoBase64s returning', Object.keys(result).length, 'of', ids.length, 'requested');
     return result;
   }
 
