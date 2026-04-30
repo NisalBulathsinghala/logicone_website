@@ -640,9 +640,11 @@ function jsClearScooterChecklist() {
   });
 }
 
-
+// Shows/hides the scooter checklist card and rebuilds the accessories checklist
+function jsUpdateScooterChecklist(deviceType) {
   const card = document.getElementById('jsScooterChecklist');
   if (card) card.style.display = (jsResolveDeviceType(deviceType) === 'Scooter') ? 'block' : 'none';
+  if (jsCurrentJob) jsBuildChecklist(jsCurrentJob.accessories || '', deviceType);
 }
 
 // Order numbers management
