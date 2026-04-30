@@ -149,9 +149,9 @@
 .lor-stage-label {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.8px; color: #64748b;
-  margin: 10px 0 4px; padding-left: 2px;
+  margin: 14px 0 3px; padding-left: 2px;
 }
-.lor-stage-label:first-of-type { margin-top: 0; }
+.lor-stage-label:first-child { margin-top: 0; }
 .lor-prose {
   background: #f5f7fa; border-left: 3px solid #0066cc;
   padding: 12px 16px; font-size: 13px; line-height: 1.6; color: #0f172a;
@@ -159,6 +159,7 @@
 }
 .lor-prose ul { margin: 6px 0; padding-left: 18px; }
 .lor-prose li { margin-bottom: 4px; }
+.lor-prose-stage { margin-bottom: 0; }
 .lor-empty { font-size: 12px; color: #94a3b8; font-style: italic; padding: 8px 0; }
 
 .lor-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -456,10 +457,10 @@
       ${(d.inspectionNote || d.repairingNote || d.testingNote || d.qcNote) ? `
       <section class="lor-section">
         <div class="lor-section-title">Work Performed</div>
-        ${d.inspectionNote ? `<div class="lor-stage-label">Inspection</div><div class="lor-prose">${renderProse(d.inspectionNote)}</div>` : ''}
-        ${d.repairingNote  ? `<div class="lor-stage-label">Repairing</div><div class="lor-prose">${renderProse(d.repairingNote)}</div>`  : ''}
-        ${d.testingNote    ? `<div class="lor-stage-label">Testing</div><div class="lor-prose">${renderProse(d.testingNote)}</div>`    : ''}
-        ${d.qcNote         ? `<div class="lor-stage-label">QC</div><div class="lor-prose">${renderProse(d.qcNote)}</div>`         : ''}
+        ${d.inspectionNote ? `<div class="lor-stage-label">Inspection</div><div class="lor-prose lor-prose-stage">${renderProse(d.inspectionNote)}</div>` : ''}
+        ${d.repairingNote  ? `<div class="lor-stage-label">Repairing</div><div class="lor-prose lor-prose-stage">${renderProse(d.repairingNote)}</div>`  : ''}
+        ${d.testingNote    ? `<div class="lor-stage-label">Testing</div><div class="lor-prose lor-prose-stage">${renderProse(d.testingNote)}</div>`    : ''}
+        ${d.qcNote         ? `<div class="lor-stage-label">QC</div><div class="lor-prose lor-prose-stage">${renderProse(d.qcNote)}</div>`         : ''}
       </section>` : ''}
 
       ${d.finalRemark ? `
@@ -585,7 +586,7 @@
 
       // Load company name image (optional — falls back to text if missing)
       try {
-        const r2 = await fetch('images/company-name.png');
+        const r2 = await fetch('images/logo_text.png');
         const blob2 = await r2.blob();
         companyNameDataUrl = await new Promise((res, rej) => {
           const fr = new FileReader();
@@ -602,7 +603,7 @@
         companyNameW = dims2.w;
         companyNameH = dims2.h;
       } catch (e) {
-        // company-name.png not found — will fall back to helvetica text
+        // logo_text.png not found — will fall back to helvetica text
       }
 
       return logoDataUrl;
