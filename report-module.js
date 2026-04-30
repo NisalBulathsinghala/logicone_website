@@ -977,18 +977,18 @@
       pdf.text('Electronics Engineering · Authorised Repairs', textLogoX, y + 13.5);
     }
 
-    // Right side: doc type block, vertically centred in header
+    // Right side: REPAIR REPORT block — right-aligned, above the rule
     const rightX = MARGIN + CONTENT_W;
     setText(C.accent, 11, 'bold');
-    pdf.text('REPAIR REPORT', rightX, y + 6, { align: 'right', charSpace: 0.8 });
-    setText(C.ink, 9, 'normal');
-    pdf.text(String(data.jobId || '—'), rightX, y + 12, { align: 'right' });
+    pdf.text('REPAIR REPORT', rightX, y + 7, { align: 'right', charSpace: 0.8 });
+    setText(C.ink, 8.5, 'normal');
+    pdf.text(String(data.jobId || '—'), rightX, y + 13, { align: 'right' });
     setText(C.inkSoft, 8.5, 'normal');
-    pdf.text(fmtDate(new Date().toISOString()), rightX, y + 18, { align: 'right' });
+    pdf.text(fmtDate(new Date().toISOString()), rightX, y + 19, { align: 'right' });
 
     y += HEADER_H;
 
-    // Heavy horizontal rule under header
+    // Full-width rule — both logo and REPAIR REPORT sit above this line
     setDraw(C.ink, 0.7);
     pdf.line(MARGIN, y, MARGIN + CONTENT_W, y);
     y += 7;
@@ -1118,10 +1118,9 @@
         // Pre-measure all images so we can compute correct row heights
         const photoMetas = [];
         for (const id of orderedIds) {
-          const b64 = photoData[id];
-          const meta = photoList.find(p => p.id === id);
-          const fname = (meta && meta.name || '').toLowerCase();
-          const fmt = fname.endsWith('.png') ? 'PNG' : 'JPEG';
+          const photoInfo = photoData[id];
+          const b64 = photoInfo.base64 || photoInfo; // handle both old and new format
+          const fmt = photoInfo.fmt || 'JPEG';
           const mime = fmt === 'PNG' ? 'image/png' : 'image/jpeg';
           const dataUrl = `data:${mime};base64,${b64}`;
           const dims = await measureImage(dataUrl);
@@ -1256,6 +1255,33 @@
     }
   }
 
+  // Convert HEIC base64 to JPEG base64 using heic2any library
+  // Works on ALL browsers including Chrome (unlike native canvas HEIC decoding)
+  async function heicToJpegBase64(heicBase64) {
+    // Load heic2any from CDN if not already loaded
+    if (!window.heic2any) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+    // Convert base64 HEIC → Blob → JPEG Blob → base64
+    const byteChars = atob(heicBase64);
+    const byteArr = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+    const heicBlob = new Blob([byteArr], { type: 'image/heic' });
+    const jpegBlob = await window.heic2any({ blob: heicBlob, toType: 'image/jpeg', quality: 0.88 });
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(jpegBlob);
+    });
+  }
+
   // Fetch selected photos as base64 from Apps Script (via POST — could be large)
   async function fetchPhotoBase64s(ids, driveFolder) {
     if (!ids.length || !driveFolder) return {};
@@ -1273,8 +1299,25 @@
         console.log('fetchPhotos raw response:', text.substring(0, 200));
         const json = JSON.parse(text);
         if (json.result === 'ok' && json.data) {
-          console.log('fetchPhotos: got base64 for', Object.keys(json.data).length, 'photos');
-          Object.assign(photoBase64Cache, json.data);
+          console.log('fetchPhotos: got data for', Object.keys(json.data).length, 'photos');
+          // Convert each photo — HEIC needs canvas conversion for jsPDF
+          for (const [id, info] of Object.entries(json.data)) {
+            try {
+              const { base64, mime, name } = info;
+              const isHeic = (mime === 'image/heic' || mime === 'image/heif' ||
+                              (name || '').toLowerCase().match(/\.heic$|\.heif$/));
+              if (isHeic) {
+                // Use browser canvas to convert HEIC → JPEG (works on macOS/iOS Safari)
+                const jpegB64 = await heicToJpegBase64(base64);
+                photoBase64Cache[id] = { base64: jpegB64, fmt: 'JPEG' };
+              } else {
+                const fmt = (mime === 'image/png') ? 'PNG' : 'JPEG';
+                photoBase64Cache[id] = { base64, fmt };
+              }
+            } catch(convErr) {
+              console.warn('Photo conversion failed for', id, convErr);
+            }
+          }
         } else {
           console.warn('fetchPhotos failed:', json.result, json.msg);
         }
@@ -1285,7 +1328,7 @@
     const result = {};
     ids.forEach(id => { if (photoBase64Cache[id]) result[id] = photoBase64Cache[id]; });
     console.log('fetchPhotoBase64s returning', Object.keys(result).length, 'of', ids.length, 'requested');
-    return result;
+    return result; // values are {base64, fmt} objects
   }
 
   // Render the photo picker after photos are loaded
