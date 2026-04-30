@@ -1015,12 +1015,12 @@
     if (stageNotes.length) {
       drawSectionTitle('Work Performed');
       stageNotes.forEach(function(stage) {
-        // Stage sub-label
+        // Stage sub-label — inline page break check
+        if (y + 8 > PAGE_H - MARGIN) { pdf.addPage(); y = MARGIN; }
         pdf.setFontSize(8.5);
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(100, 116, 139);
-        checkPageBreak(8);
-        pdf.text(stage.label.toUpperCase(), margin, y);
+        pdf.text(stage.label.toUpperCase(), MARGIN, y);
         y += 6;
         pdf.setFont('helvetica', 'normal');
         drawProseBlock(stage.value);
