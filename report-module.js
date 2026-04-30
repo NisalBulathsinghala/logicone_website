@@ -976,7 +976,7 @@
 
     // Right side: REPAIR REPORT block — right column, above the rule
     // Positioned at 60% across the page so it doesn't hug the far right edge
-    const rightX = MARGIN + CONTENT_W * 0.72;
+    const rightX = MARGIN + CONTENT_W;  // true right edge
     setText(C.accent, 11, 'bold');
     pdf.text('REPAIR REPORT', rightX, y + 7, { align: 'right', charSpace: 0.8 });
     setText(C.ink, 8.5, 'normal');
@@ -1043,14 +1043,17 @@
       drawProseBlock(data.finalRemark);
     }
 
-    // Parts & Charges
+    // Parts & Charges — estimate height needed and page-break if won't fit
+    const partsCount = (data.parts && data.parts.length) ? data.parts.length : 0;
+    const estPartsH = 10 + partsCount * 8 + 30 + 40; // header + rows + totals + sig
+    if (y + estPartsH > PAGE_H - MARGIN) { pdf.addPage(); y = MARGIN; }
     drawSectionTitle('Parts & Charges');
     drawPartsTable(data.parts);
     drawTotals(data);
-    y += 4;
+    y += 12; // space between totals and signature
 
-    // Signature block
-    if (y > PAGE_H - MARGIN - 30) { pdf.addPage(); y = MARGIN; }
+    // Signature block — new page if not enough room (need ~35mm)
+    if (y + 35 > PAGE_H - MARGIN - 10) { pdf.addPage(); y = MARGIN; }
     const sigY = y + 6;
     const sigW = (CONTENT_W - 16) / 2;
     setDraw(C.ink, 0.3);
@@ -1184,7 +1187,7 @@
       }
     }
 
-    return pdf.output('blob');
+    return pdf.output('blob', { compress: true });
   }
 
   // Convert blob to base64 (without data: prefix)
@@ -1278,7 +1281,7 @@
     const byteArr = new Uint8Array(byteChars.length);
     for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
     const heicBlob = new Blob([byteArr], { type: 'image/heic' });
-    const jpegBlob = await window.heic2any({ blob: heicBlob, toType: 'image/jpeg', quality: 0.88 });
+    const jpegBlob = await window.heic2any({ blob: heicBlob, toType: 'image/jpeg', quality: 0.65 });
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result.split(',')[1]);
