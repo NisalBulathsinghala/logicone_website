@@ -133,7 +133,15 @@ async function fetchSheet() {
 
     renderAll();
   } catch (err) {
-    jobs = [...DEMO]; renderAll();
+    // Don't overwrite real job data with demo data on a transient fetch failure.
+    // Only fall back to demo if we have no jobs at all (first load).
+    if (!jobs || !jobs.length) {
+      jobs = [...DEMO];
+      showToast('error', 'Could not load sheet — showing demo data');
+    } else {
+      showToast('error', 'Sync failed — showing last loaded data');
+    }
+    renderAll();
   }
   showLoading(false);
 }
