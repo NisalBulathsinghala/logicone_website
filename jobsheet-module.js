@@ -588,6 +588,7 @@ function jsResetEditableFields(j) {
   if (sp) sp.classList.add('active');
   jsBuildChecklist(j.accessories || '', j.deviceType || '');
   jsUpdateScooterChecklist(j.deviceType || '');
+  jsClearScooterChecklist();
   jsOrderNums = [];
   jsRenderOrderNums();
   jsParts = [];
@@ -630,7 +631,16 @@ function jsBuildChecklist(accessoriesStr, deviceType) {
 }
 
 // Show/hide scooter inspection checklist
-function jsUpdateScooterChecklist(deviceType) {
+const SCOOTER_CL_IDS = ['jsSclAppearance','jsSclCharge','jsSclPower','jsSclHeadlight','jsSclTurnSignal','jsSclTaillight','jsSclBrake','jsSclThrottle','jsSclTyrePressure','jsSclNoNoise','jsSclStemTurning','jsSclStemShaking','jsSclNoShaking'];
+
+function jsClearScooterChecklist() {
+  SCOOTER_CL_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.checked = false;
+  });
+}
+
+
   const card = document.getElementById('jsScooterChecklist');
   if (card) card.style.display = (jsResolveDeviceType(deviceType) === 'Scooter') ? 'block' : 'none';
 }
@@ -794,9 +804,8 @@ function jsCollectData() {
   const status = document.querySelector('.js-status-pill.active')?.textContent.trim() || 'Intake';
 
   // Collect scooter checklist
-  const scooterChecklistIds = ['jsSclAppearance','jsSclCharge','jsSclPower','jsSclHeadlight','jsSclTurnSignal','jsSclTaillight','jsSclBrake','jsSclThrottle','jsSclTyrePressure','jsSclNoNoise','jsSclStemTurning','jsSclStemShaking','jsSclNoShaking'];
   const scooterChecklist = {};
-  scooterChecklistIds.forEach(id => {
+  SCOOTER_CL_IDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) scooterChecklist[id] = el.checked;
   });
@@ -877,8 +886,9 @@ function jsLoadFromData(data) {
     });
   }
 
-  // Scooter checklist
+  // Scooter checklist — always clear first, then restore saved state
   jsUpdateScooterChecklist(jsCurrentJob?.deviceType || '');
+  jsClearScooterChecklist();
   if (data.scooterChecklist && typeof data.scooterChecklist === 'object') {
     Object.entries(data.scooterChecklist).forEach(([id, val]) => {
       const el = document.getElementById(id);
