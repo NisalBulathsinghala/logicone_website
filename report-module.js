@@ -146,6 +146,12 @@
 .lor-pill.warranty { background: #d1fae5; color: #047857; }
 .lor-pill.oow { background: #fef3c7; color: #b45309; }
 
+.lor-stage-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.8px; color: #64748b;
+  margin: 10px 0 4px; padding-left: 2px;
+}
+.lor-stage-label:first-of-type { margin-top: 0; }
 .lor-prose {
   background: #f5f7fa; border-left: 3px solid #0066cc;
   padding: 12px 16px; font-size: 13px; line-height: 1.6; color: #0f172a;
@@ -447,10 +453,14 @@
         <div class="lor-prose">${renderProse(d.custRemark || d.issue)}</div>
       </section>
 
+      ${(d.inspectionNote || d.repairingNote || d.testingNote || d.qcNote) ? `
       <section class="lor-section">
         <div class="lor-section-title">Work Performed</div>
-        <div class="lor-prose">${renderProse(d.repairRemark)}</div>
-      </section>
+        ${d.inspectionNote ? `<div class="lor-stage-label">Inspection</div><div class="lor-prose">${renderProse(d.inspectionNote)}</div>` : ''}
+        ${d.repairingNote  ? `<div class="lor-stage-label">Repairing</div><div class="lor-prose">${renderProse(d.repairingNote)}</div>`  : ''}
+        ${d.testingNote    ? `<div class="lor-stage-label">Testing</div><div class="lor-prose">${renderProse(d.testingNote)}</div>`    : ''}
+        ${d.qcNote         ? `<div class="lor-stage-label">QC</div><div class="lor-prose">${renderProse(d.qcNote)}</div>`         : ''}
+      </section>` : ''}
 
       ${d.finalRemark ? `
       <section class="lor-section">
@@ -994,9 +1004,29 @@
     drawSectionTitle('Reported Issue');
     drawProseBlock(data.custRemark || data.issue);
 
-    // Work Performed
-    drawSectionTitle('Work Performed');
-    drawProseBlock(data.repairRemark);
+    // Work Performed — four stage notes
+    const stageNotes = [
+      { label: 'Inspection', value: data.inspectionNote },
+      { label: 'Repairing',  value: data.repairingNote  },
+      { label: 'Testing',    value: data.testingNote    },
+      { label: 'QC',         value: data.qcNote         },
+    ].filter(s => s.value && s.value.trim());
+
+    if (stageNotes.length) {
+      drawSectionTitle('Work Performed');
+      stageNotes.forEach(function(stage) {
+        // Stage sub-label
+        pdf.setFontSize(8.5);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(100, 116, 139);
+        checkPageBreak(8);
+        pdf.text(stage.label.toUpperCase(), margin, y);
+        y += 6;
+        pdf.setFont('helvetica', 'normal');
+        drawProseBlock(stage.value);
+        y += 2;
+      });
+    }
 
     // Outcome (only if present)
     if (data.finalRemark) {
@@ -1369,7 +1399,10 @@
       postage: 0, discount: 0,
       partsTotal: 0, subtotal: 0, total: 0,
       custRemark: job.issue || '',
-      repairRemark: '',
+      inspectionNote: '',
+      repairingNote: '',
+      testingNote: '',
+      qcNote: '',
       finalRemark: '',
       status: job.status || '',
     };
