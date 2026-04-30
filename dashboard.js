@@ -476,9 +476,18 @@ const ACCESSORIES_BY_TYPE = {
   'Scooter':      ['Charger','Extended Inflation','Go-Kart Accessories','Original Box','Password Lock','Scooter Body','Stem Hook','Stem Screws','Wrench'],
 };
 
+function resolveDeviceType(type) {
+  if (!type) return null;
+  const s = type.toLowerCase().trim();
+  if (s.includes('scooter') || s.includes('ninebot') || s.includes('segway') || s.includes('electric')) return 'Scooter';
+  if (s.includes('robot') || s.includes('vacuum') || s.includes('roborock') || s.includes('roomba')) return 'Robot Vacuum';
+  return null;
+}
+
 function updateNewJobAccessories() {
   const type = document.getElementById('nType').value;
-  const items = ACCESSORIES_BY_TYPE[type] || [];
+  const canonical = resolveDeviceType(type) || type;
+  const items = ACCESSORIES_BY_TYPE[canonical] || [];
   const group = document.getElementById('nAccessoriesGroup');
   if (!group) return;
   group.innerHTML = items.map(item =>
