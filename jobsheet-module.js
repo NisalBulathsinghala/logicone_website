@@ -599,13 +599,29 @@ function jsResetEditableFields(j) {
 const JS_ACCESSORIES = {
   'Robot Vacuum': ['Auto Empty Dock','Charging Cable','Charging Dock','Dust Bin','Main Brush','Mop Cloth Mount','Original Box','Robot Vacuum','Water Tank'],
   'Scooter':      ['Charger','Extended Inflation','Go-Kart Accessories','Original Box','Password Lock','Scooter Body','Stem Hook','Stem Screws','Wrench'],
-  'default':      ['Charger','Original Box','Scooter Body','Stem Hook','Stem Screws','Wrench','Password Lock','Dock','Mop','Water Tank','Manual','Adapter'],
 };
 
+// Resolve a raw deviceType string to a canonical key, tolerating
+// case differences and alternate names from the Google Form.
+function jsResolveDeviceType(deviceType) {
+  if (!deviceType) return null;
+  const s = deviceType.toLowerCase().trim();
+  if (s.includes('scooter') || s.includes('ninebot') || s.includes('segway') || s.includes('electric')) return 'Scooter';
+  if (s.includes('robot') || s.includes('vacuum') || s.includes('roborock') || s.includes('roomba')) return 'Robot Vacuum';
+  return null;
+}
+
 function jsBuildChecklist(accessoriesStr, deviceType) {
-  const items = JS_ACCESSORIES[deviceType] || JS_ACCESSORIES['default'];
-  const received = accessoriesStr.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-  document.getElementById('jsChecklist').innerHTML = items.map(item => {
+  const canonical = jsResolveDeviceType(deviceType);
+  const items = canonical ? JS_ACCESSORIES[canonical] : [];
+  const received = (accessoriesStr || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const el = document.getElementById('jsChecklist');
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = '<span style="font-size:12px;color:var(--text-secondary);font-style:italic;">No accessories list for this device type.</span>';
+    return;
+  }
+  el.innerHTML = items.map(item => {
     const checked = received.some(r => r.includes(item.toLowerCase()) || item.toLowerCase().includes(r));
     return `<label class="js-check-item ${checked ? 'checked' : ''}" onclick="jsToggleCheck(this)">
       <input type="checkbox" ${checked ? 'checked' : ''}> ${item}
@@ -616,7 +632,7 @@ function jsBuildChecklist(accessoriesStr, deviceType) {
 // Show/hide scooter inspection checklist
 function jsUpdateScooterChecklist(deviceType) {
   const card = document.getElementById('jsScooterChecklist');
-  if (card) card.style.display = (deviceType === 'Scooter') ? 'block' : 'none';
+  if (card) card.style.display = (jsResolveDeviceType(deviceType) === 'Scooter') ? 'block' : 'none';
 }
 
 // Order numbers management
