@@ -954,31 +954,29 @@
       } catch (e) { /* skip */ }
     }
 
-    // Text logo image — placed to the right of icon, scaled to 10mm tall
+    // Text logo image — natural aspect ratio, 7mm tall
     const textLogoX = MARGIN + LOGO_W + 3;
     if (companyNameDataUrl && companyNameW && companyNameH) {
-      const cnH = 10;
-      // Scale by height, but cap width at 60mm so wide images don't overflow
-      const cnWRaw = cnH * (companyNameW / companyNameH);
-      const cnW = Math.min(cnWRaw, 60);
+      const cnH = 7;
+      const cnW = cnH * (companyNameW / companyNameH); // true natural ratio, no cap
       try {
-        pdf.addImage(companyNameDataUrl, 'PNG', textLogoX, y + 1, cnW, cnH, undefined, 'FAST');
+        pdf.addImage(companyNameDataUrl, 'PNG', textLogoX, y + 2, cnW, cnH, undefined, 'FAST');
       } catch (e) {
-        setText(C.ink, 12, 'bold');
+        setText(C.ink, 11, 'bold');
         pdf.text('LOGIC ONE SA', textLogoX, y + 7, { charSpace: 0.5 });
       }
-      // Tagline below text logo with a small gap
-      setText(C.inkSoft, 7.5, 'normal');
-      pdf.text('Electronics Engineering · Authorised Repairs', textLogoX, y + 13.5);
+      setText(C.inkSoft, 7, 'normal');
+      pdf.text('Electronics Engineering · Authorised Repairs', textLogoX, y + 12);
     } else {
-      setText(C.ink, 12, 'bold');
+      setText(C.ink, 11, 'bold');
       pdf.text('LOGIC ONE SA', textLogoX, y + 7, { charSpace: 0.5 });
-      setText(C.inkSoft, 7.5, 'normal');
-      pdf.text('Electronics Engineering · Authorised Repairs', textLogoX, y + 13.5);
+      setText(C.inkSoft, 7, 'normal');
+      pdf.text('Electronics Engineering · Authorised Repairs', textLogoX, y + 12);
     }
 
-    // Right side: REPAIR REPORT block — right-aligned, above the rule
-    const rightX = MARGIN + CONTENT_W;
+    // Right side: REPAIR REPORT block — right column, above the rule
+    // Positioned at 60% across the page so it doesn't hug the far right edge
+    const rightX = MARGIN + CONTENT_W * 0.72;
     setText(C.accent, 11, 'bold');
     pdf.text('REPAIR REPORT', rightX, y + 7, { align: 'right', charSpace: 0.8 });
     setText(C.ink, 8.5, 'normal');
@@ -1091,10 +1089,17 @@
 
       console.log('orderedIds to embed:', orderedIds.length);
       if (orderedIds.length) {
-        pdf.addPage();
-        let py = MARGIN;
+        // Flow photos after content — only add new page if not enough space
+        // Need at least ~80mm for a photo row + header
+        if (y + 80 > PAGE_H - MARGIN) {
+          pdf.addPage();
+          y = MARGIN;
+        } else {
+          y += 8; // small gap between content and photos section
+        }
+        let py = y;
 
-        // Page header matching main doc style
+        // Photos section header
         setText(C.inkSoft, 8, 'bold');
         pdf.text('INSPECTION PHOTOS', MARGIN, py, { charSpace: 0.5 });
         setDraw(C.rule, 0.2);
