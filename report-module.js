@@ -976,9 +976,9 @@
 
     // Right side: REPAIR REPORT block — right column, above the rule
     // Positioned at 60% across the page so it doesn't hug the far right edge
-    const rightX = MARGIN + CONTENT_W;  // true right edge
+    const rightX = MARGIN + CONTENT_W - 2;  // 2mm inset from right margin
     setText(C.accent, 11, 'bold');
-    pdf.text('REPAIR REPORT', rightX, y + 7, { align: 'right', charSpace: 0.8 });
+    pdf.text('REPAIR REPORT', rightX, y + 7, { align: 'right' });
     setText(C.ink, 8.5, 'normal');
     pdf.text(String(data.jobId || '—'), rightX, y + 13, { align: 'right' });
     setText(C.inkSoft, 8.5, 'normal');
