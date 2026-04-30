@@ -237,6 +237,71 @@
 .js-tl-time { color: var(--text-secondary); font-size: 12px; }
 .js-tl-duration { color: var(--accent); font-size: 11px; font-weight: 600; margin-left: auto; white-space: nowrap; }
 
+/* Repair level select */
+.js-repair-level-select {
+  padding: 8px 12px; font-family: 'Inter', sans-serif; font-size: 13px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--text-primary); cursor: pointer;
+  min-width: 200px;
+}
+.js-repair-level-select:focus { outline: none; border-color: var(--accent); }
+.js-repair-level-hint {
+  font-size: 12px; color: var(--text-secondary); font-style: italic;
+}
+
+/* Scooter inspection checklist */
+.js-scooter-cl-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+}
+.js-scooter-cl-section { display: flex; flex-direction: column; gap: 6px; }
+.js-scooter-cl-label {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 4px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--border-light);
+}
+.js-scooter-cl-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-primary); cursor: pointer;
+  padding: 5px 8px; border-radius: var(--radius-sm);
+  transition: background 0.1s;
+}
+.js-scooter-cl-item:hover { background: rgba(0,180,216,0.05); }
+.js-scooter-cl-item input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Order numbers */
+.js-order-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.js-order-row input {
+  flex: 1; padding: 7px 10px; font-family: 'Inter', sans-serif; font-size: 13px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--text-primary);
+}
+.js-order-row input:focus { outline: none; border-color: var(--accent); }
+.js-order-del {
+  background: none; border: none; cursor: pointer; color: var(--text-secondary);
+  font-size: 18px; padding: 2px 6px; border-radius: 4px; line-height: 1; flex-shrink: 0;
+}
+.js-order-del:hover { color: #dc2626; background: #fef2f2; }
+
+/* Scroll arrow */
+.js-scroll-arrow {
+  position: fixed; bottom: 28px; right: 28px; z-index: 50;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--accent); color: white; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,180,216,0.35);
+  transition: opacity 0.2s, transform 0.2s, background 0.15s;
+  opacity: 0; pointer-events: none;
+}
+.js-scroll-arrow.visible { opacity: 1; pointer-events: auto; }
+.js-scroll-arrow.up { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.js-scroll-arrow:hover { transform: scale(1.1); }
+
+@media (max-width: 900px) {
+  .js-scooter-cl-grid { grid-template-columns: 1fr 1fr; }
+}
+
 @media print {
   .sidebar, .js-topbar, .js-parts-del, .js-add-part-btn { display: none !important; }
   .main-content { height: auto; overflow: visible; }
@@ -245,6 +310,45 @@
 }
   `;
   document.head.appendChild(style);
+
+  // Create scroll arrow button
+  const scrollArrow = document.createElement('button');
+  scrollArrow.id = 'jsScrollArrow';
+  scrollArrow.className = 'js-scroll-arrow';
+  scrollArrow.title = 'Scroll';
+  scrollArrow.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="6 9 12 15 18 9"/></svg>';
+  scrollArrow.onclick = function() {
+    const area = document.getElementById('jsScrollArea');
+    if (!area) return;
+    const isNearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
+    if (isNearBottom) {
+      area.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' });
+    }
+  };
+  document.body.appendChild(scrollArrow);
+
+  // Show/hide and flip arrow based on scroll position
+  document.addEventListener('DOMContentLoaded', () => {
+    const area = document.getElementById('jsScrollArea');
+    if (area) {
+      area.addEventListener('scroll', () => {
+        const isNearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
+        const hasScroll = area.scrollHeight > area.clientHeight + 40;
+        const view = document.getElementById('view-jobsheet');
+        const isActive = view && view.classList.contains('active');
+        scrollArrow.classList.toggle('visible', hasScroll && isActive);
+        // Flip arrow direction
+        const svg = scrollArrow.querySelector('svg');
+        if (isNearBottom) {
+          svg.querySelector('polyline').setAttribute('points', '18 15 12 9 6 15');
+        } else {
+          svg.querySelector('polyline').setAttribute('points', '6 9 12 15 18 9');
+        }
+      });
+    }
+  });
 })();
 
 // ============================================================
@@ -324,9 +428,11 @@ async function jsOpenJob(jobId) {
   if (!j) return;
   jsCurrentJob = j;
   jsParts = [];
+  jsOrderNums = [];
 
   // Populate read-only intake fields immediately
   jsPopulateIntake(j);
+  jsUpdateScooterChecklist(j.deviceType || '');
 
   // Show the form with loading overlay covering editable content
   document.getElementById('jsJobPicker').style.display = 'none';
@@ -469,6 +575,9 @@ function jsResetEditableFields(j) {
   document.getElementById('jsFQcNote').value         = '';
   document.getElementById('jsFinalRemark').value = '';
   document.getElementById('jsFOtherGoods').value = '';
+  const repLvl = document.getElementById('jsFRepairLevel');
+  if (repLvl) repLvl.value = '';
+  jsUpdateRepairLevelHint();
   document.querySelectorAll('.js-svc-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
   if ((j.warranty||'').toLowerCase().includes('in warranty')) {
@@ -477,14 +586,24 @@ function jsResetEditableFields(j) {
   }
   const sp = [...document.querySelectorAll('.js-status-pill')].find(p => p.textContent.trim() === (j.status||'Intake'));
   if (sp) sp.classList.add('active');
-  jsBuildChecklist(j.accessories || '');
+  jsBuildChecklist(j.accessories || '', j.deviceType || '');
+  jsUpdateScooterChecklist(j.deviceType || '');
+  jsOrderNums = [];
+  jsRenderOrderNums();
   jsParts = [];
   jsRenderParts();
   jsCalcCost();
 }
 
-function jsBuildChecklist(accessoriesStr) {
-  const items = ['Charger','Original Box','Scooter Body','Stem Hook','Stem Screws','Wrench','Password Lock','Dock','Mop','Water Tank','Manual','Adapter'];
+// Device-specific accessories
+const JS_ACCESSORIES = {
+  'Robot Vacuum': ['Auto Empty Dock','Charging Cable','Charging Dock','Dust Bin','Main Brush','Mop Cloth Mount','Original Box','Robot Vacuum','Water Tank'],
+  'Scooter':      ['Charger','Extended Inflation','Go-Kart Accessories','Original Box','Password Lock','Scooter Body','Stem Hook','Stem Screws','Wrench'],
+  'default':      ['Charger','Original Box','Scooter Body','Stem Hook','Stem Screws','Wrench','Password Lock','Dock','Mop','Water Tank','Manual','Adapter'],
+};
+
+function jsBuildChecklist(accessoriesStr, deviceType) {
+  const items = JS_ACCESSORIES[deviceType] || JS_ACCESSORIES['default'];
   const received = accessoriesStr.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
   document.getElementById('jsChecklist').innerHTML = items.map(item => {
     const checked = received.some(r => r.includes(item.toLowerCase()) || item.toLowerCase().includes(r));
@@ -493,6 +612,60 @@ function jsBuildChecklist(accessoriesStr) {
     </label>`;
   }).join('');
 }
+
+// Show/hide scooter inspection checklist
+function jsUpdateScooterChecklist(deviceType) {
+  const card = document.getElementById('jsScooterChecklist');
+  if (card) card.style.display = (deviceType === 'Scooter') ? 'block' : 'none';
+}
+
+// Order numbers management
+let jsOrderNums = [];
+
+function jsRenderOrderNums() {
+  const list = document.getElementById('jsOrderNumsList');
+  if (!list) return;
+  if (!jsOrderNums.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);padding:4px 0;">No order numbers added</div>';
+    return;
+  }
+  list.innerHTML = jsOrderNums.map((num, i) =>
+    `<div class="js-order-row">
+      <input type="text" value="${(num||'').replace(/"/g,'&quot;')}" placeholder="Order number (e.g. AUS-12345)" oninput="jsOrderNums[${i}]=this.value">
+      <button class="js-order-del" onclick="jsRemoveOrderNum(${i})" title="Remove">×</button>
+    </div>`
+  ).join('');
+}
+
+function jsAddOrderNum() {
+  jsOrderNums.push('');
+  jsRenderOrderNums();
+  // Focus the new input
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#jsOrderNumsList input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }, 50);
+}
+
+function jsRemoveOrderNum(i) {
+  jsOrderNums.splice(i, 1);
+  jsRenderOrderNums();
+}
+
+// Repair level hint text
+const REPAIR_LEVEL_HINTS = {
+  'Level 1 — $85':  'External works only; adjustments, external parts, machinery',
+  'Level 2 — $100': 'Internal repairs; PCB, motors, batteries, front fork',
+  'Level 3 — $125': 'Full disassembly; frame & structural parts, 2+ major errors',
+};
+
+function jsUpdateRepairLevelHint() {
+  const sel = document.getElementById('jsFRepairLevel');
+  const hint = document.getElementById('jsRepairLevelHint');
+  if (sel && hint) hint.textContent = REPAIR_LEVEL_HINTS[sel.value] || '';
+}
+
+
 
 function jsToggleCheck(el) { setTimeout(() => el.classList.toggle('checked', el.querySelector('input').checked), 0); }
 
@@ -603,6 +776,15 @@ function jsUpdateLineTotals() {
 function jsCollectData() {
   const checklist = [...document.querySelectorAll('.js-check-item input:checked')].map(cb => cb.parentElement.textContent.trim());
   const status = document.querySelector('.js-status-pill.active')?.textContent.trim() || 'Intake';
+
+  // Collect scooter checklist
+  const scooterChecklistIds = ['jsSclAppearance','jsSclCharge','jsSclPower','jsSclHeadlight','jsSclTurnSignal','jsSclTaillight','jsSclBrake','jsSclThrottle','jsSclTyrePressure','jsSclNoNoise','jsSclStemTurning','jsSclStemShaking','jsSclNoShaking'];
+  const scooterChecklist = {};
+  scooterChecklistIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) scooterChecklist[id] = el.checked;
+  });
+
   const j = jsCurrentJob || {};
   return {
     jobId: j.jobId||'', caseNo: j.caseNo||'', name: j.name||'',
@@ -613,8 +795,11 @@ function jsCollectData() {
     tech: document.getElementById('jsFFTech').value,
     eta: document.getElementById('jsFETA').value,
     svcType: document.getElementById('jsFSvcType').value,
+    repairLevel: document.getElementById('jsFRepairLevel')?.value || '',
     checklist,
     otherGoods: document.getElementById('jsFOtherGoods').value,
+    scooterChecklist,
+    orderNums: [...jsOrderNums],
     parts: jsParts.map(p => ({...p, qty:parseFloat(p.qty)||0, price:parseFloat(p.price)||0})),
     postage: parseFloat(document.getElementById('jsFPostage').value)||0,
     discount: parseFloat(document.getElementById('jsFDiscount').value)||0,
@@ -648,6 +833,10 @@ function jsLoadFromData(data) {
   document.getElementById('jsFQcNote').value         = data.qcNote         || '';
   document.getElementById('jsFinalRemark').value   = data.finalRemark  || '';
 
+  // Repair level
+  const repLvl = document.getElementById('jsFRepairLevel');
+  if (repLvl) { repLvl.value = data.repairLevel || ''; jsUpdateRepairLevelHint(); }
+
   // Service type
   document.querySelectorAll('.js-svc-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('jsFSvcType').value = data.svcType || '';
@@ -661,7 +850,7 @@ function jsLoadFromData(data) {
     // If checklist elements don't exist yet, build them first
     const grid = document.getElementById('jsChecklist');
     if (!grid.children.length && jsCurrentJob) {
-      jsBuildChecklist(jsCurrentJob.accessories || '');
+      jsBuildChecklist(jsCurrentJob.accessories || '', jsCurrentJob.deviceType || '');
     }
     document.querySelectorAll('.js-check-item').forEach(el => {
       const cb = el.querySelector('input');
@@ -671,6 +860,19 @@ function jsLoadFromData(data) {
       el.classList.toggle('checked', checked);
     });
   }
+
+  // Scooter checklist
+  jsUpdateScooterChecklist(jsCurrentJob?.deviceType || '');
+  if (data.scooterChecklist && typeof data.scooterChecklist === 'object') {
+    Object.entries(data.scooterChecklist).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.checked = val;
+    });
+  }
+
+  // Order numbers
+  jsOrderNums = Array.isArray(data.orderNums) ? [...data.orderNums] : [];
+  jsRenderOrderNums();
 
   // Parts
   jsParts = Array.isArray(data.parts) ? data.parts : [];

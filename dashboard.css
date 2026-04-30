@@ -253,7 +253,20 @@ body {
 .stat-info p { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
 
 /* ===== KANBAN ===== */
-.kanban-wrapper { flex: 1; overflow-x: auto; overflow-y: hidden; padding: 0 28px 20px; min-height: 0; }
+.kanban-scroll-wrap { display: flex; align-items: stretch; flex: 1; min-height: 0; position: relative; }
+.kanban-wrapper { flex: 1; overflow-x: auto; overflow-y: hidden; padding: 0 8px 20px; min-height: 0; }
+.kanban-scroll-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; flex-shrink: 0;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 0; cursor: pointer; color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s, opacity 0.2s;
+  opacity: 0.5;
+}
+.kanban-scroll-btn:hover { background: var(--bg-primary); color: var(--accent); opacity: 1; }
+.kanban-scroll-btn.hidden { opacity: 0; pointer-events: none; }
+.kanban-scroll-left { border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.kanban-scroll-right { border-left: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .kanban-board { display: flex; gap: 14px; height: 100%; min-width: min-content; }
 
 .kanban-column {

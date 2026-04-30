@@ -70,6 +70,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.addEventListener('input', () => el.classList.remove('field-err'));
     if (el) el.addEventListener('change', () => el.classList.remove('field-err'));
   });
+
+  // Kanban scroll button visibility
+  const kw = document.getElementById('kanbanWrapper');
+  if (kw) {
+    kw.addEventListener('scroll', kUpdateScrollBtns);
+    // Initial state — left arrow hidden at start
+    kUpdateScrollBtns();
+  }
 });
 
 // ============================================================
@@ -153,6 +161,7 @@ function buildBoard() {
 function renderAll() {
   renderKanban(); renderStats(); renderTable();
   document.getElementById('totalBadge').textContent = jobs.length;
+  setTimeout(kUpdateScrollBtns, 100);
 }
 
 function filtered() {
@@ -320,14 +329,14 @@ function showDetail(j) {
       icon: '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
       color: '#10b981',
       bg: 'rgba(16,185,129,0.08)',
-      text: `Hi ${firstName}, great news! Your ${device} (Job ID: ${j.jobId}) has been repaired and is ready for collection. Our workshop is open Mon–Fri 9am–5pm. Please bring this message as reference. Thank you for choosing Logic One SA!`
+      text: `Hi ${firstName},\n\nGreat news! Your ${device} (Job No: ${j.jobId}) has been repaired and is ready for collection. Our workshop is open Mon–Fri 9am–5pm. Please bring this message as reference.\n\nThank you for choosing Logic One SA!\n\nLogic One SA`
     },
     {
       label: 'Cannot Repair',
       icon: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
       color: '#ef4444',
       bg: 'rgba(239,68,68,0.08)',
-      text: `Hi ${firstName}, unfortunately after thorough inspection we are unable to repair your ${device} (Job ID: ${j.jobId}). Please contact us to arrange collection of your device. We apologise for any inconvenience. Thank you.`
+      text: `Hi ${firstName},\n\nUnfortunately, after thorough inspection we are unable to repair your ${device} (Job No: ${j.jobId}). Please contact us to arrange collection of your device. We apologise for any inconvenience.\n\nThank you.\n\nLogic One SA`
     },
   ];
 
@@ -369,13 +378,7 @@ function showDetail(j) {
   COLS.forEach(c => { fh += `<option value="${c.id}" ${c.id === j.status ? 'selected' : ''}>${c.label}</option>`; });
   fh += `</select><button class="btn btn-primary" onclick="moveFromDetail('${j.jobId}')">Update</button></div>`;
 
-  // Zoho invoice button — only for out-of-warranty jobs
-  if (j.warranty === 'Out of Warranty') {
-    fh += `<button class="btn btn-zoho" id="zohoInvBtn" onclick="createZohoInvoice(${JSON.stringify(j).replace(/"/g, '&quot;')})">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      Create Zoho Invoice
-    </button>`;
-  }
+  // Zoho invoice button removed
 
   fh += `<button class="btn btn-secondary" onclick="jsOpenJobFromDetail('${j.jobId}');closeModal('detailModal');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Job Sheet</button>`;
   document.getElementById('dFoot').innerHTML = fh;
@@ -459,6 +462,22 @@ async function moveJob(id, newStatus) {
 // ============================================================
 // NEW JOB
 // ============================================================
+
+const ACCESSORIES_BY_TYPE = {
+  'Robot Vacuum': ['Auto Empty Dock','Charging Cable','Charging Dock','Dust Bin','Main Brush','Mop Cloth Mount','Original Box','Robot Vacuum','Water Tank'],
+  'Scooter':      ['Charger','Extended Inflation','Go-Kart Accessories','Original Box','Password Lock','Scooter Body','Stem Hook','Stem Screws','Wrench'],
+};
+
+function updateNewJobAccessories() {
+  const type = document.getElementById('nType').value;
+  const items = ACCESSORIES_BY_TYPE[type] || [];
+  const group = document.getElementById('nAccessoriesGroup');
+  if (!group) return;
+  group.innerHTML = items.map(item =>
+    `<label><input type="checkbox" value="${item}"> ${item}</label>`
+  ).join('');
+}
+
 async function submitNewJob() {
   // ── Validation ──────────────────────────────────────────────
   const fields = [
@@ -695,6 +714,22 @@ function fmtTimestamp(d) {
 // ============================================================
 // UI
 // ============================================================
+// Kanban horizontal scroll buttons
+function kScroll(dir) {
+  const w = document.getElementById('kanbanWrapper');
+  if (!w) return;
+  w.scrollBy({ left: dir * 320, behavior: 'smooth' });
+  setTimeout(kUpdateScrollBtns, 350);
+}
+function kUpdateScrollBtns() {
+  const w = document.getElementById('kanbanWrapper');
+  const l = document.getElementById('kScrollLeft');
+  const r = document.getElementById('kScrollRight');
+  if (!w || !l || !r) return;
+  l.classList.toggle('hidden', w.scrollLeft <= 4);
+  r.classList.toggle('hidden', w.scrollLeft >= w.scrollWidth - w.clientWidth - 4);
+}
+
 function switchView(v) {
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -707,10 +742,16 @@ function switchView(v) {
   const searchBar = document.querySelector('.search-bar');
   if (searchBar) searchBar.style.display = v === 'jobsheet' ? 'none' : '';
   if (v === 'jobsheet') jsRenderJobList();
+  // Show/hide scroll arrow
+  const arrow = document.getElementById('jsScrollArrow');
+  if (arrow) arrow.classList.toggle('visible', v === 'jobsheet');
   closeSidebar();
 }
 
-function openModal(id) { document.getElementById(id).classList.add('show'); }
+function openModal(id) {
+  document.getElementById(id).classList.add('show');
+  if (id === 'newJobModal') updateNewJobAccessories();
+}
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('show'); }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }

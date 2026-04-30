@@ -89,7 +89,15 @@
       <div class="stat-card"><div class="stat-icon si-done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="stat-info"><h3 id="sC">0</h3><p>Completed</p></div></div>
       <div class="stat-card"><div class="stat-icon si-total"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><div class="stat-info"><h3 id="sT">0</h3><p>Total Active</p></div></div>
     </div>
-    <div class="kanban-wrapper"><div class="kanban-board" id="kanbanBoard"></div></div>
+    <div class="kanban-scroll-wrap">
+      <button class="kanban-scroll-btn kanban-scroll-left" id="kScrollLeft" onclick="kScroll(-1)" title="Scroll left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="kanban-wrapper" id="kanbanWrapper"><div class="kanban-board" id="kanbanBoard"></div></div>
+      <button class="kanban-scroll-btn kanban-scroll-right" id="kScrollRight" onclick="kScroll(1)" title="Scroll right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
   </div>
 
   <!-- LIST -->
@@ -202,9 +210,20 @@
           <div class="js-svc-grid" id="jsSvcGrid">
             <div class="js-svc-btn" onclick="jsSetSvc(this,'In Warranty Repair')">In Warranty Repair</div>
             <div class="js-svc-btn" onclick="jsSetSvc(this,'No Warranty Repair')">No Warranty Repair</div>
-            <div class="js-svc-btn" onclick="jsSetSvc(this,'Refurbished')">Refurbished</div>
           </div>
           <input type="hidden" id="jsFSvcType">
+          <div style="margin-top:14px;">
+            <div class="js-f-label">Repair Level</div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:6px;">
+              <select id="jsFRepairLevel" class="js-repair-level-select" onchange="jsUpdateRepairLevelHint()">
+                <option value="">— Select level —</option>
+                <option value="Level 1 — $85">Level 1 — $85</option>
+                <option value="Level 2 — $100">Level 2 — $100</option>
+                <option value="Level 3 — $125">Level 3 — $125</option>
+              </select>
+              <span id="jsRepairLevelHint" class="js-repair-level-hint"></span>
+            </div>
+          </div>
         </div>
 
         <!-- Goods Received -->
@@ -212,6 +231,35 @@
           <div class="js-card-title">Goods Received</div>
           <div class="js-checklist" id="jsChecklist"></div>
           <div class="js-f" style="margin-top:12px;"><label>Other Items</label><input type="text" id="jsFOtherGoods" placeholder="Any additional items…"></div>
+        </div>
+
+        <!-- Scooter Inspection Checklist (scooter only) -->
+        <div class="js-card" id="jsScooterChecklist" style="display:none;">
+          <div class="js-card-title">Scooter Inspection Checklist</div>
+          <div class="js-scooter-cl-grid">
+            <div class="js-scooter-cl-section">
+              <div class="js-scooter-cl-label">Appearance Inspection</div>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclAppearance"> Physical Damage (scratches, deformation)</label>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclCharge"> With Charge</label>
+            </div>
+            <div class="js-scooter-cl-section">
+              <div class="js-scooter-cl-label">Function Test</div>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclPower"> Power On/Off Normal</label>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclHeadlight"> Headlight Normal</label>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclTurnSignal"> Turn Signal Normal</label>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclTaillight"> Taillight Normal</label>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclBrake"> Brake Normal</label>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclThrottle"> Throttle Normal</label>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclTyrePressure"> Tyre Pressure Normal</label>
+            </div>
+            <div class="js-scooter-cl-section">
+              <div class="js-scooter-cl-label">Riding</div>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclNoNoise"> No Abnormal Noise</label>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclStemTurning"> Stem Turning as Expected</label>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclStemShaking"> Stem not Shaking</label>
+              <label class="js-scooter-cl-item"><input type="checkbox" id="jsSclNoShaking"> No Abnormal Shaking</label>
+            </div>
+          </div>
         </div>
 
         <!-- Stage Notes -->
@@ -259,6 +307,11 @@
             </table>
           </div>
           <button class="js-add-part-btn" onclick="jsAddPart()">+ Add Part</button>
+          <div style="margin-top:16px;">
+            <div class="js-card-title" style="margin-bottom:10px;">Order Numbers</div>
+            <div id="jsOrderNumsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+            <button class="js-add-part-btn" onclick="jsAddOrderNum()">+ Add Order Number</button>
+          </div>
         </div>
 
         <!-- Cost -->
@@ -336,7 +389,7 @@
     <div class="modal-body">
 
       <div class="fr3">
-        <div class="ff"><label>Device Type</label><select id="nType"><option value="Robot Vacuum">Robot Vacuum</option><option value="Scooter">Scooter</option></select></div>
+        <div class="ff"><label>Device Type</label><select id="nType" onchange="updateNewJobAccessories()"><option value="Robot Vacuum">Robot Vacuum</option><option value="Scooter">Scooter</option></select></div>
         <div class="ff"><label>Brand <span class="req">*</span></label><select id="nBrand"><option value="">Select…</option><option value="Roborock">Roborock</option><option value="Segway">Segway</option></select></div>
         <div class="ff"><label>Model <span class="req">*</span></label><input type="text" id="nModel" placeholder="e.g. S8 MaxV Ultra"></div>
       </div>
@@ -370,7 +423,7 @@
         </div>
       </div>
 
-      <div class="ff"><label>Accessories</label><div class="cb-group"><label><input type="checkbox" value="Charger"> Charger</label><label><input type="checkbox" value="Dock"> Dock</label><label><input type="checkbox" value="Mop"> Mop</label><label><input type="checkbox" value="Water Tank"> Water Tank</label></div></div>
+      <div class="ff"><label>Accessories</label><div class="cb-group" id="nAccessoriesGroup"></div></div>
 
       <div id="nJobError" style="display:none;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:13px;color:#dc2626;"></div>
     </div>
