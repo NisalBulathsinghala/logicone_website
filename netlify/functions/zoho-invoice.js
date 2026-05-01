@@ -44,7 +44,6 @@ async function createContact(token, { name, email, phone }) {
     contact_type: 'customer',
     customer_sub_type: 'individual',
     email,
-    tax_exemption_code: 'GST FREE',
     contact_persons: [{
       first_name: nameParts[0],
       last_name: nameParts.slice(1).join(' ') || '',
