@@ -388,6 +388,7 @@ function showDetail(j) {
 
   // Zoho invoice button removed
 
+  fh += `<button class="btn btn-secondary" onclick="reprintReceipt('${j.jobId}')" title="Print intake receipt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print Receipt</button>`;
   fh += `<button class="btn btn-secondary" onclick="jsOpenJobFromDetail('${j.jobId}');closeModal('detailModal');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Job Sheet</button>`;
   document.getElementById('dFoot').innerHTML = fh;
 
@@ -428,6 +429,17 @@ async function copySms(index, jobId) {
 function moveFromDetail(id) {
   moveJob(id, document.getElementById('dSel').value);
   closeModal('detailModal');
+}
+
+// Re-print an intake receipt for an existing job (also re-saves to Drive).
+function reprintReceipt(id) {
+  const j = jobs.find(x => x.jobId === id);
+  if (!j) { showToast('error', 'Job not found'); return; }
+  if (typeof window.receiptGenerateAndPrint !== 'function') {
+    showToast('error', 'Receipt module not loaded');
+    return;
+  }
+  window.receiptGenerateAndPrint(j);
 }
 
 // ============================================================
@@ -580,6 +592,14 @@ async function submitNewJob() {
       resetNewJobForm();
       showToast('success', '✓ ' + newJob.jobId + ' saved to sheet — reloading…');
       await fetchSheet(); // pulls fresh data including Drive folder URL
+
+      // ── Auto-generate intake receipt (print + save to Drive) ─────────────
+      // Use the freshly-loaded job so we have the Drive folder URL.
+      if (typeof window.receiptGenerateAndPrint === 'function') {
+        const savedJob = jobs.find(j => j.jobId === newJob.jobId) || newJob;
+        // Fire-and-forget — don't block the UI
+        window.receiptGenerateAndPrint(savedJob);
+      }
 
       // ── If out-of-warranty, open detail modal so Zoho button is visible ──
       if (newJob.warranty === 'Out of Warranty') {
