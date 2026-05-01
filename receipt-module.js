@@ -48,6 +48,37 @@
     });
   }
 
+  // ── Logo cache ─────────────────────────────────────────────────────────────
+  // Loads images/logo_text.png once and keeps it as a data URL plus its
+  // intrinsic dimensions (so we can preserve aspect ratio in the PDF).
+  let logoCache = null;
+  async function loadLogo() {
+    if (logoCache !== null) return logoCache; // cached (object or false)
+    try {
+      const res = await fetch('images/logo_text.png', { cache: 'force-cache' });
+      if (!res.ok) throw new Error('logo fetch ' + res.status);
+      const blob = await res.blob();
+      const dataUrl = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(new Error('logo read failed'));
+        r.readAsDataURL(blob);
+      });
+      // Read intrinsic dimensions
+      const dims = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => reject(new Error('logo decode failed'));
+        img.src = dataUrl;
+      });
+      logoCache = { dataUrl, w: dims.w, h: dims.h };
+    } catch (e) {
+      console.warn('receipt: logo unavailable, falling back to text wordmark:', e.message);
+      logoCache = false;
+    }
+    return logoCache;
+  }
+
   function fmtDateTime(d) {
     d = d || new Date();
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -111,16 +142,39 @@
     let y = MARGIN;
 
     // ── HEADER ───────────────────────────────────────────────────────────────
-    // Left: brand wordmark + tagline
-    setText(C.accentDeep, 16, 'bold');
-    pdf.text('LOGIC ONE SA', MARGIN, y + 5);
+    // Left side: try to render logo_text.png; fall back to text wordmark.
+    const LOGO_MAX_H = 11;   // mm — keep proportional, never exceed this height
+    const LOGO_MAX_W = 60;   // mm — cap width so it doesn't crowd the right side
 
+    const logo = await loadLogo();
+    if (logo) {
+      // Fit within max box, preserve aspect
+      const aspect = logo.w / logo.h;
+      let drawW = LOGO_MAX_H * aspect;
+      let drawH = LOGO_MAX_H;
+      if (drawW > LOGO_MAX_W) {
+        drawW = LOGO_MAX_W;
+        drawH = LOGO_MAX_W / aspect;
+      }
+      try {
+        pdf.addImage(logo.dataUrl, 'PNG', MARGIN, y + 1, drawW, drawH, undefined, 'FAST');
+      } catch (e) {
+        console.warn('addImage failed, falling back to text:', e.message);
+        setText(C.accentDeep, 16, 'bold');
+        pdf.text('LOGIC ONE SA', MARGIN, y + 6);
+      }
+    } else {
+      setText(C.accentDeep, 16, 'bold');
+      pdf.text('LOGIC ONE SA', MARGIN, y + 6);
+    }
+
+    // Subline + contact details (sit below the logo)
     setText(C.inkSoft, 6.5, 'normal');
-    pdf.text('ELECTRONICS ENGINEERING  ·  AUTHORISED REPAIRS', MARGIN, y + 9);
+    pdf.text('ELECTRONICS ENGINEERING  ·  AUTHORISED REPAIRS', MARGIN, y + 16);
 
     setText(C.inkSoft, 7, 'normal');
-    pdf.text('Adelaide, South Australia', MARGIN, y + 13.5);
-    pdf.text('service@logiconesa.com.au  ·  logiconesa.com.au', MARGIN, y + 17);
+    pdf.text('Adelaide, South Australia', MARGIN, y + 20.5);
+    pdf.text('info@logicone.com.au  ·  logicone.com.au', MARGIN, y + 24);
 
     // Right: doc label + job ID + date
     setText(C.inkMute, 6.5, 'normal');
@@ -131,27 +185,52 @@
     setText(C.accentDeep, 13, 'bold');
     const jobIdTxt = String(job.jobId || '—');
     const jobIdW = pdf.getTextWidth(jobIdTxt);
-    pdf.text(jobIdTxt, PAGE_W - MARGIN - jobIdW, y + 10.5);
+    pdf.text(jobIdTxt, PAGE_W - MARGIN - jobIdW, y + 11);
 
     setText(C.inkSoft, 7, 'normal');
     const dateTxt = fmtDateTime(new Date());
     const dateW = pdf.getTextWidth(dateTxt);
-    pdf.text(dateTxt, PAGE_W - MARGIN - dateW, y + 14.5);
+    pdf.text(dateTxt, PAGE_W - MARGIN - dateW, y + 16);
 
-    y += 21;
+    // ── Warranty status badge ───────────────────────────────────────────────
+    // Sits below the date, right-aligned. Green for in-warranty, amber for out.
+    const warrantyStr = String(job.warranty || '').toLowerCase().trim();
+    const isInWarranty = warrantyStr === 'in warranty' || warrantyStr === 'in-warranty';
+    {
+      const badgeText = isInWarranty ? 'IN WARRANTY' : 'OUT OF WARRANTY';
+      const badgeFill = isInWarranty ? [209, 250, 229] : [254, 243, 199]; // okSoft / warnSoft
+      const badgeInk  = isInWarranty ? [4, 120, 87]    : [180, 83, 9];    // ok / warn
+
+      pdf.setFontSize(6.5);
+      pdf.setFont('helvetica', 'bold');
+      const padX = 2.5, padY = 1.4;
+      const textW = pdf.getTextWidth(badgeText);
+      const badgeW = textW + padX * 2;
+      const badgeH = 4.4;
+      const badgeX = PAGE_W - MARGIN - badgeW;
+      const badgeY = y + 19;
+
+      setFill(badgeFill);
+      pdf.roundedRect(badgeX, badgeY, badgeW, badgeH, 0.8, 0.8, 'F');
+
+      pdf.setTextColor(badgeInk[0], badgeInk[1], badgeInk[2]);
+      pdf.text(badgeText, badgeX + padX, badgeY + badgeH - padY);
+    }
+
+    y += 28;
 
     // Header rule
     setDraw(C.accentDeep, 0.5);
     pdf.line(MARGIN, y, PAGE_W - MARGIN, y);
-    y += 4;
+    y += 6;
 
     // ── Section title helper ─────────────────────────────────────────────────
     const drawSectionTitle = (label) => {
       setText(C.accent, 7, 'bold');
       pdf.text(label.toUpperCase(), MARGIN, y);
       setDraw(C.rule, 0.2);
-      pdf.line(MARGIN, y + 1.2, PAGE_W - MARGIN, y + 1.2);
-      y += 4;
+      pdf.line(MARGIN, y + 1.4, PAGE_W - MARGIN, y + 1.4);
+      y += 5.5;
     };
 
     // ── Two-column field grid helper ─────────────────────────────────────────
@@ -159,7 +238,7 @@
     const drawFieldGrid = (pairs) => {
       const colW = (CONTENT_W - 6) / 2;
       const colX = [MARGIN, MARGIN + colW + 6];
-      const ROW_H = 7;
+      const ROW_H = 9;
       let col = 0;
       let rowY = y;
 
@@ -173,14 +252,14 @@
         const v = String(value == null || value === '' ? '—' : value);
         // Truncate if too long for column
         const maxChars = pdf.splitTextToSize(v, colW);
-        pdf.text(maxChars[0] || '—', x, rowY + 3.6);
+        pdf.text(maxChars[0] || '—', x, rowY + 4.2);
 
         col++;
         if (col >= 2) { col = 0; rowY += ROW_H; }
       });
       // Account for half-row at end
       if (col === 1) rowY += ROW_H;
-      y = rowY + 1;
+      y = rowY + 2;
     };
 
     // ── CUSTOMER ─────────────────────────────────────────────────────────────
@@ -209,8 +288,8 @@
     drawSectionTitle('Reported Fault');
     {
       const faultText = job.issue || '—';
-      const wrapped = wrap(faultText, CONTENT_W - 6, 8.5);
-      const boxH = Math.max(14, wrapped.height + 4);
+      const wrapped = wrap(faultText, CONTENT_W - 8, 8.5);
+      const boxH = Math.max(16, wrapped.height + 6);
 
       setFill(C.faultBg);
       pdf.rect(MARGIN, y, CONTENT_W, boxH, 'F');
@@ -219,7 +298,7 @@
       pdf.rect(MARGIN, y, 1.2, boxH, 'F');
 
       setText(C.ink, 8.5, 'normal');
-      pdf.text(wrapped.lines, MARGIN + 4, y + 4);
+      pdf.text(wrapped.lines, MARGIN + 4, y + 5);
       y += boxH + 3;
     }
 
@@ -227,8 +306,8 @@
     drawSectionTitle('Accessories Received');
     {
       const accText = job.accessories && String(job.accessories).trim() ? job.accessories : 'None';
-      const wrapped = wrap(accText, CONTENT_W - 4, 8);
-      const boxH = Math.max(8, wrapped.height + 3);
+      const wrapped = wrap(accText, CONTENT_W - 6, 8);
+      const boxH = Math.max(10, wrapped.height + 5);
 
       setDraw(C.ruleStrong, 0.2);
       pdf.setLineDashPattern([0.8, 0.8], 0);
@@ -236,71 +315,73 @@
       pdf.setLineDashPattern([], 0);
 
       setText(C.ink, 8, 'normal');
-      pdf.text(wrapped.lines, MARGIN + 2, y + 3.5);
+      pdf.text(wrapped.lines, MARGIN + 3, y + 4.5);
       y += boxH + 4;
     }
 
     // ── TERMS & CONDITIONS ───────────────────────────────────────────────────
     {
-      const terms = [
-        'An inspection fee applies to all out-of-warranty assessments. This fee is waived if you proceed with the quoted repair.',
-        'All repairs are performed using genuine manufacturer parts in accordance with the manufacturer\'s authorised repair processes.',
-        'Estimated turnaround is provided in good faith and may vary based on parts availability.',
-        'Goods not collected within 90 days of repair completion or quote rejection may be disposed of to recover costs.',
-        'Logic One SA is not liable for pre-existing data or damage not noted at intake. Customer is responsible for backing up data.',
-        'By signing, the customer authorises diagnosis and acknowledges these terms.',
-      ];
+      const brand = String(job.brand || '').trim();
+      // Phrase the manufacturer reference using the actual brand if known,
+      // otherwise fall back to a neutral phrase.
+      const mfg = brand && /roborock|segway/i.test(brand)
+        ? brand
+        : 'the manufacturer';
 
-      // Pre-calculate box height
-      let totalH = 5;
+      let terms;
+      let termsTitle;
+
+      if (isInWarranty) {
+        termsTitle = 'WARRANTY TERMS';
+        terms = [
+          `Repair carried out under ${mfg}'s authorised warranty programme using genuine parts, at no charge to the customer subject to warranty assessment.`,
+          `If inspection reveals the fault is outside warranty cover (e.g. accidental, liquid or impact damage, unauthorised modification), we will contact you to discuss options before any chargeable work proceeds.`,
+          'Estimated turnaround is provided in good faith and may vary with parts availability.',
+          'Logic One SA is not liable for pre-existing data or damage not noted at intake. Customer is responsible for backups.',
+          'Acceptance of these terms is confirmed by handing the device over for repair.',
+        ];
+      } else {
+        termsTitle = 'TERMS & CONDITIONS';
+        terms = [
+          'An inspection fee applies to all out-of-warranty assessments. Waived if you proceed with the quoted repair.',
+          `All repairs use genuine ${mfg} parts under ${mfg}'s authorised repair process.`,
+          'Estimated turnaround is provided in good faith and may vary with parts availability.',
+          'Goods not collected within 90 days of completion or quote rejection may be disposed of to recover costs.',
+          'Logic One SA is not liable for pre-existing data or damage not noted at intake. Customer is responsible for backups.',
+          'Acceptance of these terms is confirmed by handing the device over for repair.',
+        ];
+      }
+
+      // Pre-calculate box height with generous padding + line spacing
+      let totalH = 7;
       const wrappedTerms = terms.map(t => {
-        const w = wrap('• ' + t, CONTENT_W - 6, 6.5);
-        totalH += w.height + 0.5;
+        const w = wrap('• ' + t, CONTENT_W - 8, 6.5);
+        totalH += w.height + 0.6;
         return w;
       });
-      totalH += 1;
+      totalH += 2;
 
       setFill(C.termsBg);
       setDraw(C.rule, 0.2);
       pdf.rect(MARGIN, y, CONTENT_W, totalH, 'FD');
 
       setText(C.accentDeep, 6.5, 'bold');
-      pdf.text('TERMS & CONDITIONS', MARGIN + 3, y + 3.5);
+      pdf.text(termsTitle, MARGIN + 4, y + 4.5);
 
-      let ty = y + 6.5;
+      let ty = y + 9;
       setText(C.inkSoft, 6.5, 'normal');
       wrappedTerms.forEach(w => {
-        pdf.text(w.lines, MARGIN + 3, ty);
-        ty += w.height + 0.5;
+        pdf.text(w.lines, MARGIN + 4, ty);
+        ty += w.height + 0.6;
       });
       y += totalH + 4;
     }
 
-    // ── SIGNATURES ───────────────────────────────────────────────────────────
-    {
-      const sigW = (CONTENT_W - 8) / 2;
-      const sigY = y + 8;
-
-      setDraw(C.ink, 0.3);
-      pdf.line(MARGIN, sigY, MARGIN + sigW, sigY);
-      pdf.line(MARGIN + sigW + 8, sigY, MARGIN + sigW + 8 + sigW, sigY);
-
-      setText(C.ink, 8, 'normal');
-      pdf.text(String(job.name || ''), MARGIN, sigY - 1);
-      pdf.text('Logic One SA', MARGIN + sigW + 8, sigY - 1);
-
-      setText(C.inkMute, 5.5, 'normal');
-      pdf.text('CUSTOMER SIGNATURE / DATE', MARGIN, sigY + 3);
-      pdf.text('RECEIVED BY / DATE', MARGIN + sigW + 8, sigY + 3);
-
-      y = sigY + 8;
-    }
-
     // ── FOOTER ───────────────────────────────────────────────────────────────
     setText(C.inkMute, 5.5, 'normal');
-    const footer = `Job ${job.jobId || '—'}  ·  ${fmtDateTime(new Date())}  ·  logiconesa.com.au`;
+    const footer = `Job ${job.jobId || '—'}  ·  ${fmtDateTime(new Date())}  ·  logicone.com.au`;
     const footerW = pdf.getTextWidth(footer);
-    pdf.text(footer, (PAGE_W - footerW) / 2, PAGE_H - 6);
+    pdf.text(footer, (PAGE_W - footerW) / 2, PAGE_H - 4);
 
     return pdf;
   }
