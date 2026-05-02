@@ -1263,8 +1263,27 @@
     }
   }
 
-  // Convert HEIC base64 to JPEG base64 using heic2any library
-  // Works on ALL browsers including Chrome (unlike native canvas HEIC decoding)
+  // Max dimension for photos in the PDF — 1200px is plenty for print quality
+  const PDF_PHOTO_MAX_PX = 1200;
+  const PDF_PHOTO_QUALITY = 0.60;
+
+  // Resize an Image element to max dimension and return JPEG base64
+  function resizeImageToBase64(img) {
+    const MAX = PDF_PHOTO_MAX_PX;
+    let w = img.naturalWidth || img.width;
+    let h = img.naturalHeight || img.height;
+    if (w > MAX || h > MAX) {
+      if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+      else        { w = Math.round(w * MAX / h); h = MAX; }
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg', PDF_PHOTO_QUALITY).split(',')[1];
+  }
+
+  // Convert HEIC base64 → resize → JPEG base64
+  // Works on ALL browsers including Chrome via heic2any library
   async function heicToJpegBase64(heicBase64) {
     // Load heic2any from CDN if not already loaded
     if (!window.heic2any) {
@@ -1276,17 +1295,36 @@
         document.head.appendChild(script);
       });
     }
-    // Convert base64 HEIC → Blob → JPEG Blob → base64
+    // HEIC → JPEG blob (no quality arg here — we resize+compress via canvas below)
     const byteChars = atob(heicBase64);
     const byteArr = new Uint8Array(byteChars.length);
     for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
     const heicBlob = new Blob([byteArr], { type: 'image/heic' });
-    const jpegBlob = await window.heic2any({ blob: heicBlob, toType: 'image/jpeg', quality: 0.65 });
+    const jpegBlob = await window.heic2any({ blob: heicBlob, toType: 'image/jpeg', quality: 1 });
+
+    // Load into an Image so we can resize via canvas
+    const bmpUrl = URL.createObjectURL(jpegBlob);
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(jpegBlob);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          resolve(resizeImageToBase64(img));
+        } finally {
+          URL.revokeObjectURL(bmpUrl);
+        }
+      };
+      img.onerror = () => { URL.revokeObjectURL(bmpUrl); reject(new Error('Image load failed')); };
+      img.src = bmpUrl;
+    });
+  }
+
+  // Convert regular image (JPEG/PNG) base64 → resize → JPEG base64
+  async function resizeBase64Image(b64, mime) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(resizeImageToBase64(img));
+      img.onerror = reject;
+      img.src = `data:${mime};base64,${b64}`;
     });
   }
 
@@ -1315,12 +1353,13 @@
               const isHeic = (mime === 'image/heic' || mime === 'image/heif' ||
                               (name || '').toLowerCase().match(/\.heic$|\.heif$/));
               if (isHeic) {
-                // Use browser canvas to convert HEIC → JPEG (works on macOS/iOS Safari)
                 const jpegB64 = await heicToJpegBase64(base64);
                 photoBase64Cache[id] = { base64: jpegB64, fmt: 'JPEG' };
               } else {
-                const fmt = (mime === 'image/png') ? 'PNG' : 'JPEG';
-                photoBase64Cache[id] = { base64, fmt };
+                // Resize JPEG/PNG too — iPhone JPEGs can be 5MB+
+                const resized = await resizeBase64Image(base64, mime || 'image/jpeg');
+                const fmt = (mime === 'image/png') ? 'JPEG' : 'JPEG'; // always JPEG after resize
+                photoBase64Cache[id] = { base64: resized, fmt };
               }
             } catch(convErr) {
               console.warn('Photo conversion failed for', id, convErr);
