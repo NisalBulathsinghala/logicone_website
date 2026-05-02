@@ -703,7 +703,7 @@ function jsSetSvc(el, val) {
   document.getElementById('jsFSvcType').value = val;
 }
 
-function jsSetStatus(el) {
+async function jsSetStatus(el) {
   document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   const newStatus = el.textContent.trim();
@@ -729,8 +729,21 @@ function jsSetStatus(el) {
   }
 
   if (cfg.appsScriptUrl) {
-    // Update status in sheet
-    callScript({ action: 'updateStatus', jobId: jsCurrentJob.jobId, status: newStatus });
+    // Await the sheet update so we can roll back if it fails
+    const statusResult = await callScript({ action: 'updateStatus', jobId: jsCurrentJob.jobId, status: newStatus });
+    if (!statusResult.ok) {
+      // Roll back local state
+      jsCurrentJob.status = oldStatus;
+      if (jobInList) { jobInList.status = oldStatus; jobInList.statusTimestamps = jsCurrentJob.statusTimestamps; }
+      // Revert the pill highlight
+      document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
+      const revertPill = [...document.querySelectorAll('.js-status-pill')].find(p => p.textContent.trim() === oldStatus);
+      if (revertPill) revertPill.classList.add('active');
+      jsRenderTimeline(jsCurrentJob);
+      renderAll();
+      if (typeof showToast === 'function') showToast('error', 'Status update failed — sheet not updated');
+      return;
+    }
     // Persist timestamps to Drive
     if (jsCurrentJob.driveFolder) {
       callScript({
