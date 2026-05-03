@@ -1070,7 +1070,7 @@ function jsSetSaveIndicator(saved, at) {
   if (!el) return;
   if (saved) {
     el.className = 'js-save-ind saved';
-    const t = at ? new Date(at).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}) : '';
+    const t = at ? new Date(at).toLocaleString('en-AU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
     el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg> Saved${t ? ' '+t : ''}`;
   } else {
     el.className = 'js-save-ind';
