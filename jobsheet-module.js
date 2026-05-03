@@ -735,7 +735,6 @@ async function jsSetStatus(el) {
       // Roll back local state
       jsCurrentJob.status = oldStatus;
       if (jobInList) { jobInList.status = oldStatus; jobInList.statusTimestamps = jsCurrentJob.statusTimestamps; }
-      // Revert the pill highlight
       document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
       const revertPill = [...document.querySelectorAll('.js-status-pill')].find(p => p.textContent.trim() === oldStatus);
       if (revertPill) revertPill.classList.add('active');
@@ -885,13 +884,14 @@ function jsLoadFromData(data) {
     if (btn) btn.classList.add('active');
   }
 
-  // Checklist — rebuild from saved list (build first so elements exist)
-  if (data.checklist && Array.isArray(data.checklist)) {
-    // If checklist elements don't exist yet, build them first
-    const grid = document.getElementById('jsChecklist');
-    if (!grid.children.length && jsCurrentJob) {
-      jsBuildChecklist(jsCurrentJob.accessories || '', jsCurrentJob.deviceType || '');
-    }
+  // Checklist — always rebuild from device type & accessories first so all items exist,
+  // then apply saved checked state on top. This ensures accessories from the intake
+  // form are shown even if the saved checklist array is incomplete.
+  if (jsCurrentJob) {
+    jsBuildChecklist(jsCurrentJob.accessories || '', jsCurrentJob.deviceType || '');
+  }
+  if (data.checklist && Array.isArray(data.checklist) && data.checklist.length) {
+    // Saved checklist exists — apply it exactly (user may have deliberately unchecked items)
     document.querySelectorAll('.js-check-item').forEach(el => {
       const cb = el.querySelector('input');
       const lbl = el.textContent.trim();
@@ -900,6 +900,7 @@ function jsLoadFromData(data) {
       el.classList.toggle('checked', checked);
     });
   }
+  // If no saved checklist, the jsBuildChecklist call above already pre-checked intake accessories
 
   // Scooter checklist — always clear first, then restore saved state
   jsUpdateScooterChecklist(jsCurrentJob?.deviceType || '');
@@ -918,9 +919,13 @@ function jsLoadFromData(data) {
   // Parts
   jsParts = Array.isArray(data.parts) ? data.parts : [];
 
-  // Status pill
+  // Status pill — also update jsCurrentJob.status so jsCollectData() picks up the correct value
   document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
   if (data.status) {
+    if (jsCurrentJob) jsCurrentJob.status = data.status;
+    // Also sync the jobs array so kanban reflects the saved status
+    const jobInList = jobs.find(j => j.jobId === jsCurrentJob?.jobId);
+    if (jobInList) jobInList.status = data.status;
     const pill = [...document.querySelectorAll('.js-status-pill')].find(p => p.textContent.trim() === data.status);
     if (pill) pill.classList.add('active');
   }
