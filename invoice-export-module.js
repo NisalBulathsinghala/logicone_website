@@ -195,7 +195,7 @@
 
   const completionDate = (job) => {
     const ts = job.statusTimestamps || {};
-    return ts['Collected'] || ts['Complete'] || '';
+    return ts['Collected'] || ts['Complete'] || ts['Testing'] || '';
   };
 
   const isCompleted = (job) =>
@@ -230,10 +230,41 @@
   const faultStr = (job) =>
     job.finalRemark || job.inspectionNote || job.issue || '—';
 
+  // ── Repair level cost lookup ──────────────────────────────
+  // Populated from costs.json on Drive (loaded when modal opens).
+  // Falls back to parsing the dollar amount from the label string.
+  let repairLevelCosts = {}; // e.g. { "Level 2 — $100": 100 }
+
+  async function loadRepairLevelCosts() {
+    if (!cfg || !cfg.appsScriptUrl || typeof callScript !== 'function') return;
+    try {
+      const res = await callScript({ action: 'loadCosts' });
+      if (res && res.ok && res.data && res.data.repairLevels) {
+        repairLevelCosts = {};
+        Object.entries(res.data.repairLevels).forEach(([label, obj]) => {
+          repairLevelCosts[label] = typeof obj === 'object' ? obj.cost : obj;
+        });
+      }
+    } catch (e) { /* fall back to string parsing */ }
+  }
+
+  const costFromRepairLevel = (repairLevel) => {
+    // 1. Look up in costs.json data (authoritative)
+    if (repairLevelCosts[repairLevel] != null) return repairLevelCosts[repairLevel];
+    // 2. Parse dollar amount from label string as fallback
+    const m = String(repairLevel || '').match(/\$(\d+(?:\.\d+)?)/);
+    return m ? parseFloat(m[1]) : null;
+  };
+
+  const effectiveCost = (job) => {
+    const t = parseFloat(job.total);
+    if (!isNaN(t) && t > 0) return t;
+    return costFromRepairLevel(job.repairLevel);
+  };
+
   const repairCostStr = (job) => {
-    const n = parseFloat(job.total);
-    if (!isNaN(n) && n > 0) return '$' + n.toFixed(2);
-    return '—';
+    const n = effectiveCost(job);
+    return n != null ? '$' + n.toFixed(2) : '—';
   };
 
   // ── Enrich jobs from Drive ───────────────────────────────────
@@ -467,7 +498,7 @@
       fmtDate(completionDate(job)),
       job.repairLevel || '',
       partsOrderedStr(job),
-      parseFloat(job.total) || 0,
+      effectiveCost(job) || 0,
     ];
 
     const roboJobs = jobs
@@ -499,7 +530,8 @@
         HEADERS,
         ...jobList.map(toRow),
         [],  // blank row before totals
-        ['', '', '', '', '', 'Total Repair Cost', `=SUM(G5:G${4 + jobList.length})`],
+        ['', '', '', '', '', 'Total Repair Cost',
+        jobList.length > 0 ? `=SUM(G5:G${4 + jobList.length})` : 0],
       ], { origin: 'A1' });
 
       // ── Column widths ────────────────────────────────────────
@@ -569,20 +601,26 @@
     if (document.getElementById('loInvExportBtn'))
       document.getElementById('loInvExportBtn').disabled = true;
 
-    // Grab completed jobs from the global jobs array
+    // Enrich ALL jobs that have a Drive folder — the sheet status column can lag
+    // behind the Drive JSON (which is the source of truth for status). Filter by
+    // status AFTER enrichment so jobs with a stale sheet status are still caught.
     const allJobs = (typeof jobs !== 'undefined' && Array.isArray(jobs)) ? jobs : [];
-    const completedJobs = allJobs.filter(isCompleted);
+    // Load costs.json from Drive so repair level → cost lookup is accurate
+    await loadRepairLevelCosts();
 
-    if (completedJobs.length) {
-      document.getElementById('loInvLoadingMsg').textContent =
-        `Enriching ${completedJobs.length} job${completedJobs.length > 1 ? 's' : ''} from Drive…`;
-    }
+    const candidates = allJobs.filter(j => isCompleted(j) || j.driveFolder);
 
-    enrichedJobs = await enrichJobs(completedJobs);
+    document.getElementById('loInvLoadingMsg').textContent =
+      'Checking ' + candidates.length + ' job' + (candidates.length !== 1 ? 's' : '') + ' from Drive…';
+
+    const allEnriched = await enrichJobs(candidates);
+    enrichedJobs = allEnriched.filter(isCompleted);
     filterMonth  = '';
 
     // Render
     renderMonthFilter();
+    const mSel = document.getElementById('loInvMonthFilter');
+    if (mSel) mSel.value = '';
     renderTable();
 
     document.getElementById('loInvLoading').classList.remove('show');

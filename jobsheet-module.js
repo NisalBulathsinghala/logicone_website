@@ -429,6 +429,10 @@ async function jsOpenJob(jobId) {
   jsCurrentJob = j;
   jsParts = [];
   jsOrderNums = [];
+  window._jsRepairLevelCostOverride = null;
+
+  // Load costs.json from Drive (non-blocking — updates hints/costs when ready)
+  jsLoadCosts();
 
   // Populate read-only intake fields immediately
   jsPopulateIntake(j);
@@ -681,16 +685,55 @@ function jsRemoveOrderNum(i) {
 }
 
 // Repair level hint text
-const REPAIR_LEVEL_HINTS = {
+// Repair level hints and costs — seeded from hardcoded defaults,
+// overwritten by costs.json from Drive when a job is opened.
+let REPAIR_LEVEL_HINTS = {
   'Level 1 — $85':  'External works only; adjustments, external parts, machinery',
   'Level 2 — $100': 'Internal repairs; PCB, motors, batteries, front fork',
   'Level 3 — $125': 'Full disassembly; frame & structural parts, 2+ major errors',
 };
+let REPAIR_LEVEL_COSTS = {
+  'Level 1 — $85':  85,
+  'Level 2 — $100': 100,
+  'Level 3 — $125': 125,
+};
+
+// Load costs.json from Drive and merge into local lookups
+async function jsLoadCosts() {
+  if (!cfg || !cfg.appsScriptUrl || typeof callScript !== 'function') return;
+  try {
+    const res = await callScript({ action: 'loadCosts' });
+    if (res && res.ok && res.data && res.data.repairLevels) {
+      Object.entries(res.data.repairLevels).forEach(([label, obj]) => {
+        REPAIR_LEVEL_COSTS[label] = typeof obj === 'object' ? obj.cost : obj;
+        if (typeof obj === 'object' && obj.description) {
+          REPAIR_LEVEL_HINTS[label] = obj.description;
+        }
+      });
+    }
+  } catch (e) { /* keep defaults */ }
+}
 
 function jsUpdateRepairLevelHint() {
-  const sel = document.getElementById('jsFRepairLevel');
+  const sel  = document.getElementById('jsFRepairLevel');
   const hint = document.getElementById('jsRepairLevelHint');
-  if (sel && hint) hint.textContent = REPAIR_LEVEL_HINTS[sel.value] || '';
+  if (!sel) return;
+  if (hint) hint.textContent = REPAIR_LEVEL_HINTS[sel.value] || '';
+  // Auto-fill the service total from the cost lookup when no manual total is set
+  const cost = REPAIR_LEVEL_COSTS[sel.value];
+  if (cost != null) {
+    const currentTotal = parseFloat(document.getElementById('jsCTotal')?.textContent?.replace('$','')) || 0;
+    // Only auto-fill if total is still 0 (user hasn't manually entered parts/costs)
+    if (currentTotal === 0) {
+      const discountEl = document.getElementById('jsFDiscount');
+      const postageEl  = document.getElementById('jsFPostage');
+      // Set subtotal via discount=0, postage=0, and inject a zero-price labour line
+      // The simplest approach: just store it for jsCollectData to pick up
+      if (!window._jsRepairLevelCostOverride) {
+        window._jsRepairLevelCostOverride = cost;
+      }
+    }
+  }
 }
 
 
@@ -841,7 +884,13 @@ function jsCollectData() {
     discount: parseFloat(document.getElementById('jsFDiscount').value)||0,
     partsTotal: parseFloat(document.getElementById('jsCPartsTotal').textContent.replace('$',''))||0,
     subtotal:   parseFloat(document.getElementById('jsCSubtotal').textContent.replace('$',''))||0,
-    total:      parseFloat(document.getElementById('jsCTotal').textContent.replace('$',''))||0,
+    total:      (() => {
+      const t = parseFloat(document.getElementById('jsCTotal').textContent.replace('$','')) || 0;
+      if (t > 0) return t;
+      // Fall back to repair level cost from costs.json when no parts/costs entered
+      const lvl = document.getElementById('jsFRepairLevel')?.value || '';
+      return REPAIR_LEVEL_COSTS[lvl] || 0;
+    })(),
     custRemark:   document.getElementById('jsFCustRemark').value,
     inspectionNote: document.getElementById('jsFInspectionNote').value,
     repairingNote:  document.getElementById('jsFRepairingNote').value,
