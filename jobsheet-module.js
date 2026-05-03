@@ -729,10 +729,8 @@ async function jsSetStatus(el) {
   }
 
   if (cfg.appsScriptUrl) {
-    // Await the sheet update so we can roll back if it fails
     const statusResult = await callScript({ action: 'updateStatus', jobId: jsCurrentJob.jobId, status: newStatus });
     if (!statusResult.ok) {
-      // Roll back local state
       jsCurrentJob.status = oldStatus;
       if (jobInList) { jobInList.status = oldStatus; jobInList.statusTimestamps = jsCurrentJob.statusTimestamps; }
       document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
@@ -743,7 +741,6 @@ async function jsSetStatus(el) {
       if (typeof showToast === 'function') showToast('error', 'Status update failed — sheet not updated');
       return;
     }
-    // Persist timestamps to Drive
     if (jsCurrentJob.driveFolder) {
       callScript({
         action: 'saveTimestamps',
@@ -884,14 +881,14 @@ function jsLoadFromData(data) {
     if (btn) btn.classList.add('active');
   }
 
-  // Checklist — always rebuild from device type & accessories first so all items exist,
-  // then apply saved checked state on top. This ensures accessories from the intake
-  // form are shown even if the saved checklist array is incomplete.
+  // Checklist — always build full item list first, then apply saved ticked state on top.
+  // Falls back to saved checklist items as the accessories string if the sheet cell is blank.
   if (jsCurrentJob) {
-    jsBuildChecklist(jsCurrentJob.accessories || '', jsCurrentJob.deviceType || '');
+    const accessoriesStr = jsCurrentJob.accessories ||
+      (Array.isArray(data.checklist) ? data.checklist.join(', ') : '');
+    jsBuildChecklist(accessoriesStr, jsCurrentJob.deviceType || '');
   }
   if (data.checklist && Array.isArray(data.checklist) && data.checklist.length) {
-    // Saved checklist exists — apply it exactly (user may have deliberately unchecked items)
     document.querySelectorAll('.js-check-item').forEach(el => {
       const cb = el.querySelector('input');
       const lbl = el.textContent.trim();
@@ -900,7 +897,6 @@ function jsLoadFromData(data) {
       el.classList.toggle('checked', checked);
     });
   }
-  // If no saved checklist, the jsBuildChecklist call above already pre-checked intake accessories
 
   // Scooter checklist — always clear first, then restore saved state
   jsUpdateScooterChecklist(jsCurrentJob?.deviceType || '');
@@ -919,12 +915,11 @@ function jsLoadFromData(data) {
   // Parts
   jsParts = Array.isArray(data.parts) ? data.parts : [];
 
-  // Status pill — also update jsCurrentJob.status so jsCollectData() picks up the correct value
+  // Status pill — sync jsCurrentJob.status from Drive JSON (source of truth)
   document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
   if (data.status) {
     if (jsCurrentJob) jsCurrentJob.status = data.status;
-    // Also sync the jobs array so kanban reflects the saved status
-    const jobInList = jobs.find(j => j.jobId === jsCurrentJob?.jobId);
+    const jobInList = (typeof jobs !== 'undefined') && jobs.find(j => j.jobId === jsCurrentJob?.jobId);
     if (jobInList) jobInList.status = data.status;
     const pill = [...document.querySelectorAll('.js-status-pill')].find(p => p.textContent.trim() === data.status);
     if (pill) pill.classList.add('active');
@@ -957,12 +952,49 @@ async function jsSaveSheet() {
     const result = await callScript({ action: 'saveJobSheet', data: JSON.stringify(data) });
     if (result.ok) {
       jsSetSaveIndicator(true);
-      showToast('success', 'Job sheet saved to Drive');
-      // sync status back to sheet
-      if (jsCurrentJob && data.status !== jsCurrentJob.status) {
-        await callScript({ action: 'updateStatus', jobId: data.jobId, status: data.status });
+
+      // Build the checklist string from ticked items for the Accessories column
+      const tickedItems = [...document.querySelectorAll('.js-check-item input:checked')]
+        .map(cb => cb.parentElement.textContent.trim()).filter(Boolean);
+      const accessoriesStr = tickedItems.join(', ');
+
+      // Build parts summary string
+      const partsStr = (data.parts || []).map(p =>
+        [p.partno, p.name, p.qty > 1 ? `x${p.qty}` : ''].filter(Boolean).join(' ')
+      ).join('; ');
+
+      // Sync key fields back to the Google Sheet row so the sheet stays up-to-date
+      const syncResult = await callScript({
+        action: 'syncJobFields',
+        jobId: data.jobId,
+        fields: {
+          status:       data.status || '',
+          accessories:  accessoriesStr,
+          repairLevel:  data.repairLevel || '',
+          parts:        partsStr,
+          total:        data.total != null ? String(data.total) : '',
+          tech:         data.tech || '',
+          svcType:      data.svcType || '',
+        }
+      });
+
+      // Update local state so kanban reflects new status without a full reload
+      if (jsCurrentJob) {
         jsCurrentJob.status = data.status;
+        const jobInList = (typeof jobs !== 'undefined') && jobs.find(j => j.jobId === data.jobId);
+        if (jobInList) {
+          jobInList.status       = data.status;
+          jobInList.accessories  = accessoriesStr;
+          jobInList.repairLevel  = data.repairLevel;
+        }
         renderAll();
+      }
+
+      if (!syncResult.ok) {
+        // Non-fatal — Drive save succeeded, sheet sync failed
+        showToast('success', 'Saved to Drive (sheet sync failed — ' + syncResult.error + ')');
+      } else {
+        showToast('success', 'Job sheet saved');
       }
     } else {
       showToast('error', 'Save failed: ' + result.error);
