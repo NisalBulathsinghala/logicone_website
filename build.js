@@ -29,6 +29,11 @@ dashboard = dashboard.replace('<!-- LO_CONFIG_PLACEHOLDER -->', configScript);
 fs.writeFileSync('dashboard.html', dashboard);
 console.log('dashboard.html built successfully.');
 
+let statusPage = fs.readFileSync('job-status.html', 'utf8');
+statusPage = statusPage.replace('<!-- LO_CONFIG_PLACEHOLDER -->', configScript);
+fs.writeFileSync('job-status.html', statusPage);
+console.log('job-status.html built successfully.');
+
 // Remove config.js from output if it exists (no longer needed)
 if (fs.existsSync('config.js')) {
   // Write empty placeholder so edge function has something to protect
