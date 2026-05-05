@@ -308,6 +308,31 @@
   #view-jobsheet, #jsScrollArea { overflow: visible; height: auto; }
   .js-card { box-shadow: none; page-break-inside: avoid; }
 }
+
+/* Save overlay */
+.js-save-overlay {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.82);
+  backdrop-filter: blur(3px);
+  display: none; align-items: center; justify-content: center;
+  flex-direction: column; gap: 14px;
+  z-index: 800; border-radius: inherit;
+  font-family: 'Inter', sans-serif;
+}
+.js-save-overlay.show { display: flex; }
+.js-save-overlay-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(0,180,216,0.15);
+  border-top-color: var(--accent, #00b4d8);
+  border-radius: 50%;
+  animation: lo-spin .7s linear infinite;
+}
+.js-save-overlay-msg {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  letter-spacing: 0.02em;
+}
+@keyframes lo-spin { to { transform: rotate(360deg); } }
   `;
   document.head.appendChild(style);
 
@@ -985,11 +1010,54 @@ function jsLoadFromData(data) {
   jsCalcCost();
 }
 
+// ── Save overlay ─────────────────────────────────────────────
+function jsSaveOverlayShow(msg) {
+  // Inject overlay into the jobsheet panel if not already there
+  const panel = document.getElementById('jobsheetPanel') || document.querySelector('.js-panel');
+  if (!panel) return;
+  if (!panel.style.position || panel.style.position === 'static') {
+    panel.style.position = 'relative';
+  }
+  let overlay = document.getElementById('jsSaveOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'jsSaveOverlay';
+    overlay.className = 'js-save-overlay';
+    overlay.innerHTML = `
+      <div class="js-save-overlay-spinner"></div>
+      <div class="js-save-overlay-msg" id="jsSaveOverlayMsg">${msg || 'Saving…'}</div>`;
+    panel.appendChild(overlay);
+  } else {
+    const msgEl = document.getElementById('jsSaveOverlayMsg');
+    if (msgEl) msgEl.textContent = msg || 'Saving…';
+  }
+  overlay.classList.add('show');
+}
+
+function jsSaveOverlayHide() {
+  const overlay = document.getElementById('jsSaveOverlay');
+  if (overlay) overlay.classList.remove('show');
+}
+
 async function jsSaveSheet() {
   const data = jsCollectData();
   const btn = document.getElementById('jsSaveBtn');
   btn.disabled = true;
-  btn.textContent = 'Saving…';
+  btn.innerHTML = `
+    <svg style="animation:lo-spin .7s linear infinite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+      <path d="M21 12a9 9 0 11-6.219-8.56"/>
+    </svg>
+    Saving…`;
+
+  // Show save overlay with cycling messages so it's clear something is happening
+  jsSaveOverlayShow('Saving to Drive…');
+  const _saveMessages = ['Saving to Drive…', 'Writing job sheet…', 'Syncing to sheet…'];
+  let _saveMsgIdx = 0;
+  const _saveMsgTimer = setInterval(() => {
+    _saveMsgIdx = (_saveMsgIdx + 1) % _saveMessages.length;
+    const el = document.getElementById('jsSaveOverlayMsg');
+    if (el) el.textContent = _saveMessages[_saveMsgIdx];
+  }, 2000);
 
   if (!cfg.appsScriptUrl) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1001,6 +1069,7 @@ async function jsSaveSheet() {
     const result = await callScript({ action: 'saveJobSheet', data: JSON.stringify(data) });
     if (result.ok) {
       jsSetSaveIndicator(true);
+      jsSaveOverlayHide();
 
       // Build the checklist string from ticked items for the Accessories column
       const tickedItems = [...document.querySelectorAll('.js-check-item input:checked')]
@@ -1046,10 +1115,13 @@ async function jsSaveSheet() {
         showToast('success', 'Job sheet saved');
       }
     } else {
+      jsSaveOverlayHide();
       showToast('error', 'Save failed: ' + result.error);
     }
   }
 
+  clearInterval(_saveMsgTimer);
+  jsSaveOverlayHide();
   btn.disabled = false;
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save to Drive';
 }

@@ -19,6 +19,58 @@
 (function () {
   'use strict';
 
+  // ── QR Code configuration ──────────────────────────────────────────────────
+  // BASE_URL: the public URL of your deployed site (no trailing slash).
+  // TOKEN_SECRET: MUST match the value in job-status.html exactly.
+  // The QR code encodes: BASE_URL/job-status.html?id=JOBID&t=TOKEN
+  const QR_BASE_URL    = 'https://logicone.com.au';          // ← update if different
+  const QR_TOKEN_SECRET = 'lo-status-2026';                  // ← change both files together
+
+  // ── Generate a short token for a job ID ────────────────────────────────────
+  async function generateStatusToken(jobId) {
+    const buf = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(QR_TOKEN_SECRET + ':' + jobId)
+    );
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0, 16);
+  }
+
+  // ── Lazy-load QR code library (idempotent) ─────────────────────────────────
+  let qrLoaded = false;
+  async function ensureQRLib() {
+    if (qrLoaded || typeof window.QRCode !== 'undefined') { qrLoaded = true; return; }
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
+    qrLoaded = true;
+  }
+
+  // ── Render QR code to canvas, return as PNG data URL ──────────────────────
+  async function generateQRDataUrl(url) {
+    await ensureQRLib();
+    return new Promise((resolve, reject) => {
+      const container = document.createElement('div');
+      container.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+      document.body.appendChild(container);
+      try {
+        const qr = new window.QRCode(container, {
+          text: url,
+          width: 160,
+          height: 160,
+          colorDark: '#0a1628',
+          colorLight: '#ffffff',
+          correctLevel: window.QRCode.CorrectLevel.M,
+        });
+        // QRCode.js renders synchronously into a canvas
+        const canvas = container.querySelector('canvas');
+        if (!canvas) { reject(new Error('QR canvas not found')); return; }
+        resolve(canvas.toDataURL('image/png'));
+      } catch(e) {
+        reject(e);
+      } finally {
+        setTimeout(() => { try { document.body.removeChild(container); } catch(_) {} }, 100);
+      }
+    });
+  }
+
   // ── Lazy-load jsPDF (idempotent — report-module may have already loaded it) ──
   let jsPDFLoaded = false;
   function loadScript(src) {
@@ -93,7 +145,7 @@
   }
 
   // ── Build the A5 vector PDF ────────────────────────────────────────────────
-  async function buildReceiptPdf(job) {
+  async function buildReceiptPdf(job, statusUrl) {
     await ensureJsPDF();
     const { jsPDF } = window.jspdf;
 
@@ -377,6 +429,51 @@
       y += totalH + 4;
     }
 
+    // ── QR CODE ──────────────────────────────────────────────────────────────
+    // Only render if we have a valid URL (i.e. config was set)
+    if (statusUrl) {
+      try {
+        const QR_SIZE_MM = 22;    // QR square size in mm
+        const QR_PAD     = 3;     // padding around QR
+
+        // Box dimensions
+        const boxW = QR_SIZE_MM + QR_PAD * 2 + 48; // QR + text beside it
+        const boxH = QR_SIZE_MM + QR_PAD * 2;
+        const boxX = MARGIN;
+        const boxY = y;
+
+        // Background box
+        setFill(C.bg);
+        setDraw(C.rule, 0.2);
+        pdf.rect(boxX, boxY, boxW, boxH, 'FD');
+
+        // QR image
+        const qrDataUrl = await generateQRDataUrl(statusUrl);
+        pdf.addImage(qrDataUrl, 'PNG', boxX + QR_PAD, boxY + QR_PAD, QR_SIZE_MM, QR_SIZE_MM, undefined, 'FAST');
+
+        // Text beside QR
+        const textX = boxX + QR_PAD + QR_SIZE_MM + 4;
+        const textMaxW = boxW - QR_SIZE_MM - QR_PAD * 2 - 6;
+        const textY = boxY + QR_PAD + 3;
+
+        setText(C.accentDeep, 7.5, 'bold');
+        pdf.text('TRACK YOUR REPAIR', textX, textY);
+
+        setText(C.inkSoft, 6.5, 'normal');
+        const scanLines = pdf.splitTextToSize('Scan this QR code with your phone to check the live status of your repair — no login required.', textMaxW);
+        pdf.text(scanLines, textX, textY + 4.5);
+
+        setText(C.inkMute, 5.5, 'normal');
+        pdf.text(`Job: ${job.jobId || '—'}`, textX, boxY + boxH - QR_PAD - 1.5);
+
+        y += boxH + 4;
+      } catch (qrErr) {
+        // QR generation failed — skip silently, don't break the receipt
+        console.warn('receipt: QR code skipped:', qrErr.message);
+        y += 2;
+      }
+    }
+
     // ── FOOTER ───────────────────────────────────────────────────────────────
     setText(C.inkMute, 5.5, 'normal');
     const footer = `Job ${job.jobId || '—'}  ·  ${fmtDateTime(new Date())}  ·  logicone.com.au`;
@@ -393,9 +490,18 @@
       return;
     }
 
+    // Generate status URL with token
+    let statusUrl = null;
+    try {
+      const token = await generateStatusToken(job.jobId);
+      statusUrl = `${QR_BASE_URL}/job-status.html?id=${encodeURIComponent(job.jobId)}&t=${token}`;
+    } catch(e) {
+      console.warn('receipt: token generation failed, QR will be skipped:', e.message);
+    }
+
     let pdf;
     try {
-      pdf = await buildReceiptPdf(job);
+      pdf = await buildReceiptPdf(job, statusUrl);
     } catch (e) {
       console.error('receipt build failed:', e);
       if (typeof showToast === 'function') showToast('error', 'Receipt build failed: ' + e.message);
@@ -455,7 +561,14 @@
   window.receiptDownload = async function (job) {
     if (!job || !job.jobId) return;
     try {
-      const pdf = await buildReceiptPdf(job);
+      let statusUrl = null;
+      try {
+        const token = await generateStatusToken(job.jobId);
+        statusUrl = `${QR_BASE_URL}/job-status.html?id=${encodeURIComponent(job.jobId)}&t=${token}`;
+      } catch(e) {
+        console.warn('receipt: token generation failed, QR skipped:', e.message);
+      }
+      const pdf = await buildReceiptPdf(job, statusUrl);
       pdf.save(`Intake-Receipt-${job.jobId}.pdf`);
     } catch (e) {
       console.error(e);

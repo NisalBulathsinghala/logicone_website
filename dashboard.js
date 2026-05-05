@@ -609,9 +609,12 @@ async function submitNewJob() {
     } else {
       // Sheet failed — show error inside modal, don't close
       const errDiv = document.getElementById('nJobError');
-      errDiv.textContent = 'Sheet sync failed: ' + result.error + '. Please try again.';
+      const isTimeout = result.error && result.error.includes('timed out');
+      errDiv.textContent = isTimeout
+        ? 'Apps Script timed out creating the Drive folder. The job may have been saved — check the sheet before trying again.'
+        : 'Sheet sync failed: ' + result.error + '. Please try again.';
       errDiv.style.display = 'block';
-      showToast('error', 'Failed to save to sheet — see error above');
+      showToast('error', isTimeout ? 'Drive folder creation timed out — check sheet before retrying' : 'Failed to save to sheet');
     }
   } else {
     // No Apps Script configured — add locally only
@@ -676,23 +679,49 @@ async function createZohoInvoice(job) {
 
 // ── callScript ────────────────────────────────────────────────
 // Sends data to Apps Script via GET + payload param.
-// Apps Script redirects to a googeapis.com URL — we follow it
+// Apps Script redirects to a googleapis.com URL — we follow it
 // and parse the JSON response to know if it actually worked.
-async function callScript(data) {
-  try {
-    const url = cfg.appsScriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(data));
-    const r = await fetch(url, { redirect: 'follow' });
-    const text = await r.text();
+//
+// addJob creates a Drive folder which can take 5-15s — we use a
+// longer timeout for that action and retry once on network errors.
+async function callScript(data, { timeoutMs, retries } = {}) {
+  // addJob does heavy Drive work — give it more time and one retry
+  const isHeavy = data.action === 'addJob';
+  const timeout = timeoutMs || (isHeavy ? 45000 : 25000);
+  const maxTries = retries != null ? retries : (isHeavy ? 2 : 1);
+
+  async function attempt() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const json = JSON.parse(text);
-      if (json.result === 'ok') return { ok: true, data: json.data || null };
-      return { ok: false, error: json.msg || json.result || 'Unknown error' };
-    } catch {
-      return { ok: false, error: 'Bad response: ' + text.substring(0, 120) };
+      const url = cfg.appsScriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(data));
+      const r = await fetch(url, { redirect: 'follow', signal: controller.signal });
+      clearTimeout(timer);
+      const text = await r.text();
+      try {
+        const json = JSON.parse(text);
+        if (json.result === 'ok') return { ok: true, data: json.data || null };
+        return { ok: false, error: json.msg || json.result || 'Unknown error' };
+      } catch {
+        return { ok: false, error: 'Bad response: ' + text.substring(0, 120) };
+      }
+    } catch (err) {
+      clearTimeout(timer);
+      const isAbort = err.name === 'AbortError';
+      return { ok: false, error: isAbort ? 'Request timed out — Apps Script took too long' : err.message, transient: true };
     }
-  } catch (err) {
-    return { ok: false, error: err.message };
   }
+
+  let result;
+  for (let i = 0; i < maxTries; i++) {
+    result = await attempt();
+    if (result.ok || !result.transient) break;
+    if (i < maxTries - 1) {
+      // Brief pause before retry
+      await new Promise(res => setTimeout(res, 2000));
+    }
+  }
+  return result;
 }
 
 function resetNewJobForm() {
