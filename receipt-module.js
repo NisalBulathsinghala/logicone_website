@@ -228,30 +228,48 @@
     pdf.text('Adelaide, South Australia', MARGIN, y + 20.5);
     pdf.text('info@logicone.com.au  ·  logicone.com.au', MARGIN, y + 24);
 
-    // Right: doc label + job ID + date
+    // ── Right column: REPAIR INTAKE label, Job ID, date, warranty badge ────────
+    const warrantyStr = String(job.warranty || '').toLowerCase().trim();
+    const isInWarranty = warrantyStr === 'in warranty' || warrantyStr === 'in-warranty';
+
+    // Pre-generate QR so we know if it's available before laying out the header
+    let qrDataUrl = null;
+    if (statusUrl) {
+      try { qrDataUrl = await generateQRDataUrl(statusUrl); } catch(e) {
+        console.warn('receipt: QR generation failed in header:', e.message);
+      }
+    }
+
+    // QR size — sits right-aligned in header, same column as job ID/date
+    const QR_SIZE_MM = 18;
+    const QR_PAD     = 1.5;
+    // QR x position: flush with right margin
+    const qrX = PAGE_W - MARGIN - QR_SIZE_MM;
+    const qrY = y + 1; // top of header
+
+    // Text column: everything right-aligned, left of QR if QR present
+    const rightEdge = qrDataUrl ? qrX - 3 : PAGE_W - MARGIN;
+
     setText(C.inkMute, 6.5, 'normal');
     const labelTxt = 'REPAIR INTAKE';
     const labelW = pdf.getTextWidth(labelTxt);
-    pdf.text(labelTxt, PAGE_W - MARGIN - labelW, y + 5);
+    pdf.text(labelTxt, rightEdge - labelW, y + 5);
 
     setText(C.accentDeep, 13, 'bold');
     const jobIdTxt = String(job.jobId || '—');
     const jobIdW = pdf.getTextWidth(jobIdTxt);
-    pdf.text(jobIdTxt, PAGE_W - MARGIN - jobIdW, y + 11);
+    pdf.text(jobIdTxt, rightEdge - jobIdW, y + 11);
 
     setText(C.inkSoft, 7, 'normal');
     const dateTxt = fmtDateTime(new Date());
     const dateW = pdf.getTextWidth(dateTxt);
-    pdf.text(dateTxt, PAGE_W - MARGIN - dateW, y + 16);
+    pdf.text(dateTxt, rightEdge - dateW, y + 16);
 
-    // ── Warranty status badge ───────────────────────────────────────────────
-    // Sits below the date, right-aligned. Green for in-warranty, amber for out.
-    const warrantyStr = String(job.warranty || '').toLowerCase().trim();
-    const isInWarranty = warrantyStr === 'in warranty' || warrantyStr === 'in-warranty';
+    // Warranty badge — right-aligned under date
     {
       const badgeText = isInWarranty ? 'IN WARRANTY' : 'OUT OF WARRANTY';
-      const badgeFill = isInWarranty ? [209, 250, 229] : [254, 243, 199]; // okSoft / warnSoft
-      const badgeInk  = isInWarranty ? [4, 120, 87]    : [180, 83, 9];    // ok / warn
+      const badgeFill = isInWarranty ? [209, 250, 229] : [254, 243, 199];
+      const badgeInk  = isInWarranty ? [4, 120, 87]    : [180, 83, 9];
 
       pdf.setFontSize(6.5);
       pdf.setFont('helvetica', 'bold');
@@ -259,17 +277,27 @@
       const textW = pdf.getTextWidth(badgeText);
       const badgeW = textW + padX * 2;
       const badgeH = 4.4;
-      const badgeX = PAGE_W - MARGIN - badgeW;
+      const badgeX = rightEdge - badgeW;
       const badgeY = y + 19;
 
       setFill(badgeFill);
       pdf.roundedRect(badgeX, badgeY, badgeW, badgeH, 0.8, 0.8, 'F');
-
       pdf.setTextColor(badgeInk[0], badgeInk[1], badgeInk[2]);
       pdf.text(badgeText, badgeX + padX, badgeY + badgeH - padY);
     }
 
-    y += 28;
+    // ── QR code in header (right side, top-aligned) ──────────────────────────
+    if (qrDataUrl) {
+      pdf.addImage(qrDataUrl, 'PNG', qrX, qrY, QR_SIZE_MM, QR_SIZE_MM, undefined, 'FAST');
+      // Tiny "scan to track" label under QR
+      setText(C.inkMute, 5, 'normal');
+      const scanTxt = 'Scan to track';
+      const scanW = pdf.getTextWidth(scanTxt);
+      pdf.text(scanTxt, qrX + (QR_SIZE_MM - scanW) / 2, qrY + QR_SIZE_MM + 2.5);
+    }
+
+    // Header height: taller when QR is present (needs room for 18mm QR + label)
+    y += qrDataUrl ? Math.max(28, QR_SIZE_MM + 6) : 28;
 
     // Header rule
     setDraw(C.accentDeep, 0.5);
@@ -427,51 +455,6 @@
         ty += w.height + 0.6;
       });
       y += totalH + 4;
-    }
-
-    // ── QR CODE ──────────────────────────────────────────────────────────────
-    // Only render if we have a valid URL (i.e. config was set)
-    if (statusUrl) {
-      try {
-        const QR_SIZE_MM = 22;    // QR square size in mm
-        const QR_PAD     = 3;     // padding around QR
-
-        // Box dimensions
-        const boxW = QR_SIZE_MM + QR_PAD * 2 + 48; // QR + text beside it
-        const boxH = QR_SIZE_MM + QR_PAD * 2;
-        const boxX = MARGIN;
-        const boxY = y;
-
-        // Background box
-        setFill(C.bg);
-        setDraw(C.rule, 0.2);
-        pdf.rect(boxX, boxY, boxW, boxH, 'FD');
-
-        // QR image
-        const qrDataUrl = await generateQRDataUrl(statusUrl);
-        pdf.addImage(qrDataUrl, 'PNG', boxX + QR_PAD, boxY + QR_PAD, QR_SIZE_MM, QR_SIZE_MM, undefined, 'FAST');
-
-        // Text beside QR
-        const textX = boxX + QR_PAD + QR_SIZE_MM + 4;
-        const textMaxW = boxW - QR_SIZE_MM - QR_PAD * 2 - 6;
-        const textY = boxY + QR_PAD + 3;
-
-        setText(C.accentDeep, 7.5, 'bold');
-        pdf.text('TRACK YOUR REPAIR', textX, textY);
-
-        setText(C.inkSoft, 6.5, 'normal');
-        const scanLines = pdf.splitTextToSize('Scan this QR code with your phone to check the live status of your repair — no login required.', textMaxW);
-        pdf.text(scanLines, textX, textY + 4.5);
-
-        setText(C.inkMute, 5.5, 'normal');
-        pdf.text(`Job: ${job.jobId || '—'}`, textX, boxY + boxH - QR_PAD - 1.5);
-
-        y += boxH + 4;
-      } catch (qrErr) {
-        // QR generation failed — skip silently, don't break the receipt
-        console.warn('receipt: QR code skipped:', qrErr.message);
-        y += 2;
-      }
     }
 
     // ── FOOTER ───────────────────────────────────────────────────────────────
