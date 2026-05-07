@@ -1013,7 +1013,7 @@ function jsLoadFromData(data) {
 // ── Save overlay ─────────────────────────────────────────────
 function jsSaveOverlayShow(msg) {
   // Inject overlay into the jobsheet panel if not already there
-  const panel = document.getElementById('jobsheetPanel') || document.querySelector('.js-panel');
+  const panel = document.getElementById('view-jobsheet') || document.getElementById('jobsheetPanel') || document.querySelector('.js-panel');
   if (!panel) return;
   if (!panel.style.position || panel.style.position === 'static') {
     panel.style.position = 'relative';

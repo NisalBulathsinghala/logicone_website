@@ -75,6 +75,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const kw = document.getElementById('kanbanWrapper');
   if (kw) {
     kw.addEventListener('scroll', kUpdateScrollBtns);
+    // Re-check whenever the wrapper is resized (sidebar collapse, window resize)
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => kUpdateScrollBtns()).observe(kw);
+    }
+    window.addEventListener('resize', kUpdateScrollBtns);
     // Initial state — left arrow hidden at start
     kUpdateScrollBtns();
   }
@@ -169,7 +174,7 @@ function buildBoard() {
 function renderAll() {
   renderKanban(); renderStats(); renderTable();
   document.getElementById('totalBadge').textContent = jobs.length;
-  setTimeout(kUpdateScrollBtns, 100);
+  setTimeout(kUpdateScrollBtns, 200);
 }
 
 function filtered() {
@@ -792,8 +797,11 @@ function kUpdateScrollBtns() {
   const l = document.getElementById('kScrollLeft');
   const r = document.getElementById('kScrollRight');
   if (!w || !l || !r) return;
-  l.classList.toggle('hidden', w.scrollLeft <= 4);
-  r.classList.toggle('hidden', w.scrollLeft >= w.scrollWidth - w.clientWidth - 4);
+  const canScrollLeft  = w.scrollLeft > 4;
+  const canScrollRight = w.scrollWidth > w.clientWidth + 4;
+  const atRight        = w.scrollLeft >= w.scrollWidth - w.clientWidth - 4;
+  l.classList.toggle('hidden', !canScrollLeft);
+  r.classList.toggle('hidden', !canScrollRight || atRight);
 }
 
 function switchView(v) {
@@ -808,6 +816,7 @@ function switchView(v) {
   const searchBar = document.querySelector('.search-bar');
   if (searchBar) searchBar.style.display = v === 'jobsheet' ? 'none' : '';
   if (v === 'jobsheet') jsRenderJobList();
+  if (v === 'kanban') setTimeout(kUpdateScrollBtns, 50);
   // Show/hide scroll arrow
   const arrow = document.getElementById('jsScrollArrow');
   if (arrow) arrow.classList.toggle('visible', v === 'jobsheet');
