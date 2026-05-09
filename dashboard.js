@@ -342,7 +342,7 @@ function showDetail(j) {
       icon: '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
       color: '#10b981',
       bg: 'rgba(16,185,129,0.08)',
-      text: `Hi ${firstName},\n\nGreat news! Your ${device} (Job No: ${j.jobId}) has been repaired and is ready for collection. Our workshop is open Mon–Fri 9am–5pm. Please bring this message as reference.\n\nThank you for choosing Logic One SA!\n\nLogic One SA`
+      text: `Hi ${firstName},\n\nGreat news! Your ${device} (Job No: ${j.jobId}) has been repaired and is ready for collection. Our workshop is open Mon–Fri 10am–5pm. Please bring this message as reference.\n\nThank you for choosing Logic One SA!`
     },
     {
       label: 'Cannot Repair',

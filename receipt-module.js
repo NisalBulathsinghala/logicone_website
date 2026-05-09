@@ -467,19 +467,21 @@
   }
 
   // ── Public: build, print, and save in parallel ─────────────────────────────
-  window.receiptGenerateAndPrint = async function (job) {
+  window.receiptGenerateAndPrint = async function (job, customerCopy) {
     if (!job || !job.jobId) {
       if (typeof showToast === 'function') showToast('error', 'No job data for receipt');
       return;
     }
 
-    // Generate status URL with token
+    // Generate status URL with token — skipped for customer copies
     let statusUrl = null;
-    try {
-      const token = await generateStatusToken(job.jobId);
-      statusUrl = `${QR_BASE_URL}/job-status.html?id=${encodeURIComponent(job.jobId)}&t=${token}`;
-    } catch(e) {
-      console.warn('receipt: token generation failed, QR will be skipped:', e.message);
+    if (!customerCopy) {
+      try {
+        const token = await generateStatusToken(job.jobId);
+        statusUrl = `${QR_BASE_URL}/job-status.html?id=${encodeURIComponent(job.jobId)}&t=${token}`;
+      } catch(e) {
+        console.warn('receipt: token generation failed, QR will be skipped:', e.message);
+      }
     }
 
     let pdf;
@@ -541,18 +543,21 @@
   };
 
   // ── Public: download only (no print, no Drive) ─────────────────────────────
-  window.receiptDownload = async function (job) {
+  window.receiptDownload = async function (job, customerCopy) {
     if (!job || !job.jobId) return;
     try {
       let statusUrl = null;
-      try {
-        const token = await generateStatusToken(job.jobId);
-        statusUrl = `${QR_BASE_URL}/job-status.html?id=${encodeURIComponent(job.jobId)}&t=${token}`;
-      } catch(e) {
-        console.warn('receipt: token generation failed, QR skipped:', e.message);
+      if (!customerCopy) {
+        try {
+          const token = await generateStatusToken(job.jobId);
+          statusUrl = `${QR_BASE_URL}/job-status.html?id=${encodeURIComponent(job.jobId)}&t=${token}`;
+        } catch(e) {
+          console.warn('receipt: token generation failed, QR skipped:', e.message);
+        }
       }
       const pdf = await buildReceiptPdf(job, statusUrl);
-      pdf.save(`Intake-Receipt-${job.jobId}.pdf`);
+      const suffix = customerCopy ? '-Customer' : '-Workshop';
+      pdf.save(`Intake-Receipt-${job.jobId}${suffix}.pdf`);
     } catch (e) {
       console.error(e);
       if (typeof showToast === 'function') showToast('error', 'Download failed: ' + e.message);
