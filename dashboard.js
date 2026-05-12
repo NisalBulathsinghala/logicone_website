@@ -552,7 +552,7 @@ async function submitNewJob() {
     jobId:      genId(now),
     ts:         fmtTimestamp(now),
     name:       document.getElementById('nName').value.trim(),
-    phone:      document.getElementById('nPhone').value.trim(),
+    phone:      String(document.getElementById('nPhone').value.trim()).replace(/^\+?61/, '0'),
     email:      document.getElementById('nEmail').value.trim(),
     address:    '',
     caseNo:     document.getElementById('nCase').value.trim(),
