@@ -1015,12 +1015,12 @@ function jsLoadFromData(data) {
 
 // ── Save overlay ─────────────────────────────────────────────
 function jsSaveOverlayShow(msg) {
-  // Inject overlay into the jobsheet panel if not already there
-  const panel = document.getElementById('jobsheetPanel') || document.querySelector('.js-panel');
-  if (!panel) return;
-  if (!panel.style.position || panel.style.position === 'static') {
-    panel.style.position = 'relative';
-  }
+  // Use a fixed overlay sized to the panel's bounding rect.
+  // This avoids clipping issues from overflow:hidden/auto on the panel.
+  const panel = document.getElementById('view-jobsheet') ||
+                document.getElementById('jobsheetPanel') ||
+                document.querySelector('.js-panel');
+
   let overlay = document.getElementById('jsSaveOverlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -1029,10 +1029,24 @@ function jsSaveOverlayShow(msg) {
     overlay.innerHTML = `
       <div class="js-save-overlay-spinner"></div>
       <div class="js-save-overlay-msg" id="jsSaveOverlayMsg">${msg || 'Saving…'}</div>`;
-    panel.appendChild(overlay);
+    document.body.appendChild(overlay);
   } else {
     const msgEl = document.getElementById('jsSaveOverlayMsg');
     if (msgEl) msgEl.textContent = msg || 'Saving…';
+  }
+
+  // Position overlay to cover the panel (or full viewport if no panel)
+  if (panel) {
+    const r = panel.getBoundingClientRect();
+    overlay.style.position = 'fixed';
+    overlay.style.top      = r.top  + 'px';
+    overlay.style.left     = r.left + 'px';
+    overlay.style.width    = r.width  + 'px';
+    overlay.style.height   = r.height + 'px';
+    overlay.style.inset    = '';
+  } else {
+    overlay.style.position = 'fixed';
+    overlay.style.inset    = '0';
   }
   overlay.classList.add('show');
 }

@@ -179,13 +179,33 @@ let _photoLoading     = false;
 
 // ── Init — called from jsOpenJob ─────────────────────────────
 window.jsPhotoInit = async function(job) {
-  _photoToken     = null;
-  _photoStageMap  = {};
-  _photoFolderIds = {};
-  _photoMedia     = {};
+  _photoToken      = null;
+  _photoStageMap   = {};
+  _photoFolderIds  = {};
+  _photoMedia      = {};
+  _photoCurrentTab = '01_Receiving Photos';
 
   const card = document.getElementById('jsPhotosCard');
   if (!card) return;
+
+  // Clear upload queue DOM from previous job
+  const queue = document.getElementById('jsPhotoQueue');
+  if (queue) { queue.innerHTML = ''; queue.style.display = 'none'; }
+
+  // Reset tabs to first tab
+  document.querySelectorAll('.js-photo-tab').forEach((t, i) => {
+    t.classList.toggle('active', i === 0);
+    const badge = t.querySelector('.js-photo-tab-count');
+    if (badge) badge.style.display = 'none';
+  });
+
+  // Clear media grid
+  const grid = document.getElementById('jsPhotoGrid');
+  if (grid) {
+    grid.querySelectorAll('.js-photo-thumb, .js-photo-grid-loading').forEach(el => el.remove());
+    const empty = document.getElementById('jsPhotoEmpty');
+    if (empty) empty.style.display = '';
+  }
 
   if (!job || !job.driveFolder || String(job.driveFolder).startsWith('ERROR')) {
     card.style.display = 'none';
@@ -266,24 +286,43 @@ async function jsPhotoLoadTab(folderName) {
         });
       }
     } else {
-      // Query Drive API directly using the OAuth token
-      const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
-        `'${folderId}' in parents and trashed=false`
-      )}&fields=files(id,name,mimeType,thumbnailLink,webViewLink)&orderBy=createdTime&key=`;
-      const r = await fetch(url, {
-        headers: { Authorization: 'Bearer ' + _photoToken }
-      });
-      if (r.ok) {
-        const data = await r.json();
-        _photoMedia[folderName] = (data.files || []).map(f => ({
-          id:        f.id,
-          name:      f.name,
-          mimeType:  f.mimeType || '',
-          thumbUrl:  f.thumbnailLink
-            ? f.thumbnailLink.replace('=s220', '=s400')
-            : `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`,
-          viewUrl:   f.webViewLink,
-        }));
+      // Query Drive API directly using the OAuth token (10s timeout)
+      const controller = new AbortController();
+      const fetchTimer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
+          `'${folderId}' in parents and trashed=false`
+        )}&fields=files(id,name,mimeType,thumbnailLink,webViewLink)&orderBy=createdTime`;
+        const r = await fetch(url, {
+          headers: { Authorization: 'Bearer ' + _photoToken },
+          signal: controller.signal,
+        });
+        clearTimeout(fetchTimer);
+        if (r.ok) {
+          const data = await r.json();
+          _photoMedia[folderName] = (data.files || []).map(f => {
+            const isVid = (f.mimeType || '').startsWith('video/');
+            return {
+              id:       f.id,
+              name:     f.name,
+              mimeType: f.mimeType || '',
+              // Videos often don't have thumbnailLink immediately — use generic icon fallback
+              thumbUrl: isVid
+                ? (f.thumbnailLink ? f.thumbnailLink.replace('=s220', '=s400') : null)
+                : (f.thumbnailLink
+                    ? f.thumbnailLink.replace('=s220', '=s400')
+                    : `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`),
+              viewUrl: f.webViewLink,
+            };
+          });
+        }
+      } catch (fetchErr) {
+        clearTimeout(fetchTimer);
+        if (fetchErr.name === 'AbortError') {
+          console.warn('Drive API timeout for', folderName, '— falling back to Apps Script');
+        } else {
+          throw fetchErr;
+        }
       }
     }
   } catch (e) { console.warn('jsPhotoLoadTab error:', e); }
@@ -305,15 +344,21 @@ function jsPhotoRenderGrid(folderName) {
   if (empty) empty.style.display = items.length ? 'none' : '';
 
   items.forEach(item => {
-    const isVideo = item.mimeType.startsWith('video/');
+    const isVideo = (item.mimeType || '').startsWith('video/');
     const div = document.createElement('div');
     div.className = 'js-photo-thumb';
     div.title = item.name;
-    div.innerHTML = `
-      <img src="${item.thumbUrl}" alt="${item.name}" loading="lazy"
-           onerror="this.src='https://drive.google.com/thumbnail?id=${item.id}&sz=w400'">
-      ${isVideo ? '<div class="js-photo-vid-badge">VIDEO</div>' : ''}
-      <div class="js-photo-thumb-label">${item.name}</div>`;
+    const noThumb = isVideo && !item.thumbUrl;
+    div.innerHTML = noThumb
+      ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg-hover,#f1f5f9);">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32" style="opacity:0.35"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+         </div>
+         <div class="js-photo-vid-badge">VIDEO</div>
+         <div class="js-photo-thumb-label">${item.name}</div>`
+      : `<img src="${item.thumbUrl}" alt="${item.name}" loading="lazy"
+              onerror="this.src='https://drive.google.com/thumbnail?id=${item.id}&sz=w400'">
+         ${isVideo ? '<div class="js-photo-vid-badge">VIDEO</div>' : ''}
+         <div class="js-photo-thumb-label">${item.name}</div>`;
     div.onclick = () => jsPhotoLightboxOpen(item);
     grid.appendChild(div);
   });
