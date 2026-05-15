@@ -595,7 +595,12 @@ async function submitNewJob() {
       // Sheet saved — now reload from sheet so card shows real data
       closeModal('newJobModal');
       resetNewJobForm();
-      showToast('success', '✓ ' + newJob.jobId + ' saved to sheet — reloading…');
+      if (result.data && result.data.warning) {
+        // Job saved but Drive folder creation failed — warn the user
+        showToast('warning', '⚠ ' + newJob.jobId + ' saved but Drive folder not created — check Apps Script logs');
+      } else {
+        showToast('success', '✓ ' + newJob.jobId + ' saved to sheet — reloading…');
+      }
       await fetchSheet(); // pulls fresh data including Drive folder URL
 
       // ── Auto-generate intake receipt (print + save to Drive) ─────────────
@@ -750,6 +755,8 @@ function showToast(type, msg) {
   toast.className = 'toast toast-' + type;
   if (type === 'success') {
     icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+  } else if (type === 'warning') {
+    icon.innerHTML = '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>';
   } else {
     icon.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
   }

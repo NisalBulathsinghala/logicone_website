@@ -628,5 +628,6 @@ body {
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.toast-success { background: #064e3b; border: 1px solid #059669; }
 .toast.toast-error { background: #7f1d1d; border: 1px solid #dc2626; }
+.toast.toast-warning { background: #78350f; border: 1px solid #d97706; }
 
 .toast svg { width: 17px; height: 17px; flex-shrink: 0; }
