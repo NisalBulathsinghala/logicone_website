@@ -218,10 +218,32 @@ window.jsPhotoInit = async function(job) {
     tab.onclick = () => jsPhotoSwitchTab(tab.dataset.folder);
   });
 
-  // Wire up drop zone
-  const dz  = document.getElementById('jsPhotoDropzone');
-  const inp = document.getElementById('jsPhotoInput');
+  // Wire up drop zone — clone to strip accumulated listeners from previous job opens.
+  // jsPhotoInit is called on every job open; without cloning, each open adds another
+  // listener layer causing files to upload N times (once per job opened).
+  let dz = document.getElementById('jsPhotoDropzone');
   if (dz) {
+    const freshDz = dz.cloneNode(true);
+    dz.parentNode.replaceChild(freshDz, dz);
+    dz = freshDz;
+  }
+  // Re-query input after clone (it's inside the drop zone)
+  let inp = document.getElementById('jsPhotoInput');
+  if (inp) {
+    const freshInp = inp.cloneNode(true);
+    inp.parentNode.replaceChild(freshInp, inp);
+    inp = freshInp;
+  }
+
+  if (dz && inp) {
+    let _dzClickLock = false;
+    const openPicker = () => {
+      if (_dzClickLock) return;
+      _dzClickLock = true;
+      inp.click();
+      setTimeout(() => { _dzClickLock = false; }, 1000);
+    };
+
     dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('dragover'); });
     dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
     dz.addEventListener('drop', e => {
@@ -230,10 +252,12 @@ window.jsPhotoInit = async function(job) {
     });
     dz.addEventListener('click', e => {
       if (e.target.classList.contains('js-photo-dz-btn')) return;
-      inp.click();
+      openPicker();
     });
+    const browseBtn = dz.querySelector('.js-photo-dz-btn');
+    if (browseBtn) browseBtn.onclick = e => { e.stopPropagation(); openPicker(); };
+    inp.addEventListener('change', () => jsPhotoHandleFiles([...inp.files]));
   }
-  if (inp) inp.addEventListener('change', () => jsPhotoHandleFiles([...inp.files]));
 
   // Get upload token + folder IDs
   jsPhotoShowGridLoading();
@@ -339,8 +363,8 @@ function jsPhotoRenderGrid(folderName) {
 
   const items = _photoMedia[folderName] || [];
 
-  // Remove old thumbs (keep empty placeholder)
-  grid.querySelectorAll('.js-photo-thumb').forEach(el => el.remove());
+  // Remove old thumbs and loading spinner
+  grid.querySelectorAll('.js-photo-thumb, .js-photo-grid-loading').forEach(el => el.remove());
   if (empty) empty.style.display = items.length ? 'none' : '';
 
   items.forEach(item => {
