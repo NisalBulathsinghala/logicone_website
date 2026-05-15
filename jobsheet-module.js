@@ -456,8 +456,11 @@ async function jsOpenJob(jobId) {
   jsOrderNums = [];
   window._jsRepairLevelCostOverride = null;
 
-  // Load costs.json from Drive (non-blocking — updates hints/costs when ready)
+  // Load costs.json from Drive (non-blocking)
   jsLoadCosts();
+
+  // Init photo/video upload panel (non-blocking)
+  if (typeof jsPhotoInit === 'function') jsPhotoInit(j);
 
   // Populate read-only intake fields immediately
   jsPopulateIntake(j);
@@ -1013,7 +1016,7 @@ function jsLoadFromData(data) {
 // ── Save overlay ─────────────────────────────────────────────
 function jsSaveOverlayShow(msg) {
   // Inject overlay into the jobsheet panel if not already there
-  const panel = document.getElementById('view-jobsheet') || document.getElementById('jobsheetPanel') || document.querySelector('.js-panel');
+  const panel = document.getElementById('jobsheetPanel') || document.querySelector('.js-panel');
   if (!panel) return;
   if (!panel.style.position || panel.style.position === 'static') {
     panel.style.position = 'relative';
