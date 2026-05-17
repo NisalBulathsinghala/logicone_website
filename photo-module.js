@@ -270,8 +270,15 @@ window.jsPhotoInit = async function(job) {
     }
   } catch (e) { /* non-fatal — uploads will be disabled */ }
 
-  // Load media list for current tab
-  await jsPhotoLoadTab(_photoCurrentTab);
+  // Load all four tabs in parallel so counts populate immediately on open.
+  // The active tab renders its grid; others just populate _photoMedia for counts.
+  const allFolders = [
+    '01_Receiving Photos',
+    '02_Inspection Photos',
+    '03_Testing Photos',
+    '04_Shipping Photos',
+  ];
+  await Promise.all(allFolders.map(folder => jsPhotoLoadTab(folder)));
 };
 
 // ── Tab switching ────────────────────────────────────────────
@@ -351,7 +358,8 @@ async function jsPhotoLoadTab(folderName) {
     }
   } catch (e) { console.warn('jsPhotoLoadTab error:', e); }
 
-  jsPhotoRenderGrid(folderName);
+  // Only render the grid for the currently active tab
+  if (folderName === _photoCurrentTab) jsPhotoRenderGrid(folderName);
   jsPhotoUpdateTabCounts();
 }
 
