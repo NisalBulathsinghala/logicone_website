@@ -552,7 +552,7 @@ async function submitNewJob() {
     jobId:      genId(now),
     ts:         fmtTimestamp(now),
     name:       document.getElementById('nName').value.trim(),
-    phone:      String(document.getElementById('nPhone').value.trim()).replace(/^\+?61/, '0'),
+    phone:      document.getElementById('nPhone').value.trim(),
     email:      document.getElementById('nEmail').value.trim(),
     address:    '',
     caseNo:     document.getElementById('nCase').value.trim(),
@@ -592,22 +592,32 @@ async function submitNewJob() {
     });
 
     if (result.ok) {
-      // Sheet saved — now reload from sheet so card shows real data
       closeModal('newJobModal');
       resetNewJobForm();
-      if (result.data && result.data.warning) {
-        // Job saved but Drive folder creation failed — warn the user
-        showToast('warning', '⚠ ' + newJob.jobId + ' saved but Drive folder not created — check Apps Script logs');
-      } else {
-        showToast('success', '✓ ' + newJob.jobId + ' saved to sheet — reloading…');
-      }
-      await fetchSheet(); // pulls fresh data including Drive folder URL
+      showToast('success', '✓ ' + newJob.jobId + ' saved — creating Drive folder…');
 
-      // ── Auto-generate intake receipt (print + save to Drive) ─────────────
-      // Use the freshly-loaded job so we have the Drive folder URL.
+      // Phase 2: create Drive folder as a separate call to avoid timeout
+      const folderResult = await callScript({
+        action:     'createFolder',
+        jobId:      newJob.jobId,
+        jobRow:     result.data && result.data.jobRow,
+        fullName:   newJob.name,
+        brand:      newJob.brand,
+        model:      newJob.model,
+        caseNumber: newJob.caseNo,
+      });
+
+      if (folderResult.ok) {
+        showToast('success', '✓ Drive folder ready');
+      } else {
+        showToast('warning', '⚠ Job saved but Drive folder failed — use createMissingFolder script');
+      }
+
+      await fetchSheet(); // now picks up the Drive Folder URL
+
+      // ── Auto-generate intake receipt once Drive folder is ready ──────────
       if (typeof window.receiptGenerateAndPrint === 'function') {
         const savedJob = jobs.find(j => j.jobId === newJob.jobId) || newJob;
-        // Fire-and-forget — don't block the UI
         window.receiptGenerateAndPrint(savedJob);
       }
 
@@ -755,8 +765,6 @@ function showToast(type, msg) {
   toast.className = 'toast toast-' + type;
   if (type === 'success') {
     icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
-  } else if (type === 'warning') {
-    icon.innerHTML = '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>';
   } else {
     icon.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
   }
