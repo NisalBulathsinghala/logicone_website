@@ -702,12 +702,11 @@ async function createZohoInvoice(job) {
 // Apps Script redirects to a googleapis.com URL — we follow it
 // and parse the JSON response to know if it actually worked.
 //
-// addJob creates a Drive folder which can take 5-15s — we use a
-// longer timeout for that action and retry once on network errors.
+// createFolder creates 6 Drive subfolders and can take 15-20s.
+// It gets a 50s timeout and one retry. All other actions get 25s.
 async function callScript(data, { timeoutMs, retries } = {}) {
-  // addJob does heavy Drive work — give it more time and one retry
-  const isHeavy = data.action === 'addJob';
-  const timeout = timeoutMs || (isHeavy ? 45000 : 25000);
+  const isHeavy  = data.action === 'createFolder';
+  const timeout  = timeoutMs || (isHeavy ? 50000 : 25000);
   const maxTries = retries != null ? retries : (isHeavy ? 2 : 1);
 
   async function attempt() {
