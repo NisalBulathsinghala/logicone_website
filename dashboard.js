@@ -713,8 +713,14 @@ async function callScript(data, { timeoutMs, retries } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const url = cfg.appsScriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(data));
-      const r = await fetch(url, { redirect: 'follow', signal: controller.signal });
+      const body = JSON.stringify(data);
+      const r = await fetch(cfg.appsScriptUrl, {
+        method: 'POST',
+        redirect: 'follow',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'text/plain' },
+        body: body,
+      });
       clearTimeout(timer);
       const text = await r.text();
       try {
