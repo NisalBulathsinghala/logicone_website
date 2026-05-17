@@ -596,8 +596,11 @@ async function submitNewJob() {
       resetNewJobForm();
       showToast('success', '✓ ' + newJob.jobId + ' saved — creating Drive folder…');
 
-      // Phase 2: create Drive folder as a separate call to avoid timeout
-      const folderResult = await callScript({
+      // Phase 2: trigger Drive folder creation — fire and forget so the
+      // browser never waits on it. Apps Script creates the folder and writes
+      // the URL to the sheet in the background. We poll the sheet after a
+      // short delay to pick up the URL once it's ready.
+      const folderPayload = {
         action:     'createFolder',
         jobId:      newJob.jobId,
         jobRow:     result.data && result.data.jobRow,
@@ -605,15 +608,24 @@ async function submitNewJob() {
         brand:      newJob.brand,
         model:      newJob.model,
         caseNumber: newJob.caseNo,
-      });
-
-      if (folderResult.ok) {
-        showToast('success', '✓ Drive folder ready');
+      };
+      // Use navigator.sendBeacon for true fire-and-forget (no CORS wait)
+      // Fall back to fetch with no-cors if sendBeacon unavailable
+      const folderUrl = cfg.appsScriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(folderPayload));
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(folderUrl);
       } else {
-        showToast('warning', '⚠ Job saved but Drive folder failed: ' + (folderResult.error || 'unknown error'));
+        fetch(folderUrl, { redirect: 'follow', mode: 'no-cors' }).catch(() => {});
       }
 
-      await fetchSheet(); // now picks up the Drive Folder URL
+      // Reload immediately so the job appears in the kanban
+      await fetchSheet();
+
+      // Poll once after 20s to pick up the Drive Folder URL once folder is created
+      setTimeout(async () => {
+        await fetchSheet();
+        showToast('success', '✓ Drive folder ready');
+      }, 20000);
 
       // ── Auto-generate intake receipt once Drive folder is ready ──────────
       if (typeof window.receiptGenerateAndPrint === 'function') {
@@ -713,14 +725,8 @@ async function callScript(data, { timeoutMs, retries } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const body = JSON.stringify(data);
-      const r = await fetch(cfg.appsScriptUrl, {
-        method: 'POST',
-        redirect: 'follow',
-        signal: controller.signal,
-        headers: { 'Content-Type': 'text/plain' },
-        body: body,
-      });
+      const url = cfg.appsScriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(data));
+      const r = await fetch(url, { redirect: 'follow', signal: controller.signal });
       clearTimeout(timer);
       const text = await r.text();
       try {
