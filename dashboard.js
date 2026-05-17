@@ -610,7 +610,7 @@ async function submitNewJob() {
       if (folderResult.ok) {
         showToast('success', '✓ Drive folder ready');
       } else {
-        showToast('warning', '⚠ Job saved but Drive folder failed — use createMissingFolder script');
+        showToast('warning', '⚠ Job saved but Drive folder failed: ' + (folderResult.error || 'unknown error'));
       }
 
       await fetchSheet(); // now picks up the Drive Folder URL
@@ -631,10 +631,10 @@ async function submitNewJob() {
       const errDiv = document.getElementById('nJobError');
       const isTimeout = result.error && result.error.includes('timed out');
       errDiv.textContent = isTimeout
-        ? 'Apps Script timed out creating the Drive folder. The job may have been saved — check the sheet before trying again.'
+        ? 'Request timed out. The job may have been saved — check the sheet before trying again.'
         : 'Sheet sync failed: ' + result.error + '. Please try again.';
       errDiv.style.display = 'block';
-      showToast('error', isTimeout ? 'Drive folder creation timed out — check sheet before retrying' : 'Failed to save to sheet');
+      showToast('error', isTimeout ? 'Request timed out — check sheet before retrying' : 'Failed to save to sheet: ' + result.error);
     }
   } else {
     // No Apps Script configured — add locally only
@@ -706,7 +706,7 @@ async function createZohoInvoice(job) {
 // It gets a 50s timeout and one retry. All other actions get 25s.
 async function callScript(data, { timeoutMs, retries } = {}) {
   const isHeavy  = data.action === 'createFolder';
-  const timeout  = timeoutMs || (isHeavy ? 50000 : 25000);
+  const timeout  = timeoutMs || (isHeavy ? 55000 : 25000);
   const maxTries = retries != null ? retries : (isHeavy ? 2 : 1);
 
   async function attempt() {
