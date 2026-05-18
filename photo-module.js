@@ -207,7 +207,9 @@ window.jsPhotoInit = async function(job) {
     if (empty) empty.style.display = '';
   }
 
-  if (!job || !job.driveFolder || String(job.driveFolder).startsWith('ERROR')) {
+  const df = String(job.driveFolder || '').trim();
+  const hasValidFolder = df.length > 0 && !df.startsWith('ERROR') && df.includes('drive.google.com');
+  if (!job || !hasValidFolder) {
     card.style.display = 'none';
     return;
   }
@@ -287,6 +289,9 @@ window.jsPhotoSwitchTab = async function(folderName) {
   document.querySelectorAll('.js-photo-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.folder === folderName);
   });
+  // Clear upload queue when switching tabs
+  const queue = document.getElementById('jsPhotoQueue');
+  if (queue) { queue.innerHTML = ''; queue.style.display = 'none'; }
   await jsPhotoLoadTab(folderName);
 };
 
