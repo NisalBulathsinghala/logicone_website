@@ -33,7 +33,7 @@ const HMAP = {
   'when did it start?':'whenStarted','when did it start':'whenStarted',
   'repaired before?':'repairedBefore','repaired before':'repairedBefore',
   'known issues':'knownIssues',
-  'warranty status':'warranty','receive method':'receiveMethod',
+  'warranty status':'warranty',
   'job id':'jobId','status':'status','drive folder':'driveFolder',
   'status timestamps':'statusTimestamps',
 };
@@ -222,7 +222,6 @@ function mkCard(j) {
     <div class="card-tags">
       ${j.deviceType ? `<span class="tag-sm tag-type">${j.deviceType}</span>` : ''}
       <span class="tag-sm ${wtc}">${wt}</span>
-      ${j.receiveMethod === 'Courier' ? `<span class="tag-sm tag-courier">📦 Courier</span>` : ''}
     </div>
     ${caseH}
     <div class="card-issue">${j.issue||'—'}</div>
@@ -302,21 +301,49 @@ function showDetail(j) {
     ['Customer', j.name], ['Phone', j.phone],
     ['Email', j.email], ['Address', j.address],
     ['Issue', j.issue, false, true],
-    ['Warranty Status', j.warranty], ['Receive Method', j.receiveMethod || '—'], ['Repaired Before', j.repairedBefore],
+    ['Warranty Status', j.warranty], ['Receive Method', j.receiveMethod],
+    ['Repaired Before', j.repairedBefore],
     ['When Started', j.whenStarted], ['Known Issues', j.knownIssues],
     ['Accessories', j.accessories],
     ['Status', j.status], ['Date In', fmtDate(j.ts)],
   ];
 
-  let h = '<div class="d-grid">';
+  // ── Top action bar ──────────────────────────────────────────
+  let h = '<div class="d-action-bar">';
+  if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
+    h += `<a href="${j.driveFolder}" target="_blank" class="d-action-btn" title="Open Drive Folder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> Drive</a>`;
+  }
+  h += `<button class="d-action-btn" onclick="jsOpenJobFromDetail('${j.jobId}');closeModal('detailModal');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Job Sheet</button>`;
+  h += `<button class="d-action-btn" onclick="reprintReceipt('${j.jobId}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Receipt</button>`;
+  h += `<div class="d-action-status"><select id="dSel" class="d-status-sel">`;
+  COLS.forEach(c => { h += `<option value="${c.id}" ${c.id === j.status ? 'selected' : ''}>${c.label}</option>`; });
+  h += `</select><button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="moveFromDetail('${j.jobId}')">Update</button></div>`;
+  h += '</div>';
+
+  // ── Info grid ───────────────────────────────────────────────
+  h += '<div class="d-grid">';
   fields.forEach(([lbl, val, mono, full]) => {
     if (!val) return;
     h += `<div class="d-item ${full ? 'd-full' : ''}"><label>${lbl}</label><div class="d-val ${mono ? 'd-mono' : ''}">${val}</div></div>`;
   });
   h += '</div>';
 
+  // ── Photos section ──────────────────────────────────────────
   if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
-    h += `<div style="margin-top:16px;"><a href="${j.driveFolder}" target="_blank" class="btn btn-secondary" style="text-decoration:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> Open Drive Folder</a></div>`;
+    h += `<div class="d-photos-section" id="dPhotosSection">
+      <div class="d-photos-header">
+        <span>Photos</span>
+        <div class="d-photo-tabs">
+          <button class="d-photo-tab active" data-folder="01_Receiving Photos" onclick="dLoadPhotoTab(this,'${j.driveFolder}')">Receiving</button>
+          <button class="d-photo-tab" data-folder="02_Inspection Photos" onclick="dLoadPhotoTab(this,'${j.driveFolder}')">Inspection</button>
+          <button class="d-photo-tab" data-folder="03_Testing Photos" onclick="dLoadPhotoTab(this,'${j.driveFolder}')">Testing</button>
+          <button class="d-photo-tab" data-folder="04_Shipping Photos" onclick="dLoadPhotoTab(this,'${j.driveFolder}')">Shipping</button>
+        </div>
+      </div>
+      <div class="d-photo-grid" id="dPhotoGrid">
+        <div class="d-photo-loading"><div class="d-photo-spinner"></div><span>Loading photos…</span></div>
+      </div>
+    </div>`;
   }
 
   // ── SMS Templates ───────────────────────────────────────────
@@ -388,18 +415,122 @@ function showDetail(j) {
   // Store templates for copy function
   window._smsTemplates = SMS_TEMPLATES;
 
-  let fh = `<div style="display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap;"><span style="font-size:12px;color:var(--text-secondary);font-weight:600;">Move to:</span><select id="dSel" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Inter',sans-serif;">`;
-  COLS.forEach(c => { fh += `<option value="${c.id}" ${c.id === j.status ? 'selected' : ''}>${c.label}</option>`; });
-  fh += `</select><button class="btn btn-primary" onclick="moveFromDetail('${j.jobId}')">Update</button></div>`;
-
-  // Zoho invoice button removed
-
-  fh += `<button class="btn btn-secondary" onclick="reprintReceipt('${j.jobId}')" title="Print intake receipt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print Receipt</button>`;
-  fh += `<button class="btn btn-secondary" onclick="jsOpenJobFromDetail('${j.jobId}');closeModal('detailModal');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Job Sheet</button>`;
-  document.getElementById('dFoot').innerHTML = fh;
+  // Footer — just close button now; all actions moved to top action bar
+  document.getElementById('dFoot').innerHTML = `<button class="btn btn-secondary" onclick="closeModal('detailModal')">Close</button>`;
 
   openModal('detailModal');
+
+  // Auto-load first photo tab if drive folder exists
+  if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
+    const firstTab = document.querySelector('#dPhotosSection .d-photo-tab');
+    if (firstTab) dLoadPhotoTab(firstTab, j.driveFolder);
+  }
 }
+
+// ── Detail modal photo loader ────────────────────────────────
+let _dPhotoCache = {}; // driveFolder+folder → [{id,name,mimeType,thumbUrl}]
+
+async function dLoadPhotoTab(tabEl, driveFolder) {
+  // Update active tab
+  tabEl.closest('.d-photo-tabs').querySelectorAll('.d-photo-tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+
+  const folderName = tabEl.dataset.folder;
+  const cacheKey   = driveFolder + '|' + folderName;
+  const grid       = document.getElementById('dPhotoGrid');
+  if (!grid) return;
+
+  // Show loading
+  grid.innerHTML = '<div class="d-photo-loading"><div class="d-photo-spinner"></div><span>Loading photos…</span></div>';
+
+  // Use cache if available
+  if (_dPhotoCache[cacheKey]) {
+    dRenderPhotoGrid(grid, _dPhotoCache[cacheKey]);
+    return;
+  }
+
+  try {
+    // Try via Drive API using token from photo module
+    const token = typeof _photoToken !== 'undefined' && _photoToken;
+    const fid   = typeof _photoFolderIds !== 'undefined' && _photoFolderIds[folderName];
+
+    if (token && fid) {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 10000);
+      const r = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${fid}' in parents and trashed=false`)}&fields=files(id,name,mimeType,thumbnailLink,webViewLink)&orderBy=createdTime`,
+        { headers: { Authorization: 'Bearer ' + token }, signal: controller.signal }
+      );
+      clearTimeout(t);
+      if (r.ok) {
+        const data = await r.json();
+        const items = (data.files || []).map(f => ({
+          id: f.id, name: f.name, mimeType: f.mimeType || '',
+          thumbUrl: f.thumbnailLink ? f.thumbnailLink.replace('=s220','=s400')
+                    : `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`,
+          viewUrl: f.webViewLink,
+        }));
+        _dPhotoCache[cacheKey] = items;
+        dRenderPhotoGrid(grid, items);
+        return;
+      }
+    }
+
+    // Fallback: Apps Script listPhotos (returns all subfolders at once)
+    const res = await callScript({ action: 'listPhotos', driveFolder });
+    if (res.ok && res.data) {
+      const items = res.data
+        .filter(f => f.subfolder === folderName)
+        .map(f => ({ id: f.id, name: f.name, mimeType: '', thumbUrl: f.thumbUrl || `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`, viewUrl: '' }));
+      _dPhotoCache[cacheKey] = items;
+      dRenderPhotoGrid(grid, items);
+    } else {
+      grid.innerHTML = '<div class="d-photo-empty">Could not load photos</div>';
+    }
+  } catch (e) {
+    grid.innerHTML = '<div class="d-photo-empty">Could not load photos</div>';
+  }
+}
+
+function dRenderPhotoGrid(grid, items) {
+  if (!items.length) {
+    grid.innerHTML = '<div class="d-photo-empty">No photos in this stage yet</div>';
+    return;
+  }
+  grid.innerHTML = items.map(item => {
+    const isVideo = (item.mimeType || '').startsWith('video/');
+    return `<div class="d-photo-thumb" onclick="dOpenLightbox('${item.id}','${item.name.replace(/'/g,"\'")}','${item.mimeType || ''}','${item.viewUrl || ''}','${item.thumbUrl}')" title="${item.name}">
+      ${isVideo && !item.thumbUrl
+        ? `<div class="d-photo-vid-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg></div>`
+        : `<img src="${item.thumbUrl}" alt="${item.name}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=d-photo-vid-icon>?</div>'">`
+      }
+      ${isVideo ? '<div class="d-photo-vid-badge">VIDEO</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function dOpenLightbox(id, name, mimeType, viewUrl, thumbUrl) {
+  if (mimeType.startsWith('video/')) {
+    window.open(viewUrl || `https://drive.google.com/file/d/${id}/view`, '_blank');
+    return;
+  }
+  // Reuse the photo module lightbox if available
+  if (typeof jsPhotoLightboxOpen === 'function') {
+    jsPhotoLightboxOpen({ id, name, mimeType, viewUrl, thumbUrl });
+  } else {
+    window.open(`https://drive.google.com/file/d/${id}/view`, '_blank');
+  }
+}
+
+// Clear photo cache when detail modal closes so fresh data loads next open
+const _origCloseModal = window.closeModal;
+window.closeModal = function(id) {
+  if (id === 'detailModal') _dPhotoCache = {};
+  if (_origCloseModal) _origCloseModal(id);
+};
+
+// ── Load first tab when detail opens ─────────────────────────
+const _origShowDetail = window.showDetail;
 
 async function copySms(index, jobId) {
   const template = window._smsTemplates[index];
@@ -563,8 +694,7 @@ async function submitNewJob() {
     serial:     document.getElementById('nSerial').value.trim(),
     accessories: accs.join(', '),
     issue:      document.getElementById('nIssue').value.trim(),
-    warranty:       document.getElementById('nWarranty').value,
-    receiveMethod:  document.getElementById('nReceiveMethod').value,
+    warranty:   document.getElementById('nWarranty').value,
     repairedBefore: document.getElementById('nRepaired').value,
     whenStarted: '', knownIssues: '',
     status:     'Intake',
@@ -589,41 +719,26 @@ async function submitNewJob() {
       accessories:    newJob.accessories,
       issue:          newJob.issue,
       warranty:       newJob.warranty,
-      repairedBefore:  newJob.repairedBefore,
-      receiveMethod:  newJob.receiveMethod,
+      repairedBefore: newJob.repairedBefore,
       status:         'Intake',
     });
 
     if (result.ok) {
+      // Sheet saved — now reload from sheet so card shows real data
       closeModal('newJobModal');
       resetNewJobForm();
+      showToast('success', '✓ ' + newJob.jobId + ' saved to sheet — reloading…');
+      await fetchSheet(); // pulls fresh data including Drive folder URL
 
-      const driveFolder = result.data && result.data.driveFolder;
-      if (driveFolder) {
-        showToast('success', '✓ ' + newJob.jobId + ' created');
-      } else {
-        // Folder creation failed inline — retry via sendBeacon (fire and forget)
-        showToast('warning', '✓ ' + newJob.jobId + ' saved — Drive folder creation failed, retrying…');
-        const retryPayload = JSON.stringify({
-          action: 'createFolder', jobId: newJob.jobId,
-          jobRow: result.data && result.data.jobRow,
-          fullName: newJob.name, brand: newJob.brand,
-          model: newJob.model, caseNumber: newJob.caseNo,
-        });
-        const retryUrl = cfg.appsScriptUrl + '?payload=' + encodeURIComponent(retryPayload);
-        if (navigator.sendBeacon) navigator.sendBeacon(retryUrl);
-        else fetch(retryUrl, { redirect: 'follow', mode: 'no-cors' }).catch(() => {});
-      }
-
-      await fetchSheet();
-
-      // ── Auto-generate intake receipt ──────────────────────────────────────
+      // ── Auto-generate intake receipt (print + save to Drive) ─────────────
+      // Use the freshly-loaded job so we have the Drive folder URL.
       if (typeof window.receiptGenerateAndPrint === 'function') {
         const savedJob = jobs.find(j => j.jobId === newJob.jobId) || newJob;
+        // Fire-and-forget — don't block the UI
         window.receiptGenerateAndPrint(savedJob);
       }
 
-      // ── If out-of-warranty, open detail modal ─────────────────────────────
+      // ── If out-of-warranty, open detail modal so Zoho button is visible ──
       if (newJob.warranty === 'Out of Warranty') {
         const saved = jobs.find(j => j.jobId === newJob.jobId) || newJob;
         showDetail(saved);
@@ -754,7 +869,6 @@ function resetNewJobForm() {
   document.getElementById('nBrand').value = '';
   document.getElementById('nBrand').classList.remove('field-err');
   document.getElementById('nWarranty').value = 'In Warranty';
-  document.getElementById('nReceiveMethod').value = 'Local Drop-off';
   document.getElementById('nRepaired').value = 'No';
   document.querySelectorAll('#newJobModal .cb-group input').forEach(cb => cb.checked = false);
   document.getElementById('nJobError').style.display = 'none';
