@@ -643,10 +643,25 @@ body {
   border: 1.5px solid var(--border); background: var(--bg-card);
   font-size: 12px; font-weight: 600; color: var(--text-primary);
   cursor: pointer; font-family: 'Inter', sans-serif;
-  text-decoration: none; transition: border-color 0.15s, background 0.15s;
+  text-decoration: none; transition: all 0.15s;
   white-space: nowrap;
 }
-.d-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+/* Job Sheet — blue */
+.d-btn-jobsheet {
+  background: #0ea5e9; border-color: #0ea5e9; color: #fff;
+}
+.d-btn-jobsheet:hover { background: #0284c7; border-color: #0284c7; color: #fff; }
+/* Drive — green */
+.d-btn-drive {
+  background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.4); color: #059669;
+}
+.d-btn-drive:hover { background: rgba(16,185,129,0.2); border-color: #10b981; color: #047857; }
+/* Receipt — amber */
+.d-btn-receipt {
+  background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.4); color: #d97706;
+}
+.d-btn-receipt:hover { background: rgba(245,158,11,0.2); border-color: #f59e0b; color: #b45309; }
+
 .d-action-status { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .d-status-sel {
   padding: 6px 10px; border: 1.5px solid var(--border);
@@ -654,6 +669,14 @@ body {
   font-family: 'Inter', sans-serif; color: var(--text-primary);
   background: var(--bg-input, #fff); outline: none;
 }
+/* Update button — purple */
+.d-btn-update {
+  padding: 6px 14px; border-radius: var(--radius-sm);
+  background: #7c3aed; border: 1.5px solid #7c3aed; color: #fff;
+  font-size: 12px; font-weight: 700; font-family: 'Orbitron', sans-serif;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap; letter-spacing: 0.03em;
+}
+.d-btn-update:hover { background: #6d28d9; border-color: #6d28d9; }
 
 /* ── Detail modal photos ─────────────────────────────────── */
 .d-photos-section {

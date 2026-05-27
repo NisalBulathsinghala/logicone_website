@@ -359,7 +359,8 @@
       ['Device Type',   job.deviceType],
       ['Serial Number', job.serial],
       ['Case Number',   job.caseNo],
-      ['Warranty',      job.warranty],
+      ['Warranty',        job.warranty],
+      ['Receive Method',  job.receiveMethod || 'Local Drop-off'],
       ['Repaired Before', job.repairedBefore],
     ]);
     y += 2;

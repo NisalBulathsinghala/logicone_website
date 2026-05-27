@@ -293,6 +293,8 @@ function renderTable() {
 // DETAIL
 // ============================================================
 function showDetail(j) {
+  // Clear photo cache on every open so stale photos from previous job don't show
+  _dPhotoCache = {};
   document.getElementById('dTitle').textContent = j.jobId || 'Job Details';
   const fields = [
     ['Job ID', j.jobId, true], ['Case Number', j.caseNo, true],
@@ -310,14 +312,18 @@ function showDetail(j) {
 
   // ── Top action bar ──────────────────────────────────────────
   let h = '<div class="d-action-bar">';
+  // 1. Job Sheet — primary blue
+  h += `<button class="d-action-btn d-btn-jobsheet" onclick="jsOpenJobFromDetail('${j.jobId}');closeModal('detailModal');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Job Sheet</button>`;
+  // 2. Drive Folder — green (only if available)
   if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
-    h += `<a href="${j.driveFolder}" target="_blank" class="d-action-btn" title="Open Drive Folder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> Drive</a>`;
+    h += `<a href="${j.driveFolder}" target="_blank" class="d-action-btn d-btn-drive" title="Open Drive Folder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> Drive</a>`;
   }
-  h += `<button class="d-action-btn" onclick="jsOpenJobFromDetail('${j.jobId}');closeModal('detailModal');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Job Sheet</button>`;
-  h += `<button class="d-action-btn" onclick="reprintReceipt('${j.jobId}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Receipt</button>`;
+  // 3. Print Receipt — amber
+  h += `<button class="d-action-btn d-btn-receipt" onclick="reprintReceipt('${j.jobId}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Receipt</button>`;
+  // 4. Status selector — pushed to the right
   h += `<div class="d-action-status"><select id="dSel" class="d-status-sel">`;
   COLS.forEach(c => { h += `<option value="${c.id}" ${c.id === j.status ? 'selected' : ''}>${c.label}</option>`; });
-  h += `</select><button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="moveFromDetail('${j.jobId}')">Update</button></div>`;
+  h += `</select><button class="d-btn-update" onclick="moveFromDetail('${j.jobId}')">Update</button></div>`;
   h += '</div>';
 
   // ── Info grid ───────────────────────────────────────────────
