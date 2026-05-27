@@ -337,7 +337,7 @@
           </div>
         </div>
 
-        <!-- Status + History (combined) -->
+        <!-- Status -->
         <div class="js-card">
           <div class="js-card-title">Job Status</div>
           <div class="js-status-flow" id="jsStatusFlow">
@@ -348,10 +348,6 @@
             <div class="js-status-pill" onclick="jsSetStatus(this)">Testing</div>
             <div class="js-status-pill" onclick="jsSetStatus(this)">Complete</div>
             <div class="js-status-pill js-done" onclick="jsSetStatus(this)">Collected</div>
-          </div>
-          <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--border);">
-            <div class="js-card-title" style="margin-bottom:12px;">Status History</div>
-            <div class="js-timeline" id="jsTimeline"></div>
           </div>
         </div>
 
@@ -371,25 +367,10 @@
           <div id="jsZohoStatus" style="margin-top:12px;font-size:12px;color:var(--text-secondary);display:none;"></div>
         </div>
 
-        <!-- Photos & Videos -->
-        <div class="js-card" id="jsPhotosCard" style="margin-bottom:40px;">
-          <div class="js-card-title" style="margin-bottom:16px;">Photos &amp; Videos</div>
-          <div class="js-photo-tabs" id="jsPhotoTabs">
-            <button class="js-photo-tab active" data-stage="Intake"     data-folder="01_Receiving Photos">Receiving</button>
-            <button class="js-photo-tab"         data-stage="In Repair" data-folder="02_Inspection Photos">Inspection</button>
-            <button class="js-photo-tab"         data-stage="Testing"   data-folder="03_Testing Photos">Testing</button>
-            <button class="js-photo-tab"         data-stage="Complete"  data-folder="04_Shipping Photos">Shipping</button>
-          </div>
-          <div class="js-photo-dropzone" id="jsPhotoDropzone">
-            <input type="file" id="jsPhotoInput" multiple accept="image/*,video/*" style="display:none">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <span class="js-photo-dz-label">Drop photos &amp; videos here, or <button class="js-photo-dz-btn" onclick="document.getElementById('jsPhotoInput').click()">browse</button></span>
-            <span class="js-photo-dz-hint">WhatsApp photos &amp; videos · Any size</span>
-          </div>
-          <div class="js-photo-queue" id="jsPhotoQueue" style="display:none;"></div>
-          <div class="js-photo-grid" id="jsPhotoGrid">
-            <div class="js-photo-empty" id="jsPhotoEmpty">No files in this stage yet</div>
-          </div>
+        <!-- Status Timeline -->
+        <div class="js-card" style="margin-bottom:40px;">
+          <div class="js-card-title">Status History</div>
+          <div class="js-timeline" id="jsTimeline"></div>
         </div>
 
       </div><!-- /js-sheet-wrap -->
@@ -434,6 +415,12 @@
             <option value="Out of Warranty">Out of Warranty</option>
           </select>
         </div>
+        <div class="ff"><label>Receive Method</label>
+          <select id="nReceiveMethod">
+            <option value="Local Drop-off">Local Drop-off</option>
+            <option value="Courier">Courier</option>
+          </select>
+        </div>
         <div class="ff"><label>Repaired Before?</label>
           <select id="nRepaired">
             <option value="No">No</option>
@@ -472,7 +459,6 @@
 <script src="jobsheet-module.js"></script>
 <script src="report-module.js"></script>
 <script src="receipt-module.js"></script>
-  <script src="photo-module.js"></script>
 <script src="invoice-export-module.js"></script>
 
 <script>

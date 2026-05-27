@@ -33,7 +33,7 @@ const HMAP = {
   'when did it start?':'whenStarted','when did it start':'whenStarted',
   'repaired before?':'repairedBefore','repaired before':'repairedBefore',
   'known issues':'knownIssues',
-  'warranty status':'warranty',
+  'warranty status':'warranty','receive method':'receiveMethod',
   'job id':'jobId','status':'status','drive folder':'driveFolder',
   'status timestamps':'statusTimestamps',
 };
@@ -222,6 +222,7 @@ function mkCard(j) {
     <div class="card-tags">
       ${j.deviceType ? `<span class="tag-sm tag-type">${j.deviceType}</span>` : ''}
       <span class="tag-sm ${wtc}">${wt}</span>
+      ${j.receiveMethod === 'Courier' ? `<span class="tag-sm tag-courier">📦 Courier</span>` : ''}
     </div>
     ${caseH}
     <div class="card-issue">${j.issue||'—'}</div>
@@ -301,7 +302,7 @@ function showDetail(j) {
     ['Customer', j.name], ['Phone', j.phone],
     ['Email', j.email], ['Address', j.address],
     ['Issue', j.issue, false, true],
-    ['Warranty Status', j.warranty], ['Repaired Before', j.repairedBefore],
+    ['Warranty Status', j.warranty], ['Receive Method', j.receiveMethod || '—'], ['Repaired Before', j.repairedBefore],
     ['When Started', j.whenStarted], ['Known Issues', j.knownIssues],
     ['Accessories', j.accessories],
     ['Status', j.status], ['Date In', fmtDate(j.ts)],
@@ -472,24 +473,14 @@ async function moveJob(id, newStatus) {
       renderAll();
       return;
     }
-    // 2. Persist status + timestamps to Drive JSON so the job sheet
-    //    always reflects the current kanban status when opened.
+    // 2. Persist timestamps to Drive immediately — this is the source of truth
     if (j.driveFolder) {
-      // Fire both in parallel — timestamps.json and the main job JSON
-      const tsPromise = callScript({
-        action:      'saveTimestamps',
-        jobId:       id,
+      await callScript({
+        action: 'saveTimestamps',
+        jobId: id,
         driveFolder: j.driveFolder,
-        timestamps:  JSON.stringify(j.statusTimestamps),
+        timestamps: JSON.stringify(j.statusTimestamps)
       });
-      const jsonPromise = callScript({
-        action:      'patchJobStatus',
-        jobId:       id,
-        driveFolder: j.driveFolder,
-        status:      newStatus,
-        timestamps:  JSON.stringify(j.statusTimestamps),
-      });
-      await Promise.all([tsPromise, jsonPromise]);
     }
   }
 }
@@ -572,7 +563,8 @@ async function submitNewJob() {
     serial:     document.getElementById('nSerial').value.trim(),
     accessories: accs.join(', '),
     issue:      document.getElementById('nIssue').value.trim(),
-    warranty:   document.getElementById('nWarranty').value,
+    warranty:       document.getElementById('nWarranty').value,
+    receiveMethod:  document.getElementById('nReceiveMethod').value,
     repairedBefore: document.getElementById('nRepaired').value,
     whenStarted: '', knownIssues: '',
     status:     'Intake',
@@ -597,49 +589,23 @@ async function submitNewJob() {
       accessories:    newJob.accessories,
       issue:          newJob.issue,
       warranty:       newJob.warranty,
-      repairedBefore: newJob.repairedBefore,
+      repairedBefore:  newJob.repairedBefore,
+      receiveMethod:  newJob.receiveMethod,
       status:         'Intake',
     });
 
     if (result.ok) {
+      // Sheet saved — now reload from sheet so card shows real data
       closeModal('newJobModal');
       resetNewJobForm();
-      showToast('success', '✓ ' + newJob.jobId + ' saved — creating Drive folder…');
+      showToast('success', '✓ ' + newJob.jobId + ' saved to sheet — reloading…');
+      await fetchSheet(); // pulls fresh data including Drive folder URL
 
-      // Phase 2: trigger Drive folder creation — fire and forget so the
-      // browser never waits on it. Apps Script creates the folder and writes
-      // the URL to the sheet in the background. We poll the sheet after a
-      // short delay to pick up the URL once it's ready.
-      const folderPayload = {
-        action:     'createFolder',
-        jobId:      newJob.jobId,
-        jobRow:     result.data && result.data.jobRow,
-        fullName:   newJob.name,
-        brand:      newJob.brand,
-        model:      newJob.model,
-        caseNumber: newJob.caseNo,
-      };
-      // Use navigator.sendBeacon for true fire-and-forget (no CORS wait)
-      // Fall back to fetch with no-cors if sendBeacon unavailable
-      const folderUrl = cfg.appsScriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(folderPayload));
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(folderUrl);
-      } else {
-        fetch(folderUrl, { redirect: 'follow', mode: 'no-cors' }).catch(() => {});
-      }
-
-      // Reload immediately so the job appears in the kanban
-      await fetchSheet();
-
-      // Poll once after 20s to pick up the Drive Folder URL once folder is created
-      setTimeout(async () => {
-        await fetchSheet();
-        showToast('success', '✓ Drive folder ready');
-      }, 20000);
-
-      // ── Auto-generate intake receipt once Drive folder is ready ──────────
+      // ── Auto-generate intake receipt (print + save to Drive) ─────────────
+      // Use the freshly-loaded job so we have the Drive folder URL.
       if (typeof window.receiptGenerateAndPrint === 'function') {
         const savedJob = jobs.find(j => j.jobId === newJob.jobId) || newJob;
+        // Fire-and-forget — don't block the UI
         window.receiptGenerateAndPrint(savedJob);
       }
 
@@ -653,10 +619,10 @@ async function submitNewJob() {
       const errDiv = document.getElementById('nJobError');
       const isTimeout = result.error && result.error.includes('timed out');
       errDiv.textContent = isTimeout
-        ? 'Request timed out. The job may have been saved — check the sheet before trying again.'
+        ? 'Apps Script timed out creating the Drive folder. The job may have been saved — check the sheet before trying again.'
         : 'Sheet sync failed: ' + result.error + '. Please try again.';
       errDiv.style.display = 'block';
-      showToast('error', isTimeout ? 'Request timed out — check sheet before retrying' : 'Failed to save to sheet: ' + result.error);
+      showToast('error', isTimeout ? 'Drive folder creation timed out — check sheet before retrying' : 'Failed to save to sheet');
     }
   } else {
     // No Apps Script configured — add locally only
@@ -724,11 +690,12 @@ async function createZohoInvoice(job) {
 // Apps Script redirects to a googleapis.com URL — we follow it
 // and parse the JSON response to know if it actually worked.
 //
-// createFolder creates 6 Drive subfolders and can take 15-20s.
-// It gets a 50s timeout and one retry. All other actions get 25s.
+// addJob creates a Drive folder which can take 5-15s — we use a
+// longer timeout for that action and retry once on network errors.
 async function callScript(data, { timeoutMs, retries } = {}) {
-  const isHeavy  = data.action === 'createFolder';
-  const timeout  = timeoutMs || (isHeavy ? 55000 : 25000);
+  // addJob does heavy Drive work — give it more time and one retry
+  const isHeavy = data.action === 'addJob';
+  const timeout = timeoutMs || (isHeavy ? 45000 : 25000);
   const maxTries = retries != null ? retries : (isHeavy ? 2 : 1);
 
   async function attempt() {
@@ -773,6 +740,7 @@ function resetNewJobForm() {
   document.getElementById('nBrand').value = '';
   document.getElementById('nBrand').classList.remove('field-err');
   document.getElementById('nWarranty').value = 'In Warranty';
+  document.getElementById('nReceiveMethod').value = 'Local Drop-off';
   document.getElementById('nRepaired').value = 'No';
   document.querySelectorAll('#newJobModal .cb-group input').forEach(cb => cb.checked = false);
   document.getElementById('nJobError').style.display = 'none';
