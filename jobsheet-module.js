@@ -459,6 +459,23 @@ async function jsOpenJob(jobId) {
   // Load costs.json from Drive (non-blocking — updates hints/costs when ready)
   jsLoadCosts();
 
+  // Init photo/video upload panel
+  if (typeof jsPhotoInit === 'function') {
+    jsPhotoInit(j);
+    // If driveFolder is missing (new job, folder still being created),
+    // poll the sheet once after 15s and re-init photos when it appears
+    if (!j.driveFolder || !String(j.driveFolder).includes('drive.google.com')) {
+      setTimeout(async () => {
+        if (typeof fetchSheet === 'function') await fetchSheet();
+        const fresh = (typeof jobs !== 'undefined') && jobs.find(x => x.jobId === jobId);
+        if (fresh && fresh.driveFolder && String(fresh.driveFolder).includes('drive.google.com')) {
+          jsCurrentJob.driveFolder = fresh.driveFolder;
+          jsPhotoInit(fresh);
+        }
+      }, 15000);
+    }
+  }
+
   // Populate read-only intake fields immediately
   jsPopulateIntake(j);
   jsUpdateScooterChecklist(j.deviceType || '');
@@ -989,8 +1006,7 @@ function jsLoadFromData(data) {
   // Parts
   jsParts = Array.isArray(data.parts) ? data.parts : [];
 
-  // Status pill — Drive JSON is now always in sync with kanban (patchJobStatus
-  // updates it on every kanban move), so use it as the direct source of truth.
+  // Status pill — sync jsCurrentJob.status from Drive JSON (source of truth)
   document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
   if (data.status) {
     if (jsCurrentJob) jsCurrentJob.status = data.status;
@@ -1013,12 +1029,12 @@ function jsLoadFromData(data) {
 
 // ── Save overlay ─────────────────────────────────────────────
 function jsSaveOverlayShow(msg) {
-  // Inject overlay into the jobsheet panel if not already there
-  const panel = document.getElementById('jobsheetPanel') || document.querySelector('.js-panel');
-  if (!panel) return;
-  if (!panel.style.position || panel.style.position === 'static') {
-    panel.style.position = 'relative';
-  }
+  // Use fixed positioning sized to the panel's bounding rect so overflow:hidden
+  // on the panel doesn't clip it. Overlay is appended to document.body.
+  const panel = document.getElementById('view-jobsheet') ||
+                document.getElementById('jobsheetPanel') ||
+                document.querySelector('.js-panel');
+
   let overlay = document.getElementById('jsSaveOverlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -1027,10 +1043,24 @@ function jsSaveOverlayShow(msg) {
     overlay.innerHTML = `
       <div class="js-save-overlay-spinner"></div>
       <div class="js-save-overlay-msg" id="jsSaveOverlayMsg">${msg || 'Saving…'}</div>`;
-    panel.appendChild(overlay);
+    document.body.appendChild(overlay);
   } else {
     const msgEl = document.getElementById('jsSaveOverlayMsg');
     if (msgEl) msgEl.textContent = msg || 'Saving…';
+  }
+
+  // Position to cover the panel exactly
+  if (panel) {
+    const r = panel.getBoundingClientRect();
+    overlay.style.position = 'fixed';
+    overlay.style.top      = r.top  + 'px';
+    overlay.style.left     = r.left + 'px';
+    overlay.style.width    = r.width  + 'px';
+    overlay.style.height   = r.height + 'px';
+    overlay.style.inset    = '';
+  } else {
+    overlay.style.position = 'fixed';
+    overlay.style.inset    = '0';
   }
   overlay.classList.add('show');
 }
