@@ -472,14 +472,24 @@ async function moveJob(id, newStatus) {
       renderAll();
       return;
     }
-    // 2. Persist timestamps to Drive immediately — this is the source of truth
+    // 2. Persist status + timestamps to Drive JSON so the job sheet
+    //    always reflects the current kanban status when opened.
     if (j.driveFolder) {
-      await callScript({
-        action: 'saveTimestamps',
-        jobId: id,
+      // Fire both in parallel — timestamps.json and the main job JSON
+      const tsPromise = callScript({
+        action:      'saveTimestamps',
+        jobId:       id,
         driveFolder: j.driveFolder,
-        timestamps: JSON.stringify(j.statusTimestamps)
+        timestamps:  JSON.stringify(j.statusTimestamps),
       });
+      const jsonPromise = callScript({
+        action:      'patchJobStatus',
+        jobId:       id,
+        driveFolder: j.driveFolder,
+        status:      newStatus,
+        timestamps:  JSON.stringify(j.statusTimestamps),
+      });
+      await Promise.all([tsPromise, jsonPromise]);
     }
   }
 }
