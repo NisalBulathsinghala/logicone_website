@@ -595,21 +595,35 @@ async function submitNewJob() {
     });
 
     if (result.ok) {
-      // Sheet saved — now reload from sheet so card shows real data
       closeModal('newJobModal');
       resetNewJobForm();
-      showToast('success', '✓ ' + newJob.jobId + ' saved to sheet — reloading…');
-      await fetchSheet(); // pulls fresh data including Drive folder URL
 
-      // ── Auto-generate intake receipt (print + save to Drive) ─────────────
-      // Use the freshly-loaded job so we have the Drive folder URL.
+      const driveFolder = result.data && result.data.driveFolder;
+      if (driveFolder) {
+        showToast('success', '✓ ' + newJob.jobId + ' created');
+      } else {
+        // Folder creation failed inline — retry via sendBeacon (fire and forget)
+        showToast('warning', '✓ ' + newJob.jobId + ' saved — Drive folder creation failed, retrying…');
+        const retryPayload = JSON.stringify({
+          action: 'createFolder', jobId: newJob.jobId,
+          jobRow: result.data && result.data.jobRow,
+          fullName: newJob.name, brand: newJob.brand,
+          model: newJob.model, caseNumber: newJob.caseNo,
+        });
+        const retryUrl = cfg.appsScriptUrl + '?payload=' + encodeURIComponent(retryPayload);
+        if (navigator.sendBeacon) navigator.sendBeacon(retryUrl);
+        else fetch(retryUrl, { redirect: 'follow', mode: 'no-cors' }).catch(() => {});
+      }
+
+      await fetchSheet();
+
+      // ── Auto-generate intake receipt ──────────────────────────────────────
       if (typeof window.receiptGenerateAndPrint === 'function') {
         const savedJob = jobs.find(j => j.jobId === newJob.jobId) || newJob;
-        // Fire-and-forget — don't block the UI
         window.receiptGenerateAndPrint(savedJob);
       }
 
-      // ── If out-of-warranty, open detail modal so Zoho button is visible ──
+      // ── If out-of-warranty, open detail modal ─────────────────────────────
       if (newJob.warranty === 'Out of Warranty') {
         const saved = jobs.find(j => j.jobId === newJob.jobId) || newJob;
         showDetail(saved);
