@@ -296,13 +296,10 @@
   // ── Reset — called when modal is closed/reset ─────────────────────
   function tcReset() {
     tcSelected = null;
-    const inp = document.getElementById('tcSearchInput');
-    if (inp) inp.value = '';
-    const clearBtn = document.getElementById('tcClearBtn');
-    if (clearBtn) clearBtn.style.display = 'none';
-    const banner = document.getElementById('tcAppliedBanner');
-    if (banner) banner.style.display = 'none';
-    tcHideDropdown();
+    // Remove the entire injected wrap so injectUI() rebuilds it fresh
+    // on next open — guarantees no stale input, banner, or dropdown state.
+    const wrap = document.getElementById('tcSearchWrap');
+    if (wrap) wrap.remove();
   }
 
   // ── Styles ────────────────────────────────────────────────────────
