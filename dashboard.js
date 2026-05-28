@@ -91,8 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadData() {
   if (cfg.sheetId && cfg.apiKey) { await fetchSheet(); }
   else { jobs = [...DEMO]; renderAll(); }
-  // Kick off Technocity order index in the background
-  if (window.tcLookup) tcLookup.init();
+  // tcLookup.init() is called by the module itself after it defines window.tcLookup
 }
 
 async function fetchSheet() {

@@ -38,7 +38,9 @@
   }
 
   async function tcFetchOrders() {
-    if (!window.cfg || !cfg.appsScriptUrl) {
+    // cfg is a const in dashboard.js — not on window — access it directly
+    const localCfg = (typeof cfg !== 'undefined') ? cfg : null;
+    if (!localCfg || !localCfg.appsScriptUrl) {
       tcLoading = false;
       return;
     }
@@ -398,5 +400,10 @@
 
   // ── Public API ────────────────────────────────────────────────────
   window.tcLookup = { init: tcInit, injectUI: tcInjectUI, reset: tcReset };
+
+  // Self-start — fetch orders immediately after the module loads.
+  // dashboard.js may have already run DOMContentLoaded by this point,
+  // so we cannot rely on loadData() calling us — we call ourselves.
+  tcInit();
 
 })();
