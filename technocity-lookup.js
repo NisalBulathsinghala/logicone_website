@@ -47,7 +47,10 @@
       if (res.ok && Array.isArray(res.data)) {
         tcOrders = res.data;
         tcLoaded = true;
+        // Update badge immediately if modal is already open,
+        // and again after a tick in case it opens mid-fetch.
         updateStatusBadge();
+        setTimeout(updateStatusBadge, 100);
       } else {
         console.warn('Technocity orders not available:', res.error || res);
       }
@@ -228,7 +231,11 @@
 
   // ── Inject UI into modal ──────────────────────────────────────────
   function tcInjectUI() {
-    if (document.getElementById('tcSearchWrap')) return; // already injected
+    if (document.getElementById('tcSearchWrap')) {
+      // Already injected — just refresh the badge with current load state
+      updateStatusBadge();
+      return;
+    }
 
     const modalBody = document.querySelector('#newJobModal .modal-body');
     if (!modalBody) return;
