@@ -91,6 +91,8 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadData() {
   if (cfg.sheetId && cfg.apiKey) { await fetchSheet(); }
   else { jobs = [...DEMO]; renderAll(); }
+  // Kick off Technocity order index in the background
+  if (window.tcLookup) tcLookup.init();
 }
 
 async function fetchSheet() {
@@ -868,6 +870,7 @@ async function callScript(data, { timeoutMs, retries } = {}) {
 }
 
 function resetNewJobForm() {
+  if (window.tcLookup) tcLookup.reset();
   ['nModel','nSerial','nCase','nIssue','nName','nPhone','nEmail'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.value = ''; el.classList.remove('field-err'); }
@@ -963,7 +966,10 @@ function switchView(v) {
 
 function openModal(id) {
   document.getElementById(id).classList.add('show');
-  if (id === 'newJobModal') updateNewJobAccessories();
+  if (id === 'newJobModal') {
+    updateNewJobAccessories();
+    if (window.tcLookup) { tcLookup.injectUI(); }
+  }
 }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('show'); }
