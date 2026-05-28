@@ -733,7 +733,6 @@ async function submitNewJob() {
     if (result.ok) {
       // Sheet saved — now reload from sheet so card shows real data
       closeModal('newJobModal');
-      resetNewJobForm();
       showToast('success', '✓ ' + newJob.jobId + ' saved to sheet — reloading…');
       await fetchSheet(); // pulls fresh data including Drive folder URL
 
@@ -765,7 +764,6 @@ async function submitNewJob() {
     jobs.unshift(newJob);
     renderAll();
     closeModal('newJobModal');
-    resetNewJobForm();
     showToast('success', '✓ Job ' + newJob.jobId + ' created (not synced — no Apps Script URL)');
   }
 
@@ -874,6 +872,7 @@ function resetNewJobForm() {
     const el = document.getElementById(id);
     if (el) { el.value = ''; el.classList.remove('field-err'); }
   });
+  document.getElementById('nType').value = 'Robot Vacuum';
   document.getElementById('nBrand').value = '';
   document.getElementById('nBrand').classList.remove('field-err');
   document.getElementById('nWarranty').value = 'In Warranty';
@@ -970,7 +969,10 @@ function openModal(id) {
     if (window.tcLookup) { tcLookup.injectUI(); }
   }
 }
-function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+  if (id === 'newJobModal') resetNewJobForm();
+}
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('show'); }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
 function toggleSidebarCollapse() {
