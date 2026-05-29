@@ -360,7 +360,7 @@
       ['Serial Number', job.serial],
       ['Case Number',   job.caseNo],
       ['Warranty',        job.warranty],
-      ['Receive Method',  job.receiveMethod || 'Local Drop-off'],
+      ...(job.receiveMethod ? [['Receive Method', job.receiveMethod]] : []),
       ['Repaired Before', job.repairedBefore],
     ]);
     y += 2;

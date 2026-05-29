@@ -33,7 +33,7 @@ const HMAP = {
   'when did it start?':'whenStarted','when did it start':'whenStarted',
   'repaired before?':'repairedBefore','repaired before':'repairedBefore',
   'known issues':'knownIssues',
-  'warranty status':'warranty',
+  'warranty status':'warranty','receive method':'receiveMethod',
   'job id':'jobId','status':'status','drive folder':'driveFolder',
   'status timestamps':'statusTimestamps',
 };
@@ -223,6 +223,8 @@ function mkCard(j) {
     <div class="card-tags">
       ${j.deviceType ? `<span class="tag-sm tag-type">${j.deviceType}</span>` : ''}
       <span class="tag-sm ${wtc}">${wt}</span>
+    
+      ${j.receiveMethod === 'Courier' ? `<span class="tag-sm tag-courier">📦 Courier</span>` : ''}
     </div>
     ${caseH}
     <div class="card-issue">${j.issue||'—'}</div>
@@ -701,7 +703,8 @@ async function submitNewJob() {
     serial:     document.getElementById('nSerial').value.trim(),
     accessories: accs.join(', '),
     issue:      document.getElementById('nIssue').value.trim(),
-    warranty:   document.getElementById('nWarranty').value,
+    warranty:       document.getElementById('nWarranty').value,
+    receiveMethod:  document.getElementById('nReceiveMethod').value,
     repairedBefore: document.getElementById('nRepaired').value,
     whenStarted: '', knownIssues: '',
     status:     'Intake',
@@ -726,7 +729,8 @@ async function submitNewJob() {
       accessories:    newJob.accessories,
       issue:          newJob.issue,
       warranty:       newJob.warranty,
-      repairedBefore: newJob.repairedBefore,
+      repairedBefore:  newJob.repairedBefore,
+      receiveMethod:  newJob.receiveMethod,
       status:         'Intake',
     });
 
@@ -876,6 +880,7 @@ function resetNewJobForm() {
   document.getElementById('nBrand').value = '';
   document.getElementById('nBrand').classList.remove('field-err');
   document.getElementById('nWarranty').value = 'In Warranty';
+  if (document.getElementById('nReceiveMethod')) document.getElementById('nReceiveMethod').value = 'Local Drop-off';
   document.getElementById('nRepaired').value = 'No';
   document.querySelectorAll('#newJobModal .cb-group input').forEach(cb => cb.checked = false);
   document.getElementById('nJobError').style.display = 'none';

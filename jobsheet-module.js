@@ -911,7 +911,7 @@ function jsCollectData() {
     jobId: j.jobId||'', caseNo: j.caseNo||'', name: j.name||'',
     phone: j.phone||'', email: j.email||'', deviceType: j.deviceType||'',
     brand: j.brand||'', model: j.model||'', serial: j.serial||'',
-    warranty: j.warranty||'', issue: j.issue||'', driveFolder: j.driveFolder||'',
+    warranty: j.warranty||'', receiveMethod: j.receiveMethod||'', issue: j.issue||'', driveFolder: j.driveFolder||'',
     date: document.getElementById('jsFDate').value,
     tech: document.getElementById('jsFFTech').value,
     eta: document.getElementById('jsFETA').value,
