@@ -224,7 +224,7 @@ function mkCard(j) {
       ${j.deviceType ? `<span class="tag-sm tag-type">${j.deviceType}</span>` : ''}
       <span class="tag-sm ${wtc}">${wt}</span>
     
-      ${j.receiveMethod === 'Courier' ? `<span class="tag-sm tag-courier">📦 Courier</span>` : ''}
+      ${j.receiveMethod === 'Courier' ? `<span class="tag-sm tag-courier">📦 Courier</span>` : j.receiveMethod === 'Local Drop-off' ? `<span class="tag-sm tag-dropoff">🏪 Drop-off</span>` : ''}
     </div>
     ${caseH}
     <div class="card-issue">${j.issue||'—'}</div>
