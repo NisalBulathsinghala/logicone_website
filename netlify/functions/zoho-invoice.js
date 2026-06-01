@@ -165,7 +165,6 @@ async function createTechnocityInvoice(token, { brand, period, lineItems }) {
         contact_type:       'customer',
         customer_sub_type:  'business',
         email:              upsEmail,
-        gst_no:             '88 682 670 677',
         contact_persons: [{
           first_name:          'Peter',
           last_name:           'Zhuang',
