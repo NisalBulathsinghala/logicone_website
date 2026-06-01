@@ -140,43 +140,69 @@ async function createEstimate(token, contactId, job) {
 }
 
 async function createTechnocityInvoice(token, { brand, period, lineItems }) {
-  // Look up Technocity contact by name (they may not have a consistent email)
-  const searchUrl = `${ZOHO_API_BASE}/contacts?organization_id=${ORG_ID}&contact_type=customer&search_text=Technocity`;
-  const searchRes = await fetch(searchUrl, { headers: { Authorization: `Zoho-oauthtoken ${token}` } });
+  // Look up UltraPlus Service by email (authoritative contact per contract)
+  const upsEmail   = 'p.zhuang@360intl.com.au';
+  const upsName    = 'UltraPlus Service Pty Ltd';
+  const searchUrl  = `${ZOHO_API_BASE}/contacts?organization_id=${ORG_ID}&contact_type=customer&email=${encodeURIComponent(upsEmail)}`;
+  const searchRes  = await fetch(searchUrl, { headers: { Authorization: `Zoho-oauthtoken ${token}` } });
   const searchData = await searchRes.json();
-  console.log('Technocity lookup:', searchRes.status, JSON.stringify(searchData).substring(0, 200));
+  console.log('UltraPlus lookup:', searchRes.status, JSON.stringify(searchData).substring(0, 200));
 
   let contactId;
-  if (searchData.contacts && searchData.contacts.length > 0) {
-    contactId = searchData.contacts[0].contact_id;
+  const exactMatch = searchData.contacts && searchData.contacts.find(c =>
+    c.email === upsEmail ||
+    (c.contact_persons && c.contact_persons.some(p => p.email === upsEmail))
+  );
+  if (exactMatch) {
+    contactId = exactMatch.contact_id;
   } else {
-    // Create Technocity contact
+    // Create UltraPlus Service contact
     const createRes = await fetch(`${ZOHO_API_BASE}/contacts?organization_id=${ORG_ID}`, {
       method: 'POST',
       headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contact_name: 'Technocity',
-        contact_type: 'customer',
-        customer_sub_type: 'business',
+        contact_name:       upsName,
+        contact_type:       'customer',
+        customer_sub_type:  'business',
+        email:              upsEmail,
+        gst_no:             '88 682 670 677',
+        contact_persons: [{
+          first_name:          'Peter',
+          last_name:           'Zhuang',
+          email:               upsEmail,
+          phone:               '+61429333333',
+          is_primary_contact:  true,
+        }],
       }),
     });
     const createData = await createRes.json();
-    console.log('createTechnocity:', createRes.status, JSON.stringify(createData).substring(0, 200));
+    console.log('createUltraPlus:', createRes.status, JSON.stringify(createData).substring(0, 200));
     if (!createData.contact || !createData.contact.contact_id) {
-      throw new Error('Could not find or create Technocity contact: ' + JSON.stringify(createData));
+      throw new Error('Could not find or create UltraPlus Service contact: ' + JSON.stringify(createData));
     }
     contactId = createData.contact.contact_id;
   }
 
   // Build line items — one per job
+  // Parse cost from repairLevel string if item.cost is 0/missing
+  const parseCost = (item) => {
+    if (parseFloat(item.cost) > 0) return parseFloat(item.cost);
+    // Extract from "Level 3 — $125" style string
+    const m = String(item.repairLevel || '').match(/\$(\d+(?:\.\d+)?)/);
+    if (m) return parseFloat(m[1]);
+    // Level number fallback
+    const lvl = String(item.repairLevel || '').match(/level\s*(\d)/i);
+    if (lvl) return ({ 1: 85, 2: 100, 3: 125 })[parseInt(lvl[1])] || 0;
+    return 0;
+  };
+
   const zohoLineItems = lineItems.map(item => ({
-    name:        item.description || `${item.caseNo} | ${item.model}`,
+    name:        item.description || [item.caseNo, item.model].filter(Boolean).join(' | '),
     description: [
       brand + ' Warranty Repair',
       item.repairLevel || '',
-      item.completionDate ? 'Completed ' + item.completionDate : '',
     ].filter(Boolean).join(' · '),
-    rate:     parseFloat(item.cost) || 0,
+    rate:     parseCost(item),
     quantity: 1,
   }));
 

@@ -213,7 +213,7 @@
 
   const completionDate = (job) => {
     const ts = job.statusTimestamps || {};
-    return ts['Collected'] || ts['Complete'] || ts['Testing'] || '';
+    return ts['Collected'] || ts['Complete'] || ts['Testing'] || job.savedAt || '';
   };
 
   const isCompleted = (job) =>
@@ -271,12 +271,19 @@
     } catch (e) { /* fall back to string parsing */ }
   }
 
+  // Hardcoded fallback costs used when costs.json and string parsing both fail
+  const DEFAULT_LEVEL_COSTS = { 1: 85, 2: 100, 3: 125 };
+
   const costFromRepairLevel = (repairLevel) => {
     // 1. Look up in costs.json data (authoritative)
     if (repairLevelCosts[repairLevel] != null) return repairLevelCosts[repairLevel];
-    // 2. Parse dollar amount from label string as fallback
+    // 2. Parse dollar amount from label string e.g. "Level 3 — $125"
     const m = String(repairLevel || '').match(/\$(\d+(?:\.\d+)?)/);
-    return m ? parseFloat(m[1]) : null;
+    if (m) return parseFloat(m[1]);
+    // 3. Parse level number and use default costs
+    const lvl = String(repairLevel || '').match(/level\s*(\d)/i);
+    if (lvl) return DEFAULT_LEVEL_COSTS[parseInt(lvl[1])] || null;
+    return null;
   };
 
   const effectiveCost = (job) => {
@@ -692,7 +699,6 @@
       description: [job.caseNo, job.model].filter(Boolean).join(' | '),
       repairLevel: job.repairLevel || '',
       cost:        effectiveCost(job) || 0,
-      completionDate: fmtDate(completionDate(job)),
     }));
 
     try {
