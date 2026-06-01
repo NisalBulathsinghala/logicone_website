@@ -153,6 +153,24 @@
 }
 @keyframes lo-inv-spin { to { transform: rotate(360deg); } }
 
+/* Zoho buttons */
+.lo-inv-zoho-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 8px; border: 1.5px solid;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  font-family: 'Inter', sans-serif; transition: all 0.15s;
+  white-space: nowrap;
+}
+.lo-inv-zoho-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.lo-inv-zoho-robo {
+  background: rgba(220,38,38,0.08); border-color: rgba(220,38,38,0.3); color: #dc2626;
+}
+.lo-inv-zoho-robo:not(:disabled):hover { background: rgba(220,38,38,0.15); border-color: #dc2626; }
+.lo-inv-zoho-seg {
+  background: rgba(37,99,235,0.08); border-color: rgba(37,99,235,0.3); color: #2563eb;
+}
+.lo-inv-zoho-seg:not(:disabled):hover { background: rgba(37,99,235,0.15); border-color: #2563eb; }
+
 /* Footer */
 .lo-inv-footer {
   padding: 14px 24px;
@@ -200,6 +218,11 @@
 
   const isCompleted = (job) =>
     job.status === 'Complete' || job.status === 'Collected';
+
+  const isInWarranty = (job) => {
+    const w = String(job.warranty || job.svcType || '').toLowerCase();
+    return w.includes('in warranty') || w.includes('in-warranty') || w.includes('warranty repair');
+  };
 
   const isBrand = (job, brand) =>
     (job.brand || '').toLowerCase().includes(brand.toLowerCase());
@@ -305,7 +328,7 @@
 
   // ── Filtered job list for preview ───────────────────────────
   function filteredJobs() {
-    return enrichedJobs.filter(j => isCompleted(j) && matchesMonthFilter(j));
+    return enrichedJobs.filter(j => isCompleted(j) && isInWarranty(j) && matchesMonthFilter(j));
   }
 
   // ── Inject styles & build modal ─────────────────────────────
@@ -325,7 +348,7 @@
         <div class="lo-inv-header">
           <div>
             <h2>Technocity Invoice Export</h2>
-            <div class="lo-inv-header-sub">Export completed jobs as .xlsx for invoicing</div>
+            <div class="lo-inv-header-sub">In-warranty completed jobs — export .xlsx or create in Zoho Books</div>
           </div>
           <button class="lo-inv-close" onclick="window.invoiceExportClose()" aria-label="Close">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -383,6 +406,14 @@
           <div class="lo-inv-footer-info" id="loInvFooterInfo">—</div>
           <div class="lo-inv-footer-actions">
             <button class="btn btn-secondary" onclick="window.invoiceExportClose()">Cancel</button>
+            <button class="lo-inv-zoho-btn lo-inv-zoho-robo" id="loInvZohoRobo" onclick="window.invoiceExportZoho('Roborock')" disabled title="Create Roborock invoice in Zoho Books">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Zoho — Roborock
+            </button>
+            <button class="lo-inv-zoho-btn lo-inv-zoho-seg" id="loInvZohoSeg" onclick="window.invoiceExportZoho('Segway')" disabled title="Create Segway invoice in Zoho Books">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Zoho — Segway
+            </button>
             <button class="btn btn-primary" id="loInvExportBtn" onclick="window.invoiceExportDownload()" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download .xlsx
@@ -422,6 +453,10 @@
 
     const exportBtn = document.getElementById('loInvExportBtn');
     if (exportBtn) exportBtn.disabled = total === 0;
+    const roboBtn = document.getElementById('loInvZohoRobo');
+    const segBtn  = document.getElementById('loInvZohoSeg');
+    if (roboBtn) roboBtn.disabled = rCount === 0;
+    if (segBtn)  segBtn.disabled  = sCount === 0;
 
     if (!total) {
       body.innerHTML = `<tr><td colspan="8" class="lo-inv-empty">No completed Roborock or Segway jobs found${filterMonth ? ' for this period' : ''}.</td></tr>`;
@@ -631,6 +666,61 @@
   window.invoiceExportSetMonth = function (val) {
     filterMonth = val;
     renderTable();
+  };
+
+  // ── Public: create Zoho Books invoice ───────────────────────
+  window.invoiceExportZoho = async function(brand) {
+    const btnId = brand === 'Roborock' ? 'loInvZohoRobo' : 'loInvZohoSeg';
+    const btn   = document.getElementById(btnId);
+    if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+
+    const jobs = filteredJobs()
+      .filter(j => isBrand(j, brand.toLowerCase()))
+      .sort((a, b) => (completionDate(b) || '').localeCompare(completionDate(a) || ''));
+
+    if (!jobs.length) {
+      if (typeof showToast === 'function') showToast('error', 'No ' + brand + ' jobs to invoice');
+      if (btn) { btn.disabled = false; btn.textContent = 'Zoho — ' + brand; }
+      return;
+    }
+
+    // Build line items — one per job
+    const lineItems = jobs.map(job => ({
+      jobId:       job.jobId,
+      caseNo:      job.caseNo      || '',
+      model:       job.model       || '',
+      description: [job.caseNo, job.model].filter(Boolean).join(' | '),
+      repairLevel: job.repairLevel || '',
+      cost:        effectiveCost(job) || 0,
+      completionDate: fmtDate(completionDate(job)),
+    }));
+
+    try {
+      const res = await fetch('/.netlify/functions/zoho-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action:    'technocity_invoice',
+          brand:     brand,
+          period:    filterMonth || 'All',
+          lineItems,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        if (typeof showToast === 'function') showToast('success', brand + ' invoice ' + data.invoiceNumber + ' created in Zoho');
+        if (btn) {
+          btn.textContent = '✓ ' + data.invoiceNumber;
+          btn.style.opacity = '0.6';
+        }
+      } else {
+        if (typeof showToast === 'function') showToast('error', 'Zoho error: ' + (data.error || 'unknown'));
+        if (btn) { btn.disabled = false; btn.textContent = 'Zoho — ' + brand; }
+      }
+    } catch (err) {
+      if (typeof showToast === 'function') showToast('error', 'Zoho error: ' + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Zoho — ' + brand; }
+    }
   };
 
   // ── Public: download xlsx ────────────────────────────────────

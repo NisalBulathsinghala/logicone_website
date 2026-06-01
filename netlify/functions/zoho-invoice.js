@@ -139,6 +139,71 @@ async function createEstimate(token, contactId, job) {
   return { estimateId: data.estimate.estimate_id, estimateNumber: data.estimate.estimate_number };
 }
 
+async function createTechnocityInvoice(token, { brand, period, lineItems }) {
+  // Look up Technocity contact by name (they may not have a consistent email)
+  const searchUrl = `${ZOHO_API_BASE}/contacts?organization_id=${ORG_ID}&contact_type=customer&search_text=Technocity`;
+  const searchRes = await fetch(searchUrl, { headers: { Authorization: `Zoho-oauthtoken ${token}` } });
+  const searchData = await searchRes.json();
+  console.log('Technocity lookup:', searchRes.status, JSON.stringify(searchData).substring(0, 200));
+
+  let contactId;
+  if (searchData.contacts && searchData.contacts.length > 0) {
+    contactId = searchData.contacts[0].contact_id;
+  } else {
+    // Create Technocity contact
+    const createRes = await fetch(`${ZOHO_API_BASE}/contacts?organization_id=${ORG_ID}`, {
+      method: 'POST',
+      headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contact_name: 'Technocity',
+        contact_type: 'customer',
+        customer_sub_type: 'business',
+      }),
+    });
+    const createData = await createRes.json();
+    console.log('createTechnocity:', createRes.status, JSON.stringify(createData).substring(0, 200));
+    if (!createData.contact || !createData.contact.contact_id) {
+      throw new Error('Could not find or create Technocity contact: ' + JSON.stringify(createData));
+    }
+    contactId = createData.contact.contact_id;
+  }
+
+  // Build line items — one per job
+  const zohoLineItems = lineItems.map(item => ({
+    name:        item.description || `${item.caseNo} | ${item.model}`,
+    description: [
+      brand + ' Warranty Repair',
+      item.repairLevel || '',
+      item.completionDate ? 'Completed ' + item.completionDate : '',
+    ].filter(Boolean).join(' · '),
+    rate:     parseFloat(item.cost) || 0,
+    quantity: 1,
+  }));
+
+  const refNumber  = `LO-${brand.substring(0,3).toUpperCase()}-${(period || 'ALL').replace(/[^a-zA-Z0-9]/g, '-')}`;
+  const noteText   = `${brand} Warranty Repairs — ${period || 'All Periods'} (${lineItems.length} job${lineItems.length !== 1 ? 's' : ''})`;
+
+  const body = {
+    customer_id:      contactId,
+    reference_number: refNumber,
+    status:           'draft',
+    notes:            noteText,
+    line_items:       zohoLineItems,
+  };
+
+  const res = await fetch(`${ZOHO_API_BASE}/invoices?organization_id=${ORG_ID}`, {
+    method: 'POST',
+    headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  console.log('createTechnocityInvoice:', res.status, JSON.stringify(data).substring(0, 400));
+  if (!data.invoice || !data.invoice.invoice_id) {
+    throw new Error('Create Technocity invoice failed: ' + JSON.stringify(data));
+  }
+  return { invoiceId: data.invoice.invoice_id, invoiceNumber: data.invoice.invoice_number };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
@@ -146,9 +211,21 @@ exports.handler = async (event) => {
   const headers = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
 
   try {
-    const job = JSON.parse(event.body);
-    console.log('Request:', job.action, job.jobId, job.email);
+    const body = JSON.parse(event.body);
+    console.log('Request:', body.action, body.jobId || body.brand, body.email || '');
 
+    // ── Technocity batch invoice (from invoice export module) ──
+    if (body.action === 'technocity_invoice') {
+      if (!body.lineItems || !body.lineItems.length) {
+        return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'No line items provided' }) };
+      }
+      const token = await getAccessToken();
+      const { invoiceId, invoiceNumber } = await createTechnocityInvoice(token, body);
+      return { statusCode: 200, headers, body: JSON.stringify({ ok: true, invoiceId, invoiceNumber }) };
+    }
+
+    // ── Individual job invoice / quote (existing flow) ─────────
+    const job = body;
     if (!job.name || !job.email || !job.jobId) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing required fields: name, email, jobId' }) };
     }
