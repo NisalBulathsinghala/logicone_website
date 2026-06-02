@@ -205,7 +205,16 @@ async function createTechnocityInvoice(token, { brand, period, lineItems }) {
     quantity: 1,
   }));
 
-  const refNumber  = `LO-${brand.substring(0,3).toUpperCase()}-${(period || 'ALL').replace(/[^a-zA-Z0-9]/g, '-')}`;
+  // PO format: LO-RR-MAY26 (Roborock) or LO-SW-MAY26 (Segway)
+  const brandCode = brand === 'Roborock' ? 'RR' : 'SW';
+  const periodCode = (() => {
+    if (!period || period === 'All') return 'ALL';
+    // period is 'YYYY-MM' — convert to MAY26 style
+    const d = new Date(period + '-01');
+    return d.toLocaleDateString('en-AU', { month: 'short', year: '2-digit' })
+             .toUpperCase().replace(' ', '').replace('/', '');
+  })();
+  const refNumber = `LO-${brandCode}-${periodCode}`;
   const noteText   = `${brand} Warranty Repairs — ${period || 'All Periods'} (${lineItems.length} job${lineItems.length !== 1 ? 's' : ''})`;
 
   const body = {
