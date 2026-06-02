@@ -33,7 +33,7 @@ const HMAP = {
   'when did it start?':'whenStarted','when did it start':'whenStarted',
   'repaired before?':'repairedBefore','repaired before':'repairedBefore',
   'known issues':'knownIssues',
-  'warranty status':'warranty','receive method':'receiveMethod',
+  'warranty status':'warranty',
   'job id':'jobId','status':'status','drive folder':'driveFolder',
   'status timestamps':'statusTimestamps',
 };
@@ -223,8 +223,6 @@ function mkCard(j) {
     <div class="card-tags">
       ${j.deviceType ? `<span class="tag-sm tag-type">${j.deviceType}</span>` : ''}
       <span class="tag-sm ${wtc}">${wt}</span>
-    
-      ${j.receiveMethod === 'Courier' ? `<span class="tag-sm tag-courier">📦 Courier</span>` : j.receiveMethod === 'Local Drop-off' ? `<span class="tag-sm tag-dropoff">🏪 Drop-off</span>` : ''}
     </div>
     ${caseH}
     <div class="card-issue">${j.issue||'—'}</div>
@@ -297,7 +295,7 @@ function renderTable() {
 // ============================================================
 function showDetail(j) {
   // Clear photo cache on every open so stale photos from previous job don't show
-  _dPhotoCache = {};
+  Object.keys(_dPhotoCache).forEach(k => delete _dPhotoCache[k]);
   document.getElementById('dTitle').textContent = j.jobId || 'Job Details';
   const fields = [
     ['Job ID', j.jobId, true], ['Case Number', j.caseNo, true],
@@ -429,6 +427,13 @@ function showDetail(j) {
 
   openModal('detailModal');
 
+  // Clear photo grid immediately before loading new photos
+  const oldGrid = document.getElementById('dPhotoGrid');
+  if (oldGrid) oldGrid.innerHTML = '<div class="d-photo-loading"><div class="d-photo-spinner"></div><span>Loading photos…</span></div>';
+
+  // Reset tabs to first tab
+  document.querySelectorAll('.d-photo-tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+
   // Auto-load first photo tab if drive folder exists
   if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
     const firstTab = document.querySelector('#dPhotosSection .d-photo-tab');
@@ -534,7 +539,7 @@ function dOpenLightbox(id, name, mimeType, viewUrl, thumbUrl) {
 // Clear photo cache when detail modal closes so fresh data loads next open
 const _origCloseModal = window.closeModal;
 window.closeModal = function(id) {
-  if (id === 'detailModal') _dPhotoCache = {};
+  if (id === 'detailModal') Object.keys(_dPhotoCache).forEach(k => delete _dPhotoCache[k]);
   if (_origCloseModal) _origCloseModal(id);
 };
 
@@ -703,8 +708,7 @@ async function submitNewJob() {
     serial:     document.getElementById('nSerial').value.trim(),
     accessories: accs.join(', '),
     issue:      document.getElementById('nIssue').value.trim(),
-    warranty:       document.getElementById('nWarranty').value,
-    receiveMethod:  document.getElementById('nReceiveMethod').value,
+    warranty:   document.getElementById('nWarranty').value,
     repairedBefore: document.getElementById('nRepaired').value,
     whenStarted: '', knownIssues: '',
     status:     'Intake',
@@ -729,8 +733,7 @@ async function submitNewJob() {
       accessories:    newJob.accessories,
       issue:          newJob.issue,
       warranty:       newJob.warranty,
-      repairedBefore:  newJob.repairedBefore,
-      receiveMethod:  newJob.receiveMethod,
+      repairedBefore: newJob.repairedBefore,
       status:         'Intake',
     });
 
@@ -880,7 +883,6 @@ function resetNewJobForm() {
   document.getElementById('nBrand').value = '';
   document.getElementById('nBrand').classList.remove('field-err');
   document.getElementById('nWarranty').value = 'In Warranty';
-  if (document.getElementById('nReceiveMethod')) document.getElementById('nReceiveMethod').value = 'Local Drop-off';
   document.getElementById('nRepaired').value = 'No';
   document.querySelectorAll('#newJobModal .cb-group input').forEach(cb => cb.checked = false);
   document.getElementById('nJobError').style.display = 'none';
