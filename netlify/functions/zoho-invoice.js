@@ -209,10 +209,15 @@ async function createTechnocityInvoice(token, { brand, period, lineItems }) {
   const brandCode = brand === 'Roborock' ? 'RR' : 'SW';
   const periodCode = (() => {
     if (!period || period === 'All') return 'ALL';
-    // period is 'YYYY-MM' — convert to MAY26 style
-    const d = new Date(period + '-01');
-    return d.toLocaleDateString('en-AU', { month: 'short', year: '2-digit' })
-             .toUpperCase().replace(' ', '').replace('/', '');
+    // period is 'YYYY-MM' e.g. '2026-05' — convert to MAY26
+    const parts = String(period).match(/^(\d{4})-(\d{2})$/);
+    if (parts) {
+      const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+      const mon = months[parseInt(parts[2], 10) - 1] || parts[2];
+      const yr  = parts[1].slice(2);
+      return mon + yr;
+    }
+    return period.toUpperCase().replace(/[^A-Z0-9]/g, '');
   })();
   const refNumber = `LO-${brandCode}-${periodCode}`;
   const noteText   = `${brand} Warranty Repairs — ${period || 'All Periods'} (${lineItems.length} job${lineItems.length !== 1 ? 's' : ''})`;

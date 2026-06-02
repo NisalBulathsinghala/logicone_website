@@ -677,6 +677,11 @@
 
   // ── Public: create Zoho Books invoice ───────────────────────
   window.invoiceExportZoho = async function(brand) {
+    // Require a specific month — "All time" makes a meaningless PO number
+    if (!filterMonth) {
+      if (typeof showToast === 'function') showToast('error', 'Please select a month before creating a Zoho invoice');
+      return;
+    }
     const btnId = brand === 'Roborock' ? 'loInvZohoRobo' : 'loInvZohoSeg';
     const btn   = document.getElementById(btnId);
     if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
