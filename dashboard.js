@@ -34,6 +34,7 @@ const HMAP = {
   'repaired before?':'repairedBefore','repaired before':'repairedBefore',
   'known issues':'knownIssues',
   'warranty status':'warranty',
+  'receive method':'receiveMethod','receiving method':'receiveMethod',
   'job id':'jobId','status':'status','drive folder':'driveFolder',
   'status timestamps':'statusTimestamps',
 };
@@ -202,6 +203,11 @@ function mkCard(j) {
   const bt = j.brand === 'Roborock' ? 't-roborock' : j.brand === 'Segway' ? 't-segway' : 't-other';
   const wt = j.warranty || (j.caseNo ? 'In Warranty' : 'Out of Warranty');
   const wtc = wt === 'In Warranty' ? 'tag-wt-in' : 'tag-wt-out';
+  const rmTag = j.receiveMethod === 'Courier'
+    ? `<span class="tag-sm tag-courier">📦 Courier</span>`
+    : j.receiveMethod === 'Local Drop-off'
+    ? `<span class="tag-sm tag-dropoff">🚶 Drop-off</span>`
+    : '';
 
   let caseH = '';
   if (j.caseNo) {
@@ -223,6 +229,7 @@ function mkCard(j) {
     <div class="card-tags">
       ${j.deviceType ? `<span class="tag-sm tag-type">${j.deviceType}</span>` : ''}
       <span class="tag-sm ${wtc}">${wt}</span>
+      ${rmTag}
     </div>
     ${caseH}
     <div class="card-issue">${j.issue||'—'}</div>
@@ -464,38 +471,15 @@ async function dLoadPhotoTab(tabEl, driveFolder) {
   }
 
   try {
-    // Try via Drive API using token from photo module
-    const token = typeof _photoToken !== 'undefined' && _photoToken;
-    const fid   = typeof _photoFolderIds !== 'undefined' && _photoFolderIds[folderName];
-
-    if (token && fid) {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 10000);
-      const r = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${fid}' in parents and trashed=false`)}&fields=files(id,name,mimeType,thumbnailLink,webViewLink)&orderBy=createdTime`,
-        { headers: { Authorization: 'Bearer ' + token }, signal: controller.signal }
-      );
-      clearTimeout(t);
-      if (r.ok) {
-        const data = await r.json();
-        const items = (data.files || []).map(f => ({
-          id: f.id, name: f.name, mimeType: f.mimeType || '',
-          thumbUrl: f.thumbnailLink ? f.thumbnailLink.replace('=s220','=s400')
-                    : `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`,
-          viewUrl: f.webViewLink,
-        }));
-        _dPhotoCache[cacheKey] = items;
-        dRenderPhotoGrid(grid, items);
-        return;
-      }
-    }
-
-    // Fallback: Apps Script listPhotos (returns all subfolders at once)
+    // IMPORTANT: Do NOT use _photoToken / _photoFolderIds here — those belong
+    // to the photo module and may still hold a previously opened job's folder
+    // IDs, causing photos from the wrong job to appear in this modal.
+    // Always go via Apps Script using the per-job driveFolder directly.
     const res = await callScript({ action: 'listPhotos', driveFolder });
     if (res.ok && res.data) {
       const items = res.data
         .filter(f => f.subfolder === folderName)
-        .map(f => ({ id: f.id, name: f.name, mimeType: '', thumbUrl: f.thumbUrl || `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`, viewUrl: '' }));
+        .map(f => ({ id: f.id, name: f.name, mimeType: f.mimeType || '', thumbUrl: f.thumbUrl || `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`, viewUrl: f.viewUrl || '' }));
       _dPhotoCache[cacheKey] = items;
       dRenderPhotoGrid(grid, items);
     } else {
@@ -709,6 +693,7 @@ async function submitNewJob() {
     accessories: accs.join(', '),
     issue:      document.getElementById('nIssue').value.trim(),
     warranty:   document.getElementById('nWarranty').value,
+    receiveMethod: document.getElementById('nReceiveMethod').value,
     repairedBefore: document.getElementById('nRepaired').value,
     whenStarted: '', knownIssues: '',
     status:     'Intake',
@@ -733,6 +718,7 @@ async function submitNewJob() {
       accessories:    newJob.accessories,
       issue:          newJob.issue,
       warranty:       newJob.warranty,
+      receiveMethod:  newJob.receiveMethod,
       repairedBefore: newJob.repairedBefore,
       status:         'Intake',
     });
@@ -883,6 +869,7 @@ function resetNewJobForm() {
   document.getElementById('nBrand').value = '';
   document.getElementById('nBrand').classList.remove('field-err');
   document.getElementById('nWarranty').value = 'In Warranty';
+  document.getElementById('nReceiveMethod').value = '';
   document.getElementById('nRepaired').value = 'No';
   document.querySelectorAll('#newJobModal .cb-group input').forEach(cb => cb.checked = false);
   document.getElementById('nJobError').style.display = 'none';
