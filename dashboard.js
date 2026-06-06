@@ -441,8 +441,8 @@ function showDetail(j) {
 
   // Show unread SMS dot on the SMS panel title if there are unread replies
   setTimeout(() => {
-    const conv = _smsConvs && _smsConvs.find(c => c.jobId === j.jobId);
-    const unread = conv ? (conv.messages || []).filter(m => m.direction === 'in' && !m.read).length : 0;
+    const conv   = _smsConvs && _smsConvs.find(c => c.jobId === j.jobId);
+    const unread = conv ? (conv.unread || 0) : 0;
     const smsTitle = document.querySelector('.sms-panel-title');
     if (smsTitle) {
       const existing = smsTitle.querySelector('.sms-unread-dot');
@@ -1045,10 +1045,10 @@ document.querySelectorAll('.modal-overlay').forEach(o => { o.addEventListener('c
 // SMS INBOX VIEW
 // ============================================================
 
-let _smsConvs       = [];   // all conversations loaded
-let _smsActiveConv  = null; // currently open conversation
+let _smsConvs       = [];   // conversation metadata from index (no messages)
+let _smsThreads     = {};   // jobId → full message array, loaded on demand
+let _smsActiveConv  = null;
 let _smsLoaded      = false;
-let _smsReadMap     = {};   // jobId → Set of msgSids/timestamps marked read locally
 
 async function smsInboxInit() {
   if (_smsLoaded) { smsRenderConvList(_smsConvs); return; }
@@ -1057,74 +1057,26 @@ async function smsInboxInit() {
 }
 
 async function smsInboxRefresh() {
-  // Don't show "Loading…" on background refresh — only on first load
-  const isFirstLoad = !_smsLoaded;
-  if (isFirstLoad) {
-    document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-loading">Loading…</div>';
-  }
+  const isFirst = !_smsLoaded;
   try {
-    const res = await callScript({ action: 'loadAllSmsLogs' });
-    if (res.ok && res.data) {
-      // Merge incoming data with local state — don't wipe optimistic messages or read flags
-      _smsConvs = smsMergeConvs(_smsConvs, res.data);
+    // Single file read — returns metadata for ALL conversations, no Drive folder scanning
+    const res = await callScript({ action: 'loadSmsInbox', page: 0, pageSize: 200 });
+    if (res.ok && res.data && res.data.conversations) {
+      _smsConvs  = res.data.conversations;
       _smsLoaded = true;
       smsRenderConvList(_smsConvs);
       smsUpdateBadge(_smsConvs);
-      // If active conv was refreshed, re-render thread silently
+      // If a thread is open, refresh it too
       if (_smsActiveConv) {
         const updated = _smsConvs.find(c => c.jobId === _smsActiveConv.jobId);
-        if (updated) { _smsActiveConv = updated; smsRenderThread(updated); }
+        if (updated) _smsActiveConv = updated;
       }
-    } else if (isFirstLoad) {
+    } else if (isFirst) {
       document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-empty">No conversations yet</div>';
     }
   } catch (e) {
-    if (isFirstLoad) {
-      document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-empty">Could not load messages</div>';
-    }
+    if (isFirst) document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-empty">Could not load messages</div>';
   }
-}
-
-// Merge server data into local convs — preserves locally added optimistic messages
-// and locally set read flags
-function smsMergeConvs(local, incoming) {
-  const merged = [];
-  const localMap = {};
-  local.forEach(c => { localMap[c.jobId] = c; });
-
-  incoming.forEach(serverConv => {
-    const localConv = localMap[serverConv.jobId];
-    if (!localConv) {
-      // New conversation from server — apply local read flags
-      serverConv.messages = (serverConv.messages || []).map(m => {
-        const key = m.msgSid || m.timestamp;
-        if (_smsReadMap[serverConv.jobId] && _smsReadMap[serverConv.jobId].has(key)) m.read = true;
-        return m;
-      });
-      merged.push(serverConv);
-      return;
-    }
-    // Merge: start with server messages, then add any local-only optimistic ones
-    const serverSids = new Set((serverConv.messages || []).map(m => m.msgSid || m.timestamp));
-    const localOnly  = (localConv.messages || []).filter(m => {
-      const key = m.msgSid || m.timestamp;
-      return !serverSids.has(key);
-    });
-    const mergedMsgs = [...(serverConv.messages || []), ...localOnly]
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-      .map(m => {
-        // Preserve local read flags
-        const key = m.msgSid || m.timestamp;
-        if (_smsReadMap[serverConv.jobId] && _smsReadMap[serverConv.jobId].has(key)) m.read = true;
-        return m;
-      });
-    merged.push({ ...serverConv, messages: mergedMsgs });
-    delete localMap[serverConv.jobId];
-  });
-
-  // Keep any local-only convs (e.g. just sent, not yet on server)
-  Object.values(localMap).forEach(c => merged.push(c));
-  return merged;
 }
 
 function smsRenderConvList(convs) {
@@ -1133,25 +1085,20 @@ function smsRenderConvList(convs) {
     el.innerHTML = '<div class="sms-conv-empty">No conversations yet</div>';
     return;
   }
-  // Sort by latest message time descending
-  const sorted = [...convs].sort((a, b) => {
-    const at = a.messages && a.messages.length ? new Date(a.messages[a.messages.length-1].timestamp) : 0;
-    const bt = b.messages && b.messages.length ? new Date(b.messages[b.messages.length-1].timestamp) : 0;
-    return bt - at;
-  });
-  el.innerHTML = sorted.map(c => {
-    const last    = c.messages && c.messages.length ? c.messages[c.messages.length-1] : null;
-    const unread  = (c.messages || []).filter(m => m.direction === 'in' && !m.read).length;
-    const preview = last ? escHtmlSms(last.body || '').slice(0, 60) : '—';
-    const time    = last ? smsFmtTime(last.timestamp) : '';
+  // Already sorted by server (most recent first)
+  el.innerHTML = convs.map(c => {
+    const unread  = c.unread || 0;
+    const preview = escHtmlSms((c.lastMessageBody || '—').slice(0, 60));
+    const time    = c.lastMessageAt ? smsFmtTime(c.lastMessageAt) : '';
     const active  = _smsActiveConv && _smsActiveConv.jobId === c.jobId ? 'active' : '';
+    const dirArrow = c.lastMessageDirection === 'out' ? '↑ ' : '';
     return `<div class="sms-conv-item ${active} ${unread ? 'unread' : ''}" onclick="smsOpenConv('${c.jobId}')">
       <div class="sms-conv-item-top">
         <span class="sms-conv-name">${escHtmlSms(c.customerName || c.jobId)}</span>
         <span class="sms-conv-time">${time}</span>
       </div>
       <div class="sms-conv-item-bottom">
-        <span class="sms-conv-preview">${last && last.direction === 'out' ? '↑ ' : ''}${preview}</span>
+        <span class="sms-conv-preview">${dirArrow}${preview}</span>
         ${unread ? `<span class="sms-conv-unread">${unread}</span>` : ''}
       </div>
       <div class="sms-conv-meta">${escHtmlSms(c.jobId)} · ${escHtmlSms(c.phone || '')}</div>
@@ -1169,21 +1116,18 @@ function smsFilterConvs(q) {
   ));
 }
 
-function smsOpenConv(jobId) {
+async function smsOpenConv(jobId) {
   const conv = _smsConvs.find(c => c.jobId === jobId);
   if (!conv) return;
   _smsActiveConv = conv;
 
-  // Mark all inbound as read — store in persistent map so refresh doesn't reset them
-  if (!_smsReadMap[jobId]) _smsReadMap[jobId] = new Set();
-  (conv.messages || []).forEach(m => {
-    if (m.direction === 'in') {
-      m.read = true;
-      _smsReadMap[jobId].add(m.msgSid || m.timestamp);
-    }
-  });
+  // Mark as read in UI immediately
+  conv.unread = 0;
   smsRenderConvList(_smsConvs);
   smsUpdateBadge(_smsConvs);
+
+  // Mark as read on server (fire and forget — unread count persists across reloads)
+  callScript({ action: 'markSmsRead', jobId }).catch(() => {});
 
   // Show thread panel
   document.getElementById('smsThreadEmpty').style.display = 'none';
@@ -1198,14 +1142,33 @@ function smsOpenConv(jobId) {
     </div>
     ${job ? `<button class="sms-thread-open-job" onclick="showDetail('${jobId}')">Open Job</button>` : ''}`;
 
-  smsRenderThread(conv);
+  // Load thread — use cache if already loaded
+  const msgEl = document.getElementById('smsThreadMessages');
+  if (_smsThreads[jobId]) {
+    smsRenderThread(_smsThreads[jobId]);
+  } else {
+    msgEl.innerHTML = '<div class="sms-thread-no-msgs" style="opacity:0.5">Loading…</div>';
+    try {
+      const job2 = jobs.find(j => j.jobId === jobId);
+      const res  = await callScript({ action: 'loadSmsThread', jobId, driveFolder: job2 && job2.driveFolder });
+      if (res.ok && res.data) {
+        _smsThreads[jobId] = res.data;
+        smsRenderThread(res.data);
+      } else {
+        msgEl.innerHTML = '<div class="sms-thread-no-msgs">No messages yet — send the first one below</div>';
+      }
+    } catch (e) {
+      msgEl.innerHTML = '<div class="sms-thread-no-msgs">Could not load messages</div>';
+    }
+  }
+
   document.getElementById('smsComposeText').focus();
 }
 
-function smsRenderThread(conv) {
+function smsRenderThread(msgs) {
+  // accepts message array directly (not a conv object)
   const el = document.getElementById('smsThreadMessages');
-  const msgs = conv.messages || [];
-  if (!msgs.length) {
+  if (!msgs || !msgs.length) {
     el.innerHTML = '<div class="sms-thread-no-msgs">No messages yet — send the first one below</div>';
     return;
   }
@@ -1214,7 +1177,6 @@ function smsRenderThread(conv) {
       <div class="sms-msg-bubble">${escHtmlSms(m.body || '').replace(/\n/g, '<br>')}</div>
       <div class="sms-msg-time">${smsFmtTime(m.timestamp)}${m.direction === 'out' ? ' · Sent' : ' · Received'}</div>
     </div>`).join('');
-  // Scroll to bottom
   setTimeout(() => { el.scrollTop = el.scrollHeight; }, 30);
 }
 
@@ -1241,26 +1203,27 @@ async function smsThreadSend() {
     const data = await res.json();
 
     if (data.ok) {
-      const msg = {
-        direction: 'out',
-        body:      text,
-        timestamp: new Date().toISOString(),
-        msgSid:    data.sid || '',
-        read:      true,
-      };
-      // Add to existing conv or create a new one
-      let conv = _smsConvs.find(c => c.jobId === _smsActiveConv.jobId);
+      const jobId = _smsActiveConv.jobId;
+      const msg   = { direction: 'out', body: text, timestamp: new Date().toISOString(), msgSid: data.sid || '', read: true };
+
+      // Add to thread cache
+      if (!_smsThreads[jobId]) _smsThreads[jobId] = [];
+      _smsThreads[jobId].push(msg);
+      smsRenderThread(_smsThreads[jobId]);
+
+      // Update conversation list metadata
+      let conv = _smsConvs.find(c => c.jobId === jobId);
       if (!conv) {
-        conv = { ..._smsActiveConv, messages: [] };
-        _smsConvs.push(conv);
-        _smsActiveConv = conv;
+        conv = { ..._smsActiveConv, unread: 0 };
+        _smsConvs.unshift(conv);
       }
-      conv.messages = conv.messages || [];
-      conv.messages.push(msg);
+      conv.lastMessageAt        = msg.timestamp;
+      conv.lastMessageBody      = text.slice(0, 100);
+      conv.lastMessageDirection = 'out';
+      smsRenderConvList(_smsConvs);
+
       textarea.value = '';
       textarea.style.height = '';
-      smsRenderThread(conv);
-      smsRenderConvList(_smsConvs);
       showToast('success', '✓ SMS sent');
     } else {
       showToast('error', 'Failed: ' + (data.error || 'Unknown error'));
@@ -1288,7 +1251,8 @@ function smsComposeKeydown(e) {
 }
 
 function smsUpdateBadge(convs) {
-  const unread = convs.reduce((n, c) => n + (c.messages || []).filter(m => m.direction === 'in' && !m.read).length, 0);
+  // Unread count comes from server-side index — survives page reloads
+  const unread = convs.reduce((n, c) => n + (c.unread || 0), 0);
   const badge  = document.getElementById('smsBadge');
   if (!badge) return;
   if (unread > 0) {
