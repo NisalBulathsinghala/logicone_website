@@ -434,9 +434,8 @@ function showDetail(j) {
 
   openModal('detailModal');
 
-  // Initialise SMS send buttons + call button (sms-module.js)
+  // Initialise SMS send/call buttons (sms-module.js)
   if (typeof window.smsModuleInit === 'function') {
-    // Small defer so the DOM is fully painted before we query it
     setTimeout(() => window.smsModuleInit(j), 50);
   }
 
@@ -460,22 +459,14 @@ let _dPhotoCache = {}; // driveFolder+folder → [{id,name,mimeType,thumbUrl}]
 async function dLoadPhotoTab(tabEl, driveFolder) {
   tabEl.closest('.d-photo-tabs').querySelectorAll('.d-photo-tab').forEach(t => t.classList.remove('active'));
   tabEl.classList.add('active');
-
   const folderName = tabEl.dataset.folder;
   const cacheKey   = driveFolder + '|' + folderName;
   const grid       = document.getElementById('dPhotoGrid');
   if (!grid) return;
-
   grid.innerHTML = '<div class="d-photo-loading"><div class="d-photo-spinner"></div><span>Loading photos…</span></div>';
-
-  if (_dPhotoCache[cacheKey]) {
-    dRenderPhotoGrid(grid, _dPhotoCache[cacheKey]);
-    return;
-  }
-
+  if (_dPhotoCache[cacheKey]) { dRenderPhotoGrid(grid, _dPhotoCache[cacheKey]); return; }
   try {
-    // Always use Apps Script with the per-job driveFolder — never use _photoFolderIds
-    // from the photo module, which may still reference a previously opened job.
+    // Always use Apps Script with per-job driveFolder — never use stale _photoFolderIds
     const res = await callScript({ action: 'listPhotos', driveFolder });
     if (res.ok && res.data) {
       const items = res.data
@@ -944,13 +935,14 @@ function switchView(v) {
   document.getElementById('view-' + v).classList.add('active');
   const navEl = document.querySelector(`[data-view="${v}"]`);
   if (navEl) navEl.classList.add('active');
-  const titles = { kanban:'KANBAN BOARD', list:'ALL JOBS', jobsheet:'JOB SHEETS' };
+  const titles = { kanban:'KANBAN BOARD', list:'ALL JOBS', jobsheet:'JOB SHEETS', sms:'SMS INBOX' };
   document.getElementById('viewTitle').textContent = titles[v] || '';
-  // Show/hide search bar (not relevant on job sheet)
+  // Show/hide search bar (not relevant on job sheet or sms)
   const searchBar = document.querySelector('.search-bar');
-  if (searchBar) searchBar.style.display = v === 'jobsheet' ? 'none' : '';
+  if (searchBar) searchBar.style.display = (v === 'jobsheet' || v === 'sms') ? 'none' : '';
   if (v === 'jobsheet') jsRenderJobList();
   if (v === 'kanban') setTimeout(kUpdateScrollBtns, 50);
+  if (v === 'sms') smsInboxInit();
   // Show/hide scroll arrow
   const arrow = document.getElementById('jsScrollArrow');
   if (arrow) arrow.classList.toggle('visible', v === 'jobsheet');
@@ -1031,3 +1023,211 @@ function parseTimestamps(j) {
 }
 
 document.querySelectorAll('.modal-overlay').forEach(o => { o.addEventListener('click', e => { if (e.target === o) o.classList.remove('show'); }); });
+
+// ============================================================
+// SMS INBOX VIEW
+// ============================================================
+
+let _smsConvs       = [];   // all conversations loaded
+let _smsActiveConv  = null; // currently open conversation
+let _smsLoaded      = false;
+
+async function smsInboxInit() {
+  if (_smsLoaded) { smsRenderConvList(_smsConvs); return; }
+  document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-loading">Loading conversations…</div>';
+  await smsInboxRefresh();
+}
+
+async function smsInboxRefresh() {
+  document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-loading">Loading…</div>';
+  try {
+    // Load all SMS logs from all jobs via Apps Script
+    const res = await callScript({ action: 'loadAllSmsLogs' });
+    if (res.ok && res.data) {
+      _smsConvs  = res.data;
+      _smsLoaded = true;
+      smsRenderConvList(_smsConvs);
+      smsUpdateBadge(_smsConvs);
+    } else {
+      document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-empty">No conversations yet</div>';
+    }
+  } catch (e) {
+    document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-empty">Could not load messages</div>';
+  }
+}
+
+function smsRenderConvList(convs) {
+  const el = document.getElementById('smsConvItems');
+  if (!convs.length) {
+    el.innerHTML = '<div class="sms-conv-empty">No conversations yet</div>';
+    return;
+  }
+  // Sort by latest message time descending
+  const sorted = [...convs].sort((a, b) => {
+    const at = a.messages && a.messages.length ? new Date(a.messages[a.messages.length-1].timestamp) : 0;
+    const bt = b.messages && b.messages.length ? new Date(b.messages[b.messages.length-1].timestamp) : 0;
+    return bt - at;
+  });
+  el.innerHTML = sorted.map(c => {
+    const last    = c.messages && c.messages.length ? c.messages[c.messages.length-1] : null;
+    const unread  = (c.messages || []).filter(m => m.direction === 'in' && !m.read).length;
+    const preview = last ? escHtmlSms(last.body || '').slice(0, 60) : '—';
+    const time    = last ? smsFmtTime(last.timestamp) : '';
+    const active  = _smsActiveConv && _smsActiveConv.jobId === c.jobId ? 'active' : '';
+    return `<div class="sms-conv-item ${active} ${unread ? 'unread' : ''}" onclick="smsOpenConv('${c.jobId}')">
+      <div class="sms-conv-item-top">
+        <span class="sms-conv-name">${escHtmlSms(c.customerName || c.jobId)}</span>
+        <span class="sms-conv-time">${time}</span>
+      </div>
+      <div class="sms-conv-item-bottom">
+        <span class="sms-conv-preview">${last && last.direction === 'out' ? '↑ ' : ''}${preview}</span>
+        ${unread ? `<span class="sms-conv-unread">${unread}</span>` : ''}
+      </div>
+      <div class="sms-conv-meta">${escHtmlSms(c.jobId)} · ${escHtmlSms(c.phone || '')}</div>
+    </div>`;
+  }).join('');
+}
+
+function smsFilterConvs(q) {
+  if (!q) { smsRenderConvList(_smsConvs); return; }
+  const lq = q.toLowerCase();
+  smsRenderConvList(_smsConvs.filter(c =>
+    (c.customerName || '').toLowerCase().includes(lq) ||
+    (c.jobId || '').toLowerCase().includes(lq) ||
+    (c.phone || '').includes(lq)
+  ));
+}
+
+function smsOpenConv(jobId) {
+  const conv = _smsConvs.find(c => c.jobId === jobId);
+  if (!conv) return;
+  _smsActiveConv = conv;
+
+  // Mark all inbound as read
+  (conv.messages || []).forEach(m => { if (m.direction === 'in') m.read = true; });
+  smsRenderConvList(_smsConvs);
+  smsUpdateBadge(_smsConvs);
+
+  // Show thread panel
+  document.getElementById('smsThreadEmpty').style.display = 'none';
+  document.getElementById('smsThreadWrap').style.display  = 'flex';
+
+  // Header
+  const job = jobs.find(j => j.jobId === jobId);
+  document.getElementById('smsThreadHeader').innerHTML = `
+    <div class="sms-thread-header-info">
+      <div class="sms-thread-name">${escHtmlSms(conv.customerName || jobId)}</div>
+      <div class="sms-thread-sub">${escHtmlSms(conv.phone || '')} · ${escHtmlSms(jobId)}</div>
+    </div>
+    ${job ? `<button class="sms-thread-open-job" onclick="showDetail('${jobId}')">Open Job</button>` : ''}`;
+
+  smsRenderThread(conv);
+  document.getElementById('smsComposeText').focus();
+}
+
+function smsRenderThread(conv) {
+  const el = document.getElementById('smsThreadMessages');
+  const msgs = conv.messages || [];
+  if (!msgs.length) {
+    el.innerHTML = '<div class="sms-thread-no-msgs">No messages yet — send the first one below</div>';
+    return;
+  }
+  el.innerHTML = msgs.map(m => `
+    <div class="sms-msg sms-msg-${m.direction || 'in'}">
+      <div class="sms-msg-bubble">${escHtmlSms(m.body || '').replace(/\n/g, '<br>')}</div>
+      <div class="sms-msg-time">${smsFmtTime(m.timestamp)}${m.direction === 'out' ? ' · Sent' : ' · Received'}</div>
+    </div>`).join('');
+  // Scroll to bottom
+  setTimeout(() => { el.scrollTop = el.scrollHeight; }, 30);
+}
+
+async function smsThreadSend() {
+  if (!_smsActiveConv) return;
+  const textarea = document.getElementById('smsComposeText');
+  const text = textarea.value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('smsThreadSendBtn');
+  btn.disabled = true;
+  textarea.disabled = true;
+
+  try {
+    const res = await fetch('/.netlify/functions/sms-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to:    _smsActiveConv.phone,
+        body:  text,
+        jobId: _smsActiveConv.jobId,
+      }),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      // Optimistically add to thread
+      const msg = { direction: 'out', body: text, timestamp: new Date().toISOString(), read: true };
+      _smsActiveConv.messages = _smsActiveConv.messages || [];
+      _smsActiveConv.messages.push(msg);
+      textarea.value = '';
+      textarea.style.height = '';
+      smsRenderThread(_smsActiveConv);
+      smsRenderConvList(_smsConvs);
+      showToast('success', '✓ SMS sent');
+    } else {
+      showToast('error', 'Failed: ' + (data.error || 'Unknown error'));
+    }
+  } catch (e) {
+    showToast('error', 'SMS error: ' + e.message);
+  } finally {
+    btn.disabled  = false;
+    textarea.disabled = false;
+    textarea.focus();
+  }
+}
+
+function smsComposeResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function smsComposeKeydown(e) {
+  // Cmd+Enter or Ctrl+Enter to send
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    smsThreadSend();
+  }
+}
+
+function smsUpdateBadge(convs) {
+  const unread = convs.reduce((n, c) => n + (c.messages || []).filter(m => m.direction === 'in' && !m.read).length, 0);
+  const badge  = document.getElementById('smsBadge');
+  if (!badge) return;
+  if (unread > 0) {
+    badge.textContent = unread;
+    badge.style.display = '';
+    badge.style.background = '#ef4444';
+    badge.style.color = '#fff';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// Periodically poll for new inbound messages (every 60s when SMS view is active)
+setInterval(() => {
+  const smsView = document.getElementById('view-sms');
+  if (smsView && smsView.classList.contains('active')) smsInboxRefresh();
+}, 60000);
+
+function escHtmlSms(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function smsFmtTime(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    if (isToday) return d.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' });
+    return d.toLocaleDateString('en-AU', { day:'numeric', month:'short' });
+  } catch { return ''; }
+}
