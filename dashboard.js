@@ -439,6 +439,23 @@ function showDetail(j) {
     setTimeout(() => window.smsModuleInit(j), 50);
   }
 
+  // Show unread SMS dot on the SMS panel title if there are unread replies
+  setTimeout(() => {
+    const conv = _smsConvs && _smsConvs.find(c => c.jobId === j.jobId);
+    const unread = conv ? (conv.messages || []).filter(m => m.direction === 'in' && !m.read).length : 0;
+    const smsTitle = document.querySelector('.sms-panel-title');
+    if (smsTitle) {
+      const existing = smsTitle.querySelector('.sms-unread-dot');
+      if (existing) existing.remove();
+      if (unread > 0) {
+        const dot = document.createElement('span');
+        dot.className = 'sms-unread-dot';
+        dot.textContent = unread;
+        smsTitle.appendChild(dot);
+      }
+    }
+  }, 60);
+
   // Clear photo grid immediately before loading new photos
   const oldGrid = document.getElementById('dPhotoGrid');
   if (oldGrid) oldGrid.innerHTML = '<div class="d-photo-loading"><div class="d-photo-spinner"></div><span>Loading photos…</span></div>';
@@ -1031,6 +1048,7 @@ document.querySelectorAll('.modal-overlay').forEach(o => { o.addEventListener('c
 let _smsConvs       = [];   // all conversations loaded
 let _smsActiveConv  = null; // currently open conversation
 let _smsLoaded      = false;
+let _smsReadMap     = {};   // jobId → Set of msgSids/timestamps marked read locally
 
 async function smsInboxInit() {
   if (_smsLoaded) { smsRenderConvList(_smsConvs); return; }
@@ -1039,21 +1057,74 @@ async function smsInboxInit() {
 }
 
 async function smsInboxRefresh() {
-  document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-loading">Loading…</div>';
+  // Don't show "Loading…" on background refresh — only on first load
+  const isFirstLoad = !_smsLoaded;
+  if (isFirstLoad) {
+    document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-loading">Loading…</div>';
+  }
   try {
-    // Load all SMS logs from all jobs via Apps Script
     const res = await callScript({ action: 'loadAllSmsLogs' });
     if (res.ok && res.data) {
-      _smsConvs  = res.data;
+      // Merge incoming data with local state — don't wipe optimistic messages or read flags
+      _smsConvs = smsMergeConvs(_smsConvs, res.data);
       _smsLoaded = true;
       smsRenderConvList(_smsConvs);
       smsUpdateBadge(_smsConvs);
-    } else {
+      // If active conv was refreshed, re-render thread silently
+      if (_smsActiveConv) {
+        const updated = _smsConvs.find(c => c.jobId === _smsActiveConv.jobId);
+        if (updated) { _smsActiveConv = updated; smsRenderThread(updated); }
+      }
+    } else if (isFirstLoad) {
       document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-empty">No conversations yet</div>';
     }
   } catch (e) {
-    document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-empty">Could not load messages</div>';
+    if (isFirstLoad) {
+      document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-empty">Could not load messages</div>';
+    }
   }
+}
+
+// Merge server data into local convs — preserves locally added optimistic messages
+// and locally set read flags
+function smsMergeConvs(local, incoming) {
+  const merged = [];
+  const localMap = {};
+  local.forEach(c => { localMap[c.jobId] = c; });
+
+  incoming.forEach(serverConv => {
+    const localConv = localMap[serverConv.jobId];
+    if (!localConv) {
+      // New conversation from server — apply local read flags
+      serverConv.messages = (serverConv.messages || []).map(m => {
+        const key = m.msgSid || m.timestamp;
+        if (_smsReadMap[serverConv.jobId] && _smsReadMap[serverConv.jobId].has(key)) m.read = true;
+        return m;
+      });
+      merged.push(serverConv);
+      return;
+    }
+    // Merge: start with server messages, then add any local-only optimistic ones
+    const serverSids = new Set((serverConv.messages || []).map(m => m.msgSid || m.timestamp));
+    const localOnly  = (localConv.messages || []).filter(m => {
+      const key = m.msgSid || m.timestamp;
+      return !serverSids.has(key);
+    });
+    const mergedMsgs = [...(serverConv.messages || []), ...localOnly]
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+      .map(m => {
+        // Preserve local read flags
+        const key = m.msgSid || m.timestamp;
+        if (_smsReadMap[serverConv.jobId] && _smsReadMap[serverConv.jobId].has(key)) m.read = true;
+        return m;
+      });
+    merged.push({ ...serverConv, messages: mergedMsgs });
+    delete localMap[serverConv.jobId];
+  });
+
+  // Keep any local-only convs (e.g. just sent, not yet on server)
+  Object.values(localMap).forEach(c => merged.push(c));
+  return merged;
 }
 
 function smsRenderConvList(convs) {
@@ -1103,8 +1174,14 @@ function smsOpenConv(jobId) {
   if (!conv) return;
   _smsActiveConv = conv;
 
-  // Mark all inbound as read
-  (conv.messages || []).forEach(m => { if (m.direction === 'in') m.read = true; });
+  // Mark all inbound as read — store in persistent map so refresh doesn't reset them
+  if (!_smsReadMap[jobId]) _smsReadMap[jobId] = new Set();
+  (conv.messages || []).forEach(m => {
+    if (m.direction === 'in') {
+      m.read = true;
+      _smsReadMap[jobId].add(m.msgSid || m.timestamp);
+    }
+  });
   smsRenderConvList(_smsConvs);
   smsUpdateBadge(_smsConvs);
 
@@ -1164,13 +1241,25 @@ async function smsThreadSend() {
     const data = await res.json();
 
     if (data.ok) {
-      // Optimistically add to thread
-      const msg = { direction: 'out', body: text, timestamp: new Date().toISOString(), read: true };
-      _smsActiveConv.messages = _smsActiveConv.messages || [];
-      _smsActiveConv.messages.push(msg);
+      const msg = {
+        direction: 'out',
+        body:      text,
+        timestamp: new Date().toISOString(),
+        msgSid:    data.sid || '',
+        read:      true,
+      };
+      // Add to existing conv or create a new one
+      let conv = _smsConvs.find(c => c.jobId === _smsActiveConv.jobId);
+      if (!conv) {
+        conv = { ..._smsActiveConv, messages: [] };
+        _smsConvs.push(conv);
+        _smsActiveConv = conv;
+      }
+      conv.messages = conv.messages || [];
+      conv.messages.push(msg);
       textarea.value = '';
       textarea.style.height = '';
-      smsRenderThread(_smsActiveConv);
+      smsRenderThread(conv);
       smsRenderConvList(_smsConvs);
       showToast('success', '✓ SMS sent');
     } else {
