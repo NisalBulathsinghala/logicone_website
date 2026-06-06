@@ -434,6 +434,12 @@ function showDetail(j) {
 
   openModal('detailModal');
 
+  // Initialise SMS send buttons + call button (sms-module.js)
+  if (typeof window.smsModuleInit === 'function') {
+    // Small defer so the DOM is fully painted before we query it
+    setTimeout(() => window.smsModuleInit(j), 50);
+  }
+
   // Clear photo grid immediately before loading new photos
   const oldGrid = document.getElementById('dPhotoGrid');
   if (oldGrid) oldGrid.innerHTML = '<div class="d-photo-loading"><div class="d-photo-spinner"></div><span>Loading photos…</span></div>';
@@ -452,7 +458,6 @@ function showDetail(j) {
 let _dPhotoCache = {}; // driveFolder+folder → [{id,name,mimeType,thumbUrl}]
 
 async function dLoadPhotoTab(tabEl, driveFolder) {
-  // Update active tab
   tabEl.closest('.d-photo-tabs').querySelectorAll('.d-photo-tab').forEach(t => t.classList.remove('active'));
   tabEl.classList.add('active');
 
@@ -461,20 +466,16 @@ async function dLoadPhotoTab(tabEl, driveFolder) {
   const grid       = document.getElementById('dPhotoGrid');
   if (!grid) return;
 
-  // Show loading
   grid.innerHTML = '<div class="d-photo-loading"><div class="d-photo-spinner"></div><span>Loading photos…</span></div>';
 
-  // Use cache if available
   if (_dPhotoCache[cacheKey]) {
     dRenderPhotoGrid(grid, _dPhotoCache[cacheKey]);
     return;
   }
 
   try {
-    // IMPORTANT: Do NOT use _photoToken / _photoFolderIds here — those belong
-    // to the photo module and may still hold a previously opened job's folder
-    // IDs, causing photos from the wrong job to appear in this modal.
-    // Always go via Apps Script using the per-job driveFolder directly.
+    // Always use Apps Script with the per-job driveFolder — never use _photoFolderIds
+    // from the photo module, which may still reference a previously opened job.
     const res = await callScript({ action: 'listPhotos', driveFolder });
     if (res.ok && res.data) {
       const items = res.data
