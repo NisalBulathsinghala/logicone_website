@@ -1,5 +1,5 @@
 // netlify/functions/sms-receive.js
-// Twilio webhook for inbound SMS. Fires when a customer replies to your AU number.
+// Twilio webhook for inbound SMS.
 //
 // Configure in Twilio console:
 //   Phone Numbers → +61 485 061 001 → Messaging
@@ -7,10 +7,10 @@
 //   URL: https://logicone.com.au/.netlify/functions/sms-receive
 //
 // Required env vars:
-//   TWILIO_AUTH_TOKEN     — validates webhook is genuinely from Twilio
+//   TWILIO_AUTH_TOKEN     — validates webhook is from Twilio
 //   APPS_SCRIPT_URL       — logs reply to Drive/Sheet
-//   TELEGRAM_BOT_TOKEN    — your Telegram bot token (from @BotFather)
-//   TELEGRAM_CHAT_ID      — your personal Telegram chat ID
+//   TELEGRAM_BOT_TOKEN    — your Telegram bot token
+//   TELEGRAM_CHAT_ID      — your Telegram chat ID (6572159460)
 
 const crypto = require('crypto');
 
@@ -19,19 +19,23 @@ exports.handler = async function (event) {
     return { statusCode: 405, body: 'Method not allowed' };
   }
 
-  const { TWILIO_AUTH_TOKEN, APPS_SCRIPT_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } = process.env;
+  const {
+    TWILIO_AUTH_TOKEN,
+    APPS_SCRIPT_URL,
+    TELEGRAM_BOT_TOKEN,
+    TELEGRAM_CHAT_ID,
+  } = process.env;
 
   // Parse Twilio's form-encoded body
   const params = Object.fromEntries(new URLSearchParams(event.body));
-  const from   = params.From        || '';
-  const body   = params.Body        || '';
-  const to     = params.To          || '';
-  const msgSid = params.MessageSid  || '';
+  const from   = params.From       || '';
+  const body   = params.Body       || '';
+  const to     = params.To         || '';
+  const msgSid = params.MessageSid || '';
 
-  // Validate Twilio signature — reject spoofed webhooks
+  // Validate Twilio signature
   if (TWILIO_AUTH_TOKEN) {
-    const isValid = validateTwilioSignature(event, TWILIO_AUTH_TOKEN);
-    if (!isValid) {
+    if (!validateTwilioSignature(event, TWILIO_AUTH_TOKEN)) {
       console.warn('sms-receive: invalid Twilio signature — rejected');
       return { statusCode: 403, body: 'Forbidden' };
     }
@@ -40,36 +44,65 @@ exports.handler = async function (event) {
   console.log(`Inbound SMS from ${from}: "${body}" (sid: ${msgSid})`);
 
   const timestamp = new Date().toISOString();
-  let matchedJobId = null;
-  let matchedName  = null;
+  let matchedJobId  = null;
+  let matchedName   = null;
 
-  // 1. Log to Apps Script (fire-and-forget — don't block Twilio response)
+  // Log to Apps Script — with retry on failure
   if (APPS_SCRIPT_URL) {
-    const payload = JSON.stringify({ action: 'logInboundSms', from, to, body, msgSid, timestamp });
-    const url = APPS_SCRIPT_URL + '?payload=' + encodeURIComponent(payload);
-    fetch(url, { redirect: 'follow' })
-      .then(r => r.json())
-      .then(d => {
-        matchedJobId = d.jobId || null;
-        matchedName  = d.customerName || null;
-      })
-      .catch(e => console.warn('sms-receive: Apps Script log failed:', e.message));
+    const payload = JSON.stringify({
+      action: 'logInboundSms',
+      from, to, body, msgSid, timestamp,
+    });
+
+    // Build URL — handle if APPS_SCRIPT_URL already has query params
+    const separator = APPS_SCRIPT_URL.includes('?') ? '&' : '?';
+    const url = APPS_SCRIPT_URL + separator + 'payload=' + encodeURIComponent(payload);
+
+    const tryLog = async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      try {
+        const r = await fetch(url, { redirect: 'follow', signal: controller.signal });
+        clearTimeout(timer);
+        const text = await r.text();
+        try {
+          const d = JSON.parse(text);
+          matchedJobId = d.jobId        || null;
+          matchedName  = d.customerName || null;
+          return d;
+        } catch {
+          return { result: 'ok' };
+        }
+      } catch (e) {
+        clearTimeout(timer);
+        throw e;
+      }
+    };
+
+    try {
+      await tryLog();
+      console.log(`sms-receive: logged to Apps Script, jobId=${matchedJobId}`);
+    } catch (e) {
+      console.warn(`sms-receive: first attempt failed (${e.message}), retrying in 3s`);
+      await new Promise(r => setTimeout(r, 3000));
+      try {
+        await tryLog();
+        console.log(`sms-receive: retry succeeded, jobId=${matchedJobId}`);
+      } catch (e2) {
+        console.warn(`sms-receive: retry also failed (${e2.message}) — SMS logged to Twilio only`);
+      }
+    }
   }
 
-  // 2. Send Telegram notification (fire-and-forget)
+  // Telegram notification — fires after Apps Script so we have job details
   if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
-    const fromDisplay = from.replace('+61', '0');
-    // Build message — jobId/name added if Apps Script returns them (best effort)
-    const tgText = [
-      '📩 *New SMS Reply*',
-      `From: \`${fromDisplay}\``,
-      matchedJobId ? `Job: \`${matchedJobId}\`${matchedName ? ' — ' + matchedName : ''}` : '',
-      '',
-      body,
-    ].filter(Boolean).join('\n');
+    const fromDisplay = from.startsWith('+61') ? '0' + from.slice(3) : from;
+    const jobLine = matchedJobId
+      ? `Job: \`${matchedJobId}\`${matchedName ? ' — ' + matchedName : ''}`
+      : '_No matching job found_';
+    const tgText = `📩 *New SMS Reply*\nFrom: \`${fromDisplay}\`\n${jobLine}\n\n${body}`;
 
-    const tgUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-    fetch(tgUrl, {
+    fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -77,10 +110,10 @@ exports.handler = async function (event) {
         text:       tgText,
         parse_mode: 'Markdown',
       }),
-    }).catch(e => console.warn('sms-receive: Telegram notify failed:', e.message));
+    }).catch(e => console.warn('Telegram notify failed:', e.message));
   }
 
-  // 3. Return TwiML immediately — Twilio doesn't wait for our logging
+  // Return TwiML immediately
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'text/xml' },
