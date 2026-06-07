@@ -22,8 +22,6 @@ exports.handler = async function (event) {
   const {
     TWILIO_AUTH_TOKEN,
     APPS_SCRIPT_URL,
-    TELEGRAM_BOT_TOKEN,
-    TELEGRAM_CHAT_ID,
   } = process.env;
 
   // Parse Twilio's form-encoded body
@@ -92,25 +90,6 @@ exports.handler = async function (event) {
         console.warn(`sms-receive: retry also failed (${e2.message}) — SMS logged to Twilio only`);
       }
     }
-  }
-
-  // Telegram notification — fires after Apps Script so we have job details
-  if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
-    const fromDisplay = from.startsWith('+61') ? '0' + from.slice(3) : from;
-    const jobLine = matchedJobId
-      ? `Job: \`${matchedJobId}\`${matchedName ? ' — ' + matchedName : ''}`
-      : '_No matching job found_';
-    const tgText = `📩 *New SMS Reply*\nFrom: \`${fromDisplay}\`\n${jobLine}\n\n${body}`;
-
-    fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id:    TELEGRAM_CHAT_ID,
-        text:       tgText,
-        parse_mode: 'Markdown',
-      }),
-    }).catch(e => console.warn('Telegram notify failed:', e.message));
   }
 
   // Return TwiML immediately

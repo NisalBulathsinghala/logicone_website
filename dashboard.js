@@ -1067,19 +1067,29 @@ async function smsInboxInit() {
 async function smsInboxRefresh() {
   const isFirst = !_smsLoaded;
   try {
-    // Single file read — returns metadata for ALL conversations, no Drive folder scanning
     const res = await callScript({ action: 'loadSmsInbox', page: 0, pageSize: 200 });
     if (res.ok && res.data && res.data.conversations) {
-      _smsConvs  = res.data.conversations;
+      const incoming = res.data.conversations;
+
+      // Invalidate thread cache for any conv where lastMessageAt has changed
+      incoming.forEach(c => {
+        const prev = _smsConvs.find(p => p.jobId === c.jobId);
+        if (prev && prev.lastMessageAt !== c.lastMessageAt) {
+          // New message arrived — clear cached thread so it reloads fresh
+          delete _smsThreads[c.jobId];
+          // If this is the open thread, reload it immediately
+          if (_smsActiveConv && _smsActiveConv.jobId === c.jobId) {
+            _smsActiveConv = c;
+            smsLoadThread(c.jobId);
+          }
+        }
+      });
+
+      _smsConvs  = incoming;
       _smsLoaded = true;
       smsApplyFilter();
       smsUpdateBadge(_smsConvs);
       smsRefreshKanbanBadges();
-      // If a thread is open, refresh it too
-      if (_smsActiveConv) {
-        const updated = _smsConvs.find(c => c.jobId === _smsActiveConv.jobId);
-        if (updated) _smsActiveConv = updated;
-      }
     } else if (isFirst) {
       document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-empty">No conversations yet</div>';
     }
@@ -1156,7 +1166,7 @@ async function smsOpenConv(jobId) {
   smsRenderConvList(_smsConvs);
   smsUpdateBadge(_smsConvs);
 
-  // Mark as read on server (fire and forget — unread count persists across reloads)
+  // Mark as read on server
   callScript({ action: 'markSmsRead', jobId }).catch(() => {});
 
   // Show thread panel
@@ -1172,28 +1182,34 @@ async function smsOpenConv(jobId) {
     </div>
     ${job ? `<button class="sms-thread-open-job" onclick="showDetail('${jobId}')">Open Job</button>` : ''}`;
 
-  // Load thread — use cache if already loaded
-  const msgEl = document.getElementById('smsThreadMessages');
-  if (_smsThreads[jobId]) {
-    smsRenderThread(_smsThreads[jobId]);
-  } else {
-    msgEl.innerHTML = '<div class="sms-thread-no-msgs" style="opacity:0.5">Loading…</div>';
-    try {
-      const job2 = jobs.find(j => j.jobId === jobId);
-      const res  = await callScript({ action: 'loadSmsThread', jobId, driveFolder: job2 && job2.driveFolder });
-      if (res.ok && res.data) {
-        _smsThreads[jobId] = res.data;
-        smsRenderThread(res.data);
-      } else {
-        msgEl.innerHTML = '<div class="sms-thread-no-msgs">No messages yet — send the first one below</div>';
-      }
-    } catch (e) {
-      msgEl.innerHTML = '<div class="sms-thread-no-msgs">Could not load messages</div>';
-    }
-  }
-
+  await smsLoadThread(jobId);
   document.getElementById('smsComposeText').focus();
   smsInitQuickReplies();
+}
+
+async function smsLoadThread(jobId) {
+  const msgEl = document.getElementById('smsThreadMessages');
+  if (!msgEl) return;
+
+  // Use cache if available
+  if (_smsThreads[jobId]) {
+    smsRenderThread(_smsThreads[jobId]);
+    return;
+  }
+
+  msgEl.innerHTML = '<div class="sms-thread-no-msgs" style="opacity:0.5">Loading…</div>';
+  try {
+    const job2 = jobs.find(j => j.jobId === jobId);
+    const res  = await callScript({ action: 'loadSmsThread', jobId, driveFolder: job2 && job2.driveFolder });
+    if (res.ok && res.data) {
+      _smsThreads[jobId] = res.data;
+      smsRenderThread(res.data);
+    } else {
+      msgEl.innerHTML = '<div class="sms-thread-no-msgs">No messages yet — send the first one below</div>';
+    }
+  } catch (e) {
+    msgEl.innerHTML = '<div class="sms-thread-no-msgs">Could not load messages</div>';
+  }
 }
 
 function smsRenderThread(msgs) {
