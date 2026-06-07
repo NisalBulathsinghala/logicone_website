@@ -32,6 +32,7 @@ exports.handler = async function (event) {
     params.append('From', TWILIO_FROM_NUMBER);
     params.append('Body', messageBody);
 
+    // 1. Send SMS via Twilio
     const response = await fetch(twilioUrl, {
       method: 'POST',
       headers: {
@@ -50,21 +51,30 @@ exports.handler = async function (event) {
 
     console.log(`SMS sent job=${jobId || '?'} to=${toNorm} sid=${data.sid}`);
 
-    // Fire-and-forget — log to Drive via Apps Script WITHOUT awaiting.
-    // The dashboard gets its response immediately after Twilio confirms (~200ms).
-    // The Drive log happens asynchronously in the background.
+    // 2. Log to Apps Script — must be awaited before returning
+    // Netlify kills background fetches the moment the handler returns,
+    // so fire-and-forget doesn't work. We await here but cap at 10s.
     if (APPS_SCRIPT_URL && jobId) {
-      const payload = JSON.stringify({
-        action:    'logOutboundSms',
-        jobId,
-        to:        toNorm,
-        body:      messageBody,
-        msgSid:    data.sid,
-        timestamp: new Date().toISOString(),
-      });
-      const logUrl = APPS_SCRIPT_URL + '?payload=' + encodeURIComponent(payload);
-      fetch(logUrl, { redirect: 'follow' }).catch(e => console.warn('Drive log failed (non-fatal):', e.message));
-      // No await — return immediately below
+      try {
+        const payload = JSON.stringify({
+          action:    'logOutboundSms',
+          jobId,
+          to:        toNorm,
+          body:      messageBody,
+          msgSid:    data.sid,
+          timestamp: new Date().toISOString(),
+        });
+        const separator = APPS_SCRIPT_URL.includes('?') ? '&' : '?';
+        const logUrl    = APPS_SCRIPT_URL + separator + 'payload=' + encodeURIComponent(payload);
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+        await fetch(logUrl, { redirect: 'follow', signal: controller.signal });
+        clearTimeout(timer);
+        console.log(`SMS outbound logged to Drive for job=${jobId}`);
+      } catch (logErr) {
+        console.warn('Drive log failed (non-fatal):', logErr.message);
+      }
     }
 
     return {
