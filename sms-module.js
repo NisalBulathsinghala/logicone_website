@@ -92,6 +92,9 @@
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   overflow: hidden;
+  max-height: 280px;
+  display: flex;
+  flex-direction: column;
 }
 .sms-inbox-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -116,7 +119,12 @@
   font-size: 11px; color: var(--text-secondary);
   display: flex; gap: 10px;
 }
-.sms-inbox-body { color: var(--text-primary); line-height: 1.45; }
+.sms-inbox-body {
+  color: var(--text-primary); line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+  word-break: break-word;
+}
 .sms-inbox-direction-in  { border-left: 2px solid #6366f1; }
 .sms-inbox-direction-out { border-left: 2px solid #10b981; }
 `;
@@ -299,7 +307,7 @@
         <span>Replies received</span>
         <span id="smsInboxCount" style="font-size:11px;color:var(--text-secondary)">Loading…</span>
       </div>
-      <div id="smsInboxList"><div class="sms-inbox-empty">Loading…</div></div>`;
+      <div id="smsInboxList" style="overflow-y:auto;flex:1;"><div class="sms-inbox-empty">Loading…</div></div>`;
     smsPanel.appendChild(panel);
 
     // Fetch from Apps Script
