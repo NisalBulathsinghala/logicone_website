@@ -223,8 +223,14 @@ function mkCard(j) {
   const dayClass = daysInStatus >= 7 ? 'alert' : daysInStatus >= 3 ? 'warn' : '';
   const dayBadge = `<span class="card-day-badge ${dayClass}">${daysInStatus}d</span>`;
 
+  const smsBadgeHtml = (() => {
+    const conv = typeof _smsConvs !== 'undefined' && _smsConvs.find(c => c.jobId === j.jobId);
+    const n = conv ? (conv.unread || 0) : 0;
+    return n > 0 ? `<span class="card-sms-badge" title="SMS replies" onclick="event.stopPropagation();switchView('sms');setTimeout(()=>smsOpenConv('${j.jobId}'),100)">${n}</span>` : '';
+  })();
+
   card.innerHTML = `
-    <div class="card-top"><span class="card-id">${j.jobId||'—'}</span><span class="card-brand-tag ${bt}">${j.brand||'—'}</span></div>
+    <div class="card-top"><span class="card-id">${j.jobId||'—'}</span><span class="card-brand-tag ${bt}">${j.brand||'—'}</span>${smsBadgeHtml}</div>
     <div class="card-device">${j.brand||''} ${j.model||''}</div>
     <div class="card-tags">
       ${j.deviceType ? `<span class="tag-sm tag-type">${j.deviceType}</span>` : ''}
@@ -1049,6 +1055,8 @@ let _smsConvs       = [];   // conversation metadata from index (no messages)
 let _smsThreads     = {};   // jobId → full message array, loaded on demand
 let _smsActiveConv  = null;
 let _smsLoaded      = false;
+let _smsFilter      = 'all'; // 'all' | 'unread' | 'needs'
+let _smsSearch      = '';
 
 async function smsInboxInit() {
   if (_smsLoaded) { smsRenderConvList(_smsConvs); return; }
@@ -1064,8 +1072,9 @@ async function smsInboxRefresh() {
     if (res.ok && res.data && res.data.conversations) {
       _smsConvs  = res.data.conversations;
       _smsLoaded = true;
-      smsRenderConvList(_smsConvs);
+      smsApplyFilter();
       smsUpdateBadge(_smsConvs);
+      smsRefreshKanbanBadges();
       // If a thread is open, refresh it too
       if (_smsActiveConv) {
         const updated = _smsConvs.find(c => c.jobId === _smsActiveConv.jobId);
@@ -1106,14 +1115,35 @@ function smsRenderConvList(convs) {
   }).join('');
 }
 
+function smsSetFilter(f) {
+  _smsFilter = f;
+  ['all','unread','needs'].forEach(id => {
+    const btn = document.getElementById('smsFilter' + id.charAt(0).toUpperCase() + id.slice(1));
+    if (btn) btn.classList.toggle('active', id === f);
+  });
+  smsApplyFilter();
+}
+
 function smsFilterConvs(q) {
-  if (!q) { smsRenderConvList(_smsConvs); return; }
-  const lq = q.toLowerCase();
-  smsRenderConvList(_smsConvs.filter(c =>
-    (c.customerName || '').toLowerCase().includes(lq) ||
-    (c.jobId || '').toLowerCase().includes(lq) ||
-    (c.phone || '').includes(lq)
-  ));
+  _smsSearch = q;
+  smsApplyFilter();
+}
+
+function smsApplyFilter() {
+  let convs = _smsConvs;
+  // Search
+  if (_smsSearch) {
+    const lq = _smsSearch.toLowerCase();
+    convs = convs.filter(c =>
+      (c.customerName || '').toLowerCase().includes(lq) ||
+      (c.jobId        || '').toLowerCase().includes(lq) ||
+      (c.phone        || '').includes(lq)
+    );
+  }
+  // Filter
+  if (_smsFilter === 'unread') convs = convs.filter(c => (c.unread || 0) > 0);
+  if (_smsFilter === 'needs')  convs = convs.filter(c => c.lastMessageDirection === 'in');
+  smsRenderConvList(convs);
 }
 
 async function smsOpenConv(jobId) {
@@ -1163,21 +1193,55 @@ async function smsOpenConv(jobId) {
   }
 
   document.getElementById('smsComposeText').focus();
+  smsInitQuickReplies();
 }
 
 function smsRenderThread(msgs) {
-  // accepts message array directly (not a conv object)
   const el = document.getElementById('smsThreadMessages');
   if (!msgs || !msgs.length) {
     el.innerHTML = '<div class="sms-thread-no-msgs">No messages yet — send the first one below</div>';
     return;
   }
-  el.innerHTML = msgs.map(m => `
-    <div class="sms-msg sms-msg-${m.direction || 'in'}">
+  el.innerHTML = msgs.map(m => {
+    const statusLabel = m.direction === 'out'
+      ? m.failed ? '<span class="sms-msg-status failed">✗ Failed</span>'
+                 : '<span class="sms-msg-status sent">✓ Sent</span>'
+      : '<span class="sms-msg-status received">Received</span>';
+    return `<div class="sms-msg sms-msg-${m.direction || 'in'}${m.failed ? ' sms-msg-failed' : ''}">
       <div class="sms-msg-bubble">${escHtmlSms(m.body || '').replace(/\n/g, '<br>')}</div>
-      <div class="sms-msg-time">${smsFmtTime(m.timestamp)}${m.direction === 'out' ? ' · Sent' : ' · Received'}</div>
-    </div>`).join('');
+      <div class="sms-msg-time">${smsFmtTime(m.timestamp)} ${statusLabel}</div>
+    </div>`;
+  }).join('');
   setTimeout(() => { el.scrollTop = el.scrollHeight; }, 30);
+}
+
+// Quick reply templates — injected into compose box on click
+const SMS_QUICK_REPLIES = [
+  { label: 'Received',         text: "Hi, we've received your device and it's now in our queue for inspection. We'll be in touch shortly with an update." },
+  { label: 'Inspection done',  text: "Hi, we've completed the inspection on your device. We'll send through the report and repair quote shortly." },
+  { label: 'Parts ordered',    text: "Hi, parts for your repair have been ordered. We'll update you as soon as they arrive." },
+  { label: 'Parts arrived',    text: "Hi, the parts for your repair have arrived and we'll be getting started shortly." },
+  { label: 'Repair complete',  text: "Hi, great news — your device has been repaired and is ready for collection. Our workshop is open Mon–Fri. Please bring your receipt." },
+  { label: 'Ready to collect', text: "Hi, just a reminder that your device is ready for collection at Logic One SA. Let us know if you need to arrange a different time." },
+  { label: 'Delay update',     text: "Hi, we wanted to let you know there's been a slight delay with your repair. We'll keep you updated and apologise for the inconvenience." },
+];
+
+function smsInitQuickReplies() {
+  const chips = document.getElementById('smsQrChips');
+  if (!chips) return;
+  chips.innerHTML = SMS_QUICK_REPLIES.map((r, i) =>
+    `<button class="sms-qr-chip" onclick="smsInsertQuickReply(${i})">${escHtmlSms(r.label)}</button>`
+  ).join('');
+}
+
+function smsInsertQuickReply(index) {
+  const r = SMS_QUICK_REPLIES[index];
+  if (!r) return;
+  const ta = document.getElementById('smsComposeText');
+  if (!ta) return;
+  ta.value = r.text;
+  smsComposeResize(ta);
+  ta.focus();
 }
 
 async function smsThreadSend() {
@@ -1226,6 +1290,12 @@ async function smsThreadSend() {
       textarea.style.height = '';
       showToast('success', '✓ SMS sent');
     } else {
+      // Show failed message bubble in thread
+      const jobId = _smsActiveConv.jobId;
+      const failedMsg = { direction: 'out', body: text, timestamp: new Date().toISOString(), failed: true, read: true };
+      if (!_smsThreads[jobId]) _smsThreads[jobId] = [];
+      _smsThreads[jobId].push(failedMsg);
+      smsRenderThread(_smsThreads[jobId]);
       showToast('error', 'Failed: ' + (data.error || 'Unknown error'));
     }
   } catch (e) {
@@ -1265,11 +1335,36 @@ function smsUpdateBadge(convs) {
   }
 }
 
-// Periodically poll for new inbound messages (every 60s when SMS view is active)
-setInterval(() => {
-  const smsView = document.getElementById('view-sms');
-  if (smsView && smsView.classList.contains('active')) smsInboxRefresh();
+// Periodically poll for new inbound messages (every 60s)
+// Refreshes the inbox and kanban badges regardless of which view is active
+setInterval(async () => {
+  await smsInboxRefresh();
+  smsRefreshKanbanBadges();
 }, 60000);
+
+// Refresh SMS unread badges on all visible kanban cards
+function smsRefreshKanbanBadges() {
+  if (typeof _smsConvs === 'undefined' || !_smsConvs.length) return;
+  document.querySelectorAll('.kanban-card').forEach(card => {
+    const jobId = card.dataset.jobId;
+    if (!jobId) return;
+    const conv = _smsConvs.find(c => c.jobId === jobId);
+    const n    = conv ? (conv.unread || 0) : 0;
+    let badge  = card.querySelector('.card-sms-badge');
+    if (n > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'card-sms-badge';
+        badge.onclick = e => { e.stopPropagation(); switchView('sms'); setTimeout(() => smsOpenConv(jobId), 100); };
+        const top = card.querySelector('.card-top');
+        if (top) top.appendChild(badge);
+      }
+      badge.textContent = n;
+    } else if (badge) {
+      badge.remove();
+    }
+  });
+}
 
 function escHtmlSms(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');

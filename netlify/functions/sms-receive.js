@@ -1,20 +1,16 @@
 // netlify/functions/sms-receive.js
-// Twilio webhook — called by Twilio when a customer replies to your AU number.
+// Twilio webhook for inbound SMS. Fires when a customer replies to your AU number.
 //
 // Configure in Twilio console:
-//   Phone Numbers → your AU number → Messaging
+//   Phone Numbers → +61 485 061 001 → Messaging
 //   "A message comes in" → Webhook → POST
-//   URL: https://your-site.netlify.app/.netlify/functions/sms-receive
+//   URL: https://logicone.com.au/.netlify/functions/sms-receive
 //
-// Required environment variables:
-//   TWILIO_AUTH_TOKEN        — used to validate the webhook signature
-//   APPS_SCRIPT_URL          — your deployed Apps Script URL (to log the reply)
-//   NOTIFY_EMAIL             — optional: email to forward replies to (uses Twilio SendGrid if set)
-//
-// What this does:
-//   1. Validates the request really came from Twilio (signature check)
-//   2. Logs the inbound message to Apps Script (which saves to Drive/Sheet)
-//   3. Returns a TwiML response (can auto-reply or stay silent)
+// Required env vars:
+//   TWILIO_AUTH_TOKEN     — validates webhook is genuinely from Twilio
+//   APPS_SCRIPT_URL       — logs reply to Drive/Sheet
+//   TELEGRAM_BOT_TOKEN    — your Telegram bot token (from @BotFather)
+//   TELEGRAM_CHAT_ID      — your personal Telegram chat ID
 
 const crypto = require('crypto');
 
@@ -23,85 +19,86 @@ exports.handler = async function (event) {
     return { statusCode: 405, body: 'Method not allowed' };
   }
 
-  const { TWILIO_AUTH_TOKEN, APPS_SCRIPT_URL } = process.env;
+  const { TWILIO_AUTH_TOKEN, APPS_SCRIPT_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } = process.env;
 
-  // Parse form-encoded body that Twilio sends
+  // Parse Twilio's form-encoded body
   const params = Object.fromEntries(new URLSearchParams(event.body));
-  const from    = params.From   || '';
-  const body    = params.Body   || '';
-  const to      = params.To     || '';
-  const msgSid  = params.MessageSid || '';
+  const from   = params.From        || '';
+  const body   = params.Body        || '';
+  const to     = params.To          || '';
+  const msgSid = params.MessageSid  || '';
 
-  // Validate Twilio signature (security — prevents spoofed webhooks)
+  // Validate Twilio signature — reject spoofed webhooks
   if (TWILIO_AUTH_TOKEN) {
     const isValid = validateTwilioSignature(event, TWILIO_AUTH_TOKEN);
     if (!isValid) {
-      console.warn('sms-receive: invalid Twilio signature — request rejected');
+      console.warn('sms-receive: invalid Twilio signature — rejected');
       return { statusCode: 403, body: 'Forbidden' };
     }
   }
 
   console.log(`Inbound SMS from ${from}: "${body}" (sid: ${msgSid})`);
 
-  // Log to Apps Script so the reply is saved against the matching job in Drive
+  const timestamp = new Date().toISOString();
+  let matchedJobId = null;
+  let matchedName  = null;
+
+  // 1. Log to Apps Script (fire-and-forget — don't block Twilio response)
   if (APPS_SCRIPT_URL) {
-    try {
-      const payload = JSON.stringify({
-        action:    'logInboundSms',
-        from:      from,
-        to:        to,
-        body:      body,
-        msgSid:    msgSid,
-        timestamp: new Date().toISOString(),
-      });
-      const url = APPS_SCRIPT_URL + '?payload=' + encodeURIComponent(payload);
-      await fetch(url, { redirect: 'follow' });
-    } catch (err) {
-      console.warn('sms-receive: Apps Script log failed (non-fatal):', err.message);
-    }
+    const payload = JSON.stringify({ action: 'logInboundSms', from, to, body, msgSid, timestamp });
+    const url = APPS_SCRIPT_URL + '?payload=' + encodeURIComponent(payload);
+    fetch(url, { redirect: 'follow' })
+      .then(r => r.json())
+      .then(d => {
+        matchedJobId = d.jobId || null;
+        matchedName  = d.customerName || null;
+      })
+      .catch(e => console.warn('sms-receive: Apps Script log failed:', e.message));
   }
 
-  // Return TwiML — empty response means no auto-reply.
-  // To send an auto-reply, add a <Message> element here.
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-</Response>`;
+  // 2. Send Telegram notification (fire-and-forget)
+  if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+    const fromDisplay = from.replace('+61', '0');
+    // Build message — jobId/name added if Apps Script returns them (best effort)
+    const tgText = [
+      '📩 *New SMS Reply*',
+      `From: \`${fromDisplay}\``,
+      matchedJobId ? `Job: \`${matchedJobId}\`${matchedName ? ' — ' + matchedName : ''}` : '',
+      '',
+      body,
+    ].filter(Boolean).join('\n');
 
+    const tgUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    fetch(tgUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id:    TELEGRAM_CHAT_ID,
+        text:       tgText,
+        parse_mode: 'Markdown',
+      }),
+    }).catch(e => console.warn('sms-receive: Telegram notify failed:', e.message));
+  }
+
+  // 3. Return TwiML immediately — Twilio doesn't wait for our logging
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'text/xml' },
-    body: twiml,
+    body: `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
   };
 };
 
-// Validates that the webhook POST genuinely came from Twilio.
-// https://www.twilio.com/docs/usage/webhooks/webhooks-security
 function validateTwilioSignature(event, authToken) {
   try {
-    const twilioSignature = event.headers['x-twilio-signature'] || '';
-    if (!twilioSignature) return false;
-
-    // Reconstruct the full URL Twilio posted to
-    const host   = event.headers['x-forwarded-host'] || event.headers.host || '';
-    const proto  = event.headers['x-forwarded-proto'] || 'https';
-    const url    = `${proto}://${host}${event.path}`;
-
-    // Sort POST params and append to URL
-    const params = Object.fromEntries(new URLSearchParams(event.body));
-    const sortedKeys = Object.keys(params).sort();
-    let toSign = url;
-    sortedKeys.forEach(k => { toSign += k + params[k]; });
-
-    const expected = crypto
-      .createHmac('sha1', authToken)
-      .update(toSign)
-      .digest('base64');
-
-    return crypto.timingSafeEqual(
-      Buffer.from(expected),
-      Buffer.from(twilioSignature)
-    );
-  } catch {
-    return false;
-  }
+    const sig  = event.headers['x-twilio-signature'] || '';
+    if (!sig) return false;
+    const host  = event.headers['x-forwarded-host'] || event.headers.host || '';
+    const proto = event.headers['x-forwarded-proto'] || 'https';
+    const url   = `${proto}://${host}${event.path}`;
+    const prms  = Object.fromEntries(new URLSearchParams(event.body));
+    let toSign  = url;
+    Object.keys(prms).sort().forEach(k => { toSign += k + prms[k]; });
+    const expected = crypto.createHmac('sha1', authToken).update(toSign).digest('base64');
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
+  } catch { return false; }
 }

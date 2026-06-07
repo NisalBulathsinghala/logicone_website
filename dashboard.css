@@ -951,3 +951,87 @@ body {
   border-radius: 10px; padding: 0 5px;
   margin-left: 8px; vertical-align: middle;
 }
+
+/* ===== SMS KANBAN BADGE ===== */
+.card-sms-badge {
+  margin-left: auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px;
+  background: #ef4444; color: white;
+  font-size: 10px; font-weight: 700;
+  border-radius: 10px; padding: 0 5px;
+  cursor: pointer; flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.card-sms-badge:hover { opacity: 0.8; }
+
+/* ===== SMS INBOX FILTER BUTTONS ===== */
+.sms-conv-filters {
+  display: flex; gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+.sms-filter-btn {
+  flex: 1; padding: 5px 4px;
+  background: none; border: 1px solid var(--border-light);
+  border-radius: 6px; font-size: 11px; font-weight: 600;
+  color: var(--text-secondary); cursor: pointer;
+  transition: all 0.15s; font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+}
+.sms-filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+.sms-filter-btn.active {
+  background: var(--accent); border-color: var(--accent);
+  color: white;
+}
+
+/* ===== QUICK REPLIES ===== */
+.sms-quick-replies {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px 4px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-surface);
+  flex-shrink: 0; overflow-x: auto;
+}
+.sms-quick-replies::-webkit-scrollbar { height: 3px; }
+.sms-qr-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-secondary); white-space: nowrap; flex-shrink: 0;
+}
+.sms-qr-chips { display: flex; gap: 6px; }
+.sms-qr-chip {
+  padding: 4px 10px;
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-light);
+  border-radius: 12px; font-size: 11.5px;
+  color: var(--text-secondary); cursor: pointer;
+  white-space: nowrap; flex-shrink: 0;
+  transition: all 0.15s; font-family: 'Inter', sans-serif;
+}
+.sms-qr-chip:hover { background: rgba(0,180,216,0.08); border-color: var(--accent); color: var(--accent); }
+
+/* ===== MESSAGE STATUS LABELS ===== */
+.sms-msg-status {
+  font-size: 10.5px; font-weight: 500; margin-left: 4px;
+}
+.sms-msg-status.sent     { color: #10b981; }
+.sms-msg-status.failed   { color: #ef4444; }
+.sms-msg-status.received { color: var(--text-secondary); }
+
+/* Failed message bubble */
+.sms-msg-failed .sms-msg-bubble {
+  background: rgba(239,68,68,0.08) !important;
+  border-color: rgba(239,68,68,0.25) !important;
+  color: #dc2626 !important;
+}
+
+/* ===== SMS UNREAD DOT ON JOB MODAL ===== */
+.sms-unread-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px;
+  background: #ef4444; color: white;
+  font-size: 10px; font-weight: 700;
+  border-radius: 10px; padding: 0 5px;
+  margin-left: 8px; vertical-align: middle;
+}

@@ -419,7 +419,12 @@
         </div>
         <div class="sms-conv-search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="smsConvSearch" placeholder="Search…" oninput="smsFilterConvs(this.value)">
+          <input type="text" id="smsConvSearch" placeholder="Name, job ID, phone, model…" oninput="smsFilterConvs(this.value)">
+        </div>
+        <div class="sms-conv-filters">
+          <button class="sms-filter-btn active" id="smsFilterAll"    onclick="smsSetFilter('all')">All</button>
+          <button class="sms-filter-btn"        id="smsFilterUnread" onclick="smsSetFilter('unread')">Unread</button>
+          <button class="sms-filter-btn"        id="smsFilterNeeds"  onclick="smsSetFilter('needs')">Needs Reply</button>
         </div>
         <div id="smsConvItems"></div>
       </div>
@@ -432,8 +437,13 @@
         <div class="sms-thread-wrap" id="smsThreadWrap" style="display:none;">
           <div class="sms-thread-header" id="smsThreadHeader"></div>
           <div class="sms-thread-messages" id="smsThreadMessages"></div>
+          <!-- Quick reply chips -->
+          <div class="sms-quick-replies" id="smsQuickReplies">
+            <span class="sms-qr-label">Quick:</span>
+            <div class="sms-qr-chips" id="smsQrChips"></div>
+          </div>
           <div class="sms-thread-compose">
-            <textarea id="smsComposeText" placeholder="Type a message…" rows="2" oninput="smsComposeResize(this)" onkeydown="smsComposeKeydown(event)"></textarea>
+            <textarea id="smsComposeText" placeholder="Type a message… (Cmd+Enter to send)" rows="2" oninput="smsComposeResize(this)" onkeydown="smsComposeKeydown(event)"></textarea>
             <button class="sms-thread-send-btn" id="smsThreadSendBtn" onclick="smsThreadSend()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
