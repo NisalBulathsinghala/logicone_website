@@ -203,6 +203,9 @@ textarea{resize:vertical;min-height:95px}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
 .btn-submit{width:100%;background:var(--cyan);color:var(--dark);font-family:var(--mono);font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:none;padding:14px;border-radius:4px;cursor:pointer;margin-top:.3rem;transition:background .2s}
 .btn-submit:hover{background:#00caf0}
+.field-error{display:block;font-size:.75rem;color:#f87171;margin-top:.3rem;font-weight:500}
+.input-error{border-color:#f87171 !important;outline:none}
+.input-error:focus{box-shadow:0 0 0 2px rgba(248,113,113,0.2) !important}
 #form-success{display:none;text-align:center;padding:4rem 2rem}
 .check-ring{width:52px;height:52px;border:1px solid var(--cyan-border);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;background:var(--cyan-dim);color:var(--cyan)}
 #form-success h3{font-family:var(--head);font-size:1.5rem;letter-spacing:.05em;color:var(--text);margin-bottom:.6rem}
