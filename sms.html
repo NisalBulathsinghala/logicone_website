@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="L1 SMS">
+<meta name="theme-color" content="#0b1628">
+<title>Logic One SA — SMS</title>
+<!-- LO_CONFIG_PLACEHOLDER -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & base ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg:       #f0f2f5;
+  --surface:  #ffffff;
+  --surface2: #f7f8fa;
+  --border:   #e2e5ec;
+  --accent:   #00b4d8;
+  --accent-d: #0096b7;
+  --navy:     #0b1628;
+  --text:     #1a1a2e;
+  --text2:    #5a6078;
+  --green:    #10b981;
+  --red:      #ef4444;
+  --radius:   12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  height: 100%; height: 100dvh;
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* ── App shell — two panels stacked, slide on mobile ───────── */
+.app {
+  display: flex;
+  height: 100dvh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Top bar ────────────────────────────────────────────────── */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: calc(52px + var(--safe-top));
+  padding-top: var(--safe-top);
+  background: var(--navy);
+  display: flex; align-items: center;
+  padding-left: 16px; padding-right: 16px;
+  gap: 12px;
+}
+.topbar-logo {
+  width: 30px; height: 30px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-d));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 12px; color: #fff; flex-shrink: 0;
+  font-family: system-ui;
+}
+.topbar-title {
+  font-size: 15px; font-weight: 700; color: #fff; flex: 1;
+}
+.topbar-badge {
+  background: var(--red); color: #fff;
+  font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: 10px; display: none;
+}
+.topbar-refresh {
+  background: none; border: none; color: rgba(255,255,255,0.5);
+  padding: 6px; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center;
+  transition: color 0.15s;
+}
+.topbar-refresh:hover, .topbar-refresh:active { color: #fff; }
+.topbar-refresh.spinning svg { animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Panel layout ───────────────────────────────────────────── */
+.panel-wrap {
+  position: absolute;
+  top: calc(52px + var(--safe-top));
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* CONV LIST panel */
+.conv-panel {
+  width: 100%; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+/* THREAD panel */
+.thread-panel {
+  width: 100%; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* When a thread is open, slide to thread panel */
+.panel-wrap.thread-open {
+  transform: translateX(-100%);
+}
+
+/* ── Conversation list ──────────────────────────────────────── */
+.conv-list-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--surface);
+}
+.conv-search-wrap {
+  flex: 1; display: flex; align-items: center; gap: 8px;
+  background: var(--bg); border-radius: 20px;
+  padding: 8px 14px; border: 1.5px solid var(--border);
+}
+.conv-search-wrap input {
+  flex: 1; border: none; background: none; outline: none;
+  font-size: 14px; color: var(--text); font-family: inherit;
+}
+.conv-search-wrap svg { color: var(--text2); flex-shrink: 0; }
+
+.conv-filters {
+  display: flex; gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.conv-filters::-webkit-scrollbar { display: none; }
+.filter-btn {
+  padding: 6px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  font-size: 12.5px; font-weight: 600;
+  background: none; color: var(--text2);
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  font-family: inherit; transition: all 0.15s;
+}
+.filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.conv-items { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+.conv-empty {
+  padding: 48px 24px;
+  text-align: center; font-size: 14px; color: var(--text2);
+  font-style: italic;
+}
+
+.conv-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; position: relative;
+  background: var(--surface);
+  transition: background 0.1s;
+  -webkit-user-select: none; user-select: none;
+}
+.conv-item:active { background: var(--surface2); }
+.conv-item.unread { background: #fafeff; }
+.conv-item.unread .conv-name { font-weight: 700; }
+
+.conv-avatar {
+  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #e0f7fb, #b2eaf2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: var(--accent-d);
+  position: relative;
+}
+.conv-avatar-unread {
+  position: absolute; top: -2px; right: -2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--red); border: 2px solid var(--surface);
+  display: none;
+}
+.conv-item.unread .conv-avatar-unread { display: block; }
+
+.conv-body { flex: 1; min-width: 0; }
+.conv-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.conv-preview {
+  font-size: 12.5px; color: var(--text2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.conv-preview.needs-reply { color: var(--accent-d); font-weight: 500; }
+
+.conv-meta { text-align: right; flex-shrink: 0; }
+.conv-time { font-size: 11px; color: var(--text2); }
+.conv-unread-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px;
+  background: var(--red); color: #fff;
+  font-size: 11px; font-weight: 700; border-radius: 10px;
+  padding: 0 5px; margin-top: 4px;
+}
+.conv-jobid {
+  font-size: 10.5px; color: var(--text2); margin-top: 2px;
+}
+.conv-chevron {
+  color: var(--border); flex-shrink: 0;
+  margin-left: 4px;
+}
+
+/* ── Thread header ──────────────────────────────────────────── */
+.thread-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  padding-top: 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.thread-back {
+  background: none; border: none; cursor: pointer;
+  color: var(--accent); padding: 6px 4px;
+  display: flex; align-items: center; gap: 4px;
+  font-size: 15px; font-weight: 600; font-family: inherit;
+}
+.thread-back svg { flex-shrink: 0; }
+.thread-head-info { flex: 1; min-width: 0; }
+.thread-head-name {
+  font-size: 15px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.thread-head-sub { font-size: 11.5px; color: var(--text2); }
+
+/* ── Messages ───────────────────────────────────────────────── */
+.thread-messages {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 16px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.msg { display: flex; flex-direction: column; max-width: 78%; }
+.msg-in  { align-self: flex-start; }
+.msg-out { align-self: flex-end; }
+
+.msg-bubble {
+  padding: 10px 14px; border-radius: 18px;
+  font-size: 14px; line-height: 1.5; word-break: break-word;
+}
+.msg-in  .msg-bubble {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); border-bottom-left-radius: 4px;
+}
+.msg-out .msg-bubble {
+  background: var(--accent); color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.msg-failed .msg-bubble {
+  background: rgba(239,68,68,0.08) !important;
+  border-color: rgba(239,68,68,0.3) !important;
+  color: #dc2626 !important;
+}
+
+.msg-time {
+  font-size: 11px; color: var(--text2);
+  margin-top: 4px; padding: 0 4px;
+}
+.msg-out .msg-time { text-align: right; }
+.msg-status { font-size: 10.5px; margin-left: 4px; }
+.msg-status.sent     { color: var(--green); }
+.msg-status.failed   { color: var(--red); }
+.msg-status.received { color: var(--text2); }
+
+.thread-no-msgs {
+  text-align: center; color: var(--text2);
+  font-size: 13.5px; font-style: italic;
+  margin-top: 40px;
+}
+
+/* ── Quick replies ──────────────────────────────────────────── */
+.quick-replies {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px 6px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  flex-shrink: 0;
+}
+.quick-replies::-webkit-scrollbar { display: none; }
+.qr-label {
+  font-size: 11px; font-weight: 700; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.qr-chip {
+  padding: 5px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 16px; background: var(--surface2);
+  font-size: 12px; font-weight: 500; color: var(--text2);
+  white-space: nowrap; flex-shrink: 0; cursor: pointer;
+  font-family: inherit; transition: all 0.15s;
+}
+.qr-chip:active { background: rgba(0,180,216,0.1); border-color: var(--accent); color: var(--accent-d); }
+
+/* ── Compose ────────────────────────────────────────────────── */
+.compose {
+  display: flex; align-items: flex-end; gap: 10px;
+  padding: 10px 14px;
+  padding-bottom: calc(10px + var(--safe-bot));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.compose textarea {
+  flex: 1; padding: 10px 14px;
+  border: 1.5px solid var(--border); border-radius: 22px;
+  font-size: 15px; font-family: inherit; resize: none; outline: none;
+  background: var(--bg); color: var(--text);
+  line-height: 1.45; min-height: 42px; max-height: 110px;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.compose textarea:focus { border-color: var(--accent); }
+.compose-send {
+  width: 42px; height: 42px; flex-shrink: 0;
+  background: var(--accent); border: none; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: #fff; transition: background 0.15s;
+}
+.compose-send:active { background: var(--accent-d); }
+.compose-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Toast ──────────────────────────────────────────────────── */
+.toast {
+  position: fixed; top: calc(60px + var(--safe-top)); left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: var(--navy); color: #fff;
+  padding: 10px 18px; border-radius: 22px;
+  font-size: 13px; font-weight: 600;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+  z-index: 999; white-space: nowrap;
+  opacity: 0; transition: all 0.2s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.success { background: #064e3b; }
+.toast.error   { background: #7f1d1d; }
+
+/* ── Loading spinner overlay ────────────────────────────────── */
+.loading-overlay {
+  position: absolute; inset: 0; z-index: 100;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--surface); gap: 14px;
+}
+.lo-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+.lo-spinner-label { font-size: 13px; color: var(--text2); }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-logo">L1</div>
+  <div class="topbar-title" id="topbarTitle">SMS</div>
+  <span class="topbar-badge" id="topbarBadge"></span>
+  <button class="topbar-refresh" id="refreshBtn" onclick="doRefresh()" title="Refresh">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+  </button>
+</div>
+
+<!-- Panel wrap (slides between list ↔ thread) -->
+<div class="panel-wrap" id="panelWrap">
+
+  <!-- ── Conversation list ──────────────────────────────────── -->
+  <div class="conv-panel" id="convPanel">
+    <div class="conv-list-head">
+      <div class="conv-search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="convSearch" placeholder="Name, job ID or phone…" autocomplete="off" autocorrect="off" spellcheck="false" oninput="filterConvs(this.value)">
+      </div>
+    </div>
+    <div class="conv-filters">
+      <button class="filter-btn active" id="fAll"    onclick="setFilter('all')">All</button>
+      <button class="filter-btn"        id="fUnread" onclick="setFilter('unread')">Unread</button>
+      <button class="filter-btn"        id="fNeeds"  onclick="setFilter('needs')">Needs Reply</button>
+    </div>
+    <div class="conv-items" id="convItems">
+      <div class="loading-overlay" id="convLoading">
+        <div class="lo-spinner"></div>
+        <div class="lo-spinner-label">Loading conversations…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Thread panel ──────────────────────────────────────── -->
+  <div class="thread-panel" id="threadPanel">
+    <div class="thread-head">
+      <button class="thread-back" onclick="goBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <div class="thread-head-info">
+        <div class="thread-head-name" id="threadName">—</div>
+        <div class="thread-head-sub"  id="threadSub">—</div>
+      </div>
+    </div>
+    <div class="thread-messages" id="threadMessages">
+      <div class="thread-no-msgs" id="threadEmpty">Select a conversation</div>
+    </div>
+    <div class="quick-replies" id="quickReplies">
+      <span class="qr-label">Quick:</span>
+    </div>
+    <div class="compose">
+      <textarea id="composeText" placeholder="Message…" rows="1"
+        oninput="composeResize(this)"
+        onkeydown="composeKey(event)"></textarea>
+      <button class="compose-send" id="sendBtn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="17" height="17"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Config (injected by build.js) ──────────────────────────
+const _CFG = window.LO_CONFIG || {};
+const APPS_SCRIPT_URL = _CFG.appsScriptUrl || '';
+
+// ── State ──────────────────────────────────────────────────
+let _convs       = [];
+let _threads     = {};   // jobId → message array
+let _activeConv  = null;
+let _loaded      = false;
+let _filter      = 'all';
+let _search      = '';
+
+// ── Quick reply templates ──────────────────────────────────
+const QUICK_REPLIES = [
+  { label: 'Received',        text: "Hi, we've received your device and it's now in our queue for inspection. We'll be in touch shortly." },
+  { label: 'Inspection done', text: "Hi, we've completed the inspection on your device. We'll send through the report and repair quote shortly." },
+  { label: 'Parts ordered',   text: "Hi, parts for your repair have been ordered. We'll update you as soon as they arrive." },
+  { label: 'Parts arrived',   text: "Hi, the parts for your repair have arrived and we'll be getting started shortly." },
+  { label: 'Repair complete', text: "Hi, great news — your device has been repaired and is ready for collection. Mon–Fri 10am–5pm. Please bring your receipt." },
+  { label: 'Reminder',        text: "Hi, just a reminder that your device is ready for collection at Logic One SA. Let us know if you need a different time." },
+  { label: 'Delay',           text: "Hi, we wanted to let you know there's been a slight delay with your repair. We'll keep you updated and apologise for the inconvenience." },
+];
+
+// ── callScript ─────────────────────────────────────────────
+async function callScript(data, timeoutMs = 20000) {
+  if (!APPS_SCRIPT_URL) return { ok: false, error: 'No Apps Script URL configured' };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const url = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + 'payload=' + encodeURIComponent(JSON.stringify(data));
+    const r = await fetch(url, { redirect: 'follow', signal: controller.signal });
+    clearTimeout(timer);
+    const text = await r.text();
+    const json = JSON.parse(text);
+    if (json.result === 'ok') return { ok: true, data: json.data || null };
+    return { ok: false, error: json.msg || json.result || 'Unknown error' };
+  } catch (err) {
+    clearTimeout(timer);
+    return { ok: false, error: err.name === 'AbortError' ? 'Request timed out' : err.message };
+  }
+}
+
+// ── Toast ──────────────────────────────────────────────────
+let _toastTimer = null;
+function toast(type, msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type + ' show';
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+// ── Helpers ────────────────────────────────────────────────
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtTime(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString())
+      return d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
+    // This week — show day name
+    const diffDays = Math.floor((now - d) / 86400000);
+    if (diffDays < 7)
+      return d.toLocaleDateString('en-AU', { weekday: 'short' });
+    return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+  } catch { return ''; }
+}
+
+function initials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(' ').filter(Boolean);
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// ── Load inbox ─────────────────────────────────────────────
+async function loadInbox(force = false) {
+  if (_loaded && !force) { renderConvList(); return; }
+
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  document.getElementById('convLoading').style.display = 'flex';
+
+  const res = await callScript({ action: 'loadSmsInbox', page: 0, pageSize: 200 });
+
+  document.getElementById('convLoading').style.display = 'none';
+  btn.classList.remove('spinning');
+
+  if (res.ok && res.data && res.data.conversations) {
+    // Invalidate thread cache for convs where lastMessageAt changed
+    res.data.conversations.forEach(c => {
+      const prev = _convs.find(p => p.jobId === c.jobId);
+      if (prev && prev.lastMessageAt !== c.lastMessageAt) {
+        delete _threads[c.jobId];
+        if (_activeConv && _activeConv.jobId === c.jobId) {
+          _activeConv = c;
+          loadThread(c.jobId);
+        }
+      }
+    });
+    _convs  = res.data.conversations;
+    _loaded = true;
+    updateTopBadge();
+    renderConvList();
+  } else if (!_loaded) {
+    document.getElementById('convItems').innerHTML = '<div class="conv-empty">Could not load messages</div>';
+  }
+}
+
+async function doRefresh() {
+  await loadInbox(true);
+  toast('success', 'Refreshed');
+}
+
+// ── Filter / search ────────────────────────────────────────
+function setFilter(f) {
+  _filter = f;
+  ['all','unread','needs'].forEach(id => {
+    const btn = document.getElementById('f' + id.charAt(0).toUpperCase() + id.slice(1));
+    if (btn) btn.classList.toggle('active', id === f);
+  });
+  renderConvList();
+}
+
+function filterConvs(q) { _search = q; renderConvList(); }
+
+function applyFilter(convs) {
+  if (_search) {
+    const q = _search.toLowerCase();
+    convs = convs.filter(c =>
+      (c.customerName || '').toLowerCase().includes(q) ||
+      (c.jobId        || '').toLowerCase().includes(q) ||
+      (c.phone        || '').includes(q)
+    );
+  }
+  if (_filter === 'unread') convs = convs.filter(c => (c.unread || 0) > 0);
+  if (_filter === 'needs')  convs = convs.filter(c => c.lastMessageDirection === 'in');
+  return convs;
+}
+
+// ── Render conversation list ───────────────────────────────
+function renderConvList() {
+  const el   = document.getElementById('convItems');
+  const list = applyFilter([..._convs]);
+
+  if (!list.length) {
+    el.innerHTML = '<div class="conv-empty">' + (_search ? 'No results' : 'No conversations yet') + '</div>';
+    return;
+  }
+
+  el.innerHTML = list.map(c => {
+    const unread   = c.unread || 0;
+    const preview  = esc((c.lastMessageBody || '—').slice(0, 70));
+    const isActive = _activeConv && _activeConv.jobId === c.jobId;
+    const dirArrow = c.lastMessageDirection === 'out' ? '↑ ' : '';
+    const needsReply = c.lastMessageDirection === 'in';
+    return `<div class="conv-item${unread ? ' unread' : ''}${isActive ? ' active' : ''}"
+         onclick="openConv('${esc(c.jobId)}')">
+      <div class="conv-avatar">
+        ${esc(initials(c.customerName))}
+        <div class="conv-avatar-unread"></div>
+      </div>
+      <div class="conv-body">
+        <div class="conv-name">${esc(c.customerName || c.jobId)}</div>
+        <div class="conv-preview${needsReply ? ' needs-reply' : ''}">${dirArrow}${preview}</div>
+        <div class="conv-jobid">${esc(c.jobId)} · ${esc(c.phone || '')}</div>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-time">${fmtTime(c.lastMessageAt)}</div>
+        ${unread ? `<div class="conv-unread-badge">${unread}</div>` : ''}
+      </div>
+      <svg class="conv-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>`;
+  }).join('');
+}
+
+// ── Open conversation ──────────────────────────────────────
+async function openConv(jobId) {
+  const conv = _convs.find(c => c.jobId === jobId);
+  if (!conv) return;
+  _activeConv = conv;
+
+  // Mark read in UI
+  conv.unread = 0;
+  updateTopBadge();
+  renderConvList();
+
+  // Mark read on server (fire and forget — non-critical)
+  callScript({ action: 'markSmsRead', jobId }).catch(() => {});
+
+  // Update thread header
+  document.getElementById('threadName').textContent = conv.customerName || jobId;
+  document.getElementById('threadSub').textContent  = (conv.phone || '') + ' · ' + jobId;
+
+  // Slide to thread
+  document.getElementById('panelWrap').classList.add('thread-open');
+
+  // Render quick replies
+  renderQuickReplies();
+
+  // Load thread
+  await loadThread(jobId);
+
+  // Focus compose (slight delay to let keyboard settle)
+  setTimeout(() => document.getElementById('composeText').focus(), 350);
+}
+
+function goBack() {
+  document.getElementById('panelWrap').classList.remove('thread-open');
+  _activeConv = null;
+  // Blur keyboard
+  document.getElementById('composeText').blur();
+}
+
+// ── Load thread ────────────────────────────────────────────
+async function loadThread(jobId) {
+  const el = document.getElementById('threadMessages');
+  if (_threads[jobId]) { renderThread(_threads[jobId]); return; }
+
+  el.innerHTML = '<div class="thread-no-msgs" style="opacity:0.5">Loading…</div>';
+
+  const res = await callScript({ action: 'loadSmsThread', jobId });
+  if (res.ok && res.data) {
+    _threads[jobId] = res.data;
+    renderThread(res.data);
+  } else {
+    el.innerHTML = '<div class="thread-no-msgs">No messages yet — send the first one below</div>';
+  }
+}
+
+function renderThread(msgs) {
+  const el = document.getElementById('threadMessages');
+  if (!msgs || !msgs.length) {
+    el.innerHTML = '<div class="thread-no-msgs">No messages yet — send the first one below</div>';
+    return;
+  }
+  el.innerHTML = msgs.map(m => {
+    const dir = m.direction || 'in';
+    const statusLabel = dir === 'out'
+      ? m.failed
+        ? '<span class="msg-status failed">✗ Failed</span>'
+        : '<span class="msg-status sent">✓ Sent</span>'
+      : '<span class="msg-status received">Received</span>';
+    return `<div class="msg msg-${dir}${m.failed ? ' msg-failed' : ''}">
+      <div class="msg-bubble">${esc(m.body || '').replace(/\n/g, '<br>')}</div>
+      <div class="msg-time">${fmtTime(m.timestamp)} ${statusLabel}</div>
+    </div>`;
+  }).join('');
+  setTimeout(() => { el.scrollTop = el.scrollHeight; }, 30);
+}
+
+// ── Quick replies ──────────────────────────────────────────
+function renderQuickReplies() {
+  const wrap = document.getElementById('quickReplies');
+  const chips = QUICK_REPLIES.map((r, i) =>
+    `<button class="qr-chip" onclick="insertQuickReply(${i})">${esc(r.label)}</button>`
+  ).join('');
+  wrap.innerHTML = '<span class="qr-label">Quick:</span>' + chips;
+}
+
+function insertQuickReply(i) {
+  const r = QUICK_REPLIES[i];
+  if (!r) return;
+  const ta = document.getElementById('composeText');
+  ta.value = r.text;
+  composeResize(ta);
+  ta.focus();
+  // Put cursor at end
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+// ── Send ───────────────────────────────────────────────────
+async function sendMessage() {
+  if (!_activeConv) return;
+  const ta  = document.getElementById('composeText');
+  const btn = document.getElementById('sendBtn');
+  const text = ta.value.trim();
+  if (!text) return;
+
+  btn.disabled = true;
+  ta.disabled  = true;
+
+  try {
+    const res = await fetch('/.netlify/functions/sms-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to:    _activeConv.phone,
+        body:  text,
+        jobId: _activeConv.jobId,
+      }),
+    });
+    const data = await res.json();
+
+    const jobId = _activeConv.jobId;
+    const now   = new Date().toISOString();
+
+    if (data.ok) {
+      // Optimistic: add to thread
+      const msg = { direction: 'out', body: text, timestamp: now, msgSid: data.sid || '', read: true };
+      if (!_threads[jobId]) _threads[jobId] = [];
+      _threads[jobId].push(msg);
+      renderThread(_threads[jobId]);
+
+      // Update conv list
+      let conv = _convs.find(c => c.jobId === jobId);
+      if (!conv) { conv = { ..._activeConv, unread: 0 }; _convs.unshift(conv); }
+      conv.lastMessageAt        = now;
+      conv.lastMessageBody      = text.slice(0, 100);
+      conv.lastMessageDirection = 'out';
+      renderConvList();
+
+      ta.value = '';
+      ta.style.height = '';
+      toast('success', '✓ Sent');
+    } else {
+      // Failed bubble
+      const failMsg = { direction: 'out', body: text, timestamp: now, failed: true, read: true };
+      if (!_threads[jobId]) _threads[jobId] = [];
+      _threads[jobId].push(failMsg);
+      renderThread(_threads[jobId]);
+      toast('error', 'Failed: ' + (data.error || 'Unknown'));
+    }
+  } catch (e) {
+    toast('error', 'Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    ta.disabled  = false;
+    ta.focus();
+  }
+}
+
+// ── Compose helpers ────────────────────────────────────────
+function composeResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 110) + 'px';
+}
+
+function composeKey(e) {
+  // Send on Enter (not Shift+Enter) on non-mobile
+  if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 600) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+// ── Top badge ──────────────────────────────────────────────
+function updateTopBadge() {
+  const total  = _convs.reduce((n, c) => n + (c.unread || 0), 0);
+  const badge  = document.getElementById('topbarBadge');
+  const title  = document.getElementById('topbarTitle');
+  if (total > 0) {
+    badge.textContent = total;
+    badge.style.display = '';
+    title.textContent = 'SMS';
+  } else {
+    badge.style.display = 'none';
+    title.textContent = 'SMS';
+  }
+  // Update browser tab title
+  document.title = total > 0 ? `(${total}) Logic One SA — SMS` : 'Logic One SA — SMS';
+}
+
+// ── 60s poll ───────────────────────────────────────────────
+setInterval(() => loadInbox(true), 60000);
+
+// ── Handle back gesture / hardware back button ─────────────
+window.addEventListener('popstate', () => {
+  if (_activeConv) {
+    goBack();
+    history.pushState(null, '', '');
+  }
+});
+// Push a state so back button hits popstate instead of navigating away
+history.pushState(null, '', '');
+
+// ── Init ───────────────────────────────────────────────────
+loadInbox();
+</script>
+</body>
+</html>

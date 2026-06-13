@@ -6,5 +6,9 @@
   path = "/dashboard.html"
   function = "auth"
 
+[[edge_functions]]
+  path = "/sms.html"
+  function = "auth"
+
 [functions]
   directory = "netlify/functions"
