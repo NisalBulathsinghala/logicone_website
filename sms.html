@@ -516,17 +516,23 @@ function initials(name) {
 }
 
 // ── Load inbox ─────────────────────────────────────────────
-async function loadInbox(force = false) {
+async function loadInbox(force = false, showSpinner = false) {
   if (_loaded && !force) { renderConvList(); return; }
 
   const btn = document.getElementById('refreshBtn');
-  btn.classList.add('spinning');
-  document.getElementById('convLoading').style.display = 'flex';
 
-  const res = await callScript({ action: 'loadSmsInbox', page: 0, pageSize: 200 });
+  if (!_loaded) {
+    document.getElementById('convLoading').style.display = 'flex';
+  }
+  if (showSpinner) btn.classList.add('spinning');
 
-  document.getElementById('convLoading').style.display = 'none';
-  btn.classList.remove('spinning');
+  let res;
+  try {
+    res = await callScript({ action: 'loadSmsInbox', page: 0, pageSize: 200 });
+  } finally {
+    document.getElementById('convLoading').style.display = 'none';
+    btn.classList.remove('spinning');
+  }
 
   if (res.ok && res.data && res.data.conversations) {
     // Invalidate thread cache for convs where lastMessageAt changed
@@ -550,7 +556,7 @@ async function loadInbox(force = false) {
 }
 
 async function doRefresh() {
-  await loadInbox(true);
+  await loadInbox(true, true);   // true = show spinner (manual tap)
   toast('success', 'Refreshed');
 }
 
@@ -803,8 +809,55 @@ function updateTopBadge() {
   document.title = total > 0 ? `(${total}) Logic One SA — SMS` : 'Logic One SA — SMS';
 }
 
-// ── 60s poll ───────────────────────────────────────────────
-setInterval(() => loadInbox(true), 60000);
+// ── Smart poll ────────────────────────────────────────────
+// • 8s while page is visible
+// • 60s while backgrounded (saves battery / requests)
+// • Fires immediately when page becomes visible again —
+//   so switching back from Telegram shows the message instantly
+//
+// Single _polling guard prevents overlapping requests.
+// loadInbox is always called with showSpinner=false here
+// so the refresh icon never spins during background polls.
+
+const POLL_ACTIVE     = 8000;
+const POLL_BACKGROUND = 60000;
+
+let _pollTimer = null;
+let _polling   = false;
+
+async function pollOnce() {
+  if (_polling) return;           // skip if a request is already in flight
+  _polling = true;
+  try {
+    await loadInbox(true, false); // silent — no spinner
+  } finally {
+    _polling = false;
+  }
+}
+
+function schedulePoll(ms) {
+  clearTimeout(_pollTimer);
+  _pollTimer = setTimeout(async () => {
+    await pollOnce();
+    schedulePoll(document.hidden ? POLL_BACKGROUND : POLL_ACTIVE);
+  }, ms);
+}
+
+// Visible again (phone unlocked, app switcher back, Telegram → SMS)
+document.addEventListener('visibilitychange', () => {
+  clearTimeout(_pollTimer);
+  if (!document.hidden) {
+    pollOnce().then(() => schedulePoll(POLL_ACTIVE));
+  } else {
+    schedulePoll(POLL_BACKGROUND);
+  }
+});
+
+// Focus restore (desktop / iPad)
+window.addEventListener('focus', () => {
+  clearTimeout(_pollTimer);
+  pollOnce().then(() => schedulePoll(POLL_ACTIVE));
+});
 
 // ── Handle back gesture / hardware back button ─────────────
 window.addEventListener('popstate', () => {
@@ -817,7 +870,7 @@ window.addEventListener('popstate', () => {
 history.pushState(null, '', '');
 
 // ── Init ───────────────────────────────────────────────────
-loadInbox();
+loadInbox(false, false).then(() => schedulePoll(POLL_ACTIVE));
 </script>
 </body>
 </html>
