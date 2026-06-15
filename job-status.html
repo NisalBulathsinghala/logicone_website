@@ -233,6 +233,38 @@ body::before {
   font-size: 12px; color: #64748b; margin-top: 4px; line-height: 1.5;
 }
 
+/* ── Parts list ── */
+.parts-list { display: flex; flex-direction: column; gap: 8px; }
+.part-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 10px 12px;
+  background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px;
+}
+.part-name { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+.part-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.part-qty {
+  font-size: 11.5px; font-weight: 600; color: #64748b;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 2px 7px;
+}
+.part-orderno {
+  font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 600;
+  color: #0369a1; background: rgba(0,180,216,0.1); border-radius: 6px; padding: 2px 8px;
+}
+
+/* ── Notes list ── */
+.notes-list { display: flex; flex-direction: column; gap: 10px; }
+.note-item {
+  padding: 12px 14px; background: #f8fafc; border: 1px solid #f1f5f9;
+  border-radius: 10px;
+}
+.note-label {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: #94a3b8; margin-bottom: 4px;
+}
+.note-body {
+  font-size: 13px; color: #1a1a2e; line-height: 1.55; white-space: pre-wrap;
+}
+
 /* ── Footer note ── */
 .footer-note {
   text-align: center;
@@ -364,6 +396,12 @@ body::before {
       <div class="section-label">Progress</div>
       <div class="timeline" id="rTimeline"></div>
 
+      <div class="section-label" id="rPartsLabel" style="display:none; margin-top:20px;">Parts</div>
+      <div class="parts-list" id="rParts" style="display:none;"></div>
+
+      <div class="section-label" id="rNotesLabel" style="display:none; margin-top:20px;">Notes</div>
+      <div class="notes-list" id="rNotes" style="display:none;"></div>
+
     </div>
   </div>
 
@@ -393,6 +431,8 @@ body::before {
 const SHEETS_ID  = (window.LO_CONFIG && window.LO_CONFIG.sheetId)  || '';
 const SHEETS_TAB = (window.LO_CONFIG && window.LO_CONFIG.sheetTab) || 'Form Responses 1';
 const API_KEY    = (window.LO_CONFIG && window.LO_CONFIG.apiKey)   || '';
+const APPS_SCRIPT_URL = (window.LO_CONFIG && window.LO_CONFIG.appsScriptUrl) || '';
+const APPS_SCRIPT_URL = (window.LO_CONFIG && window.LO_CONFIG.appsScriptUrl) || '';
 
 // ── Token secret — MUST match the secret used in receipt-module.js ──
 // Change this once and keep it the same in both files.
@@ -452,7 +492,7 @@ const HMAP = {
   'device type':'deviceType','brand':'brand','model':'model',
   'serial number':'serial','warranty status':'warranty',
   'job id':'jobId','status':'status',
-  'status timestamps':'statusTimestamps',
+  'status timestamps':'statusTimestamps','drive folder':'driveFolder',
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -528,6 +568,26 @@ async function fetchJob(jobId) {
   }
 
   return job;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// JOB SHEET DETAILS — parts + notes from Apps Script (Drive jobsheet JSON)
+// ─────────────────────────────────────────────────────────────────
+async function loadJobDetails(jobId, driveFolder) {
+  if (!APPS_SCRIPT_URL) return { parts: [], notes: {} };
+  try {
+    const payload = JSON.stringify({ action: 'loadJobStatusDetails', jobId, driveFolder });
+    const sep = APPS_SCRIPT_URL.includes('?') ? '&' : '?';
+    const url = APPS_SCRIPT_URL + sep + 'payload=' + encodeURIComponent(payload);
+    const r = await fetch(url);
+    if (!r.ok) return { parts: [], notes: {} };
+    const d = await r.json();
+    if (d.result !== 'ok') return { parts: [], notes: {} };
+    return d.data || { parts: [], notes: {} };
+  } catch (e) {
+    console.warn('loadJobDetails failed:', e.message);
+    return { parts: [], notes: {} };
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -622,6 +682,61 @@ function renderJob(job) {
   showState('stateResult');
 }
 
+// ── Render parts list + notes (from Apps Script jobsheet JSON) ──
+const NOTE_LABELS = {
+  custRemark:     'Customer Remark',
+  inspectionNote: 'Inspection',
+  repairingNote:  'Repair',
+  testingNote:    'Testing / QC',
+  qcNote:         'QC',
+  finalRemark:    'Final Remark',
+};
+
+function renderJobDetails(details) {
+  // Parts
+  const partsEl    = document.getElementById('rParts');
+  const partsLabel = document.getElementById('rPartsLabel');
+  const parts = (details.parts || []).filter(p => (p.name || '').trim());
+
+  if (parts.length) {
+    partsEl.innerHTML = parts.map(p => `
+      <div class="part-row">
+        <div class="part-name">${escapeHtml(p.name)}${p.qty && p.qty != 1 ? ` <span class="part-qty">×${escapeHtml(String(p.qty))}</span>` : ''}</div>
+        ${p.partno ? `<div class="part-meta"><span class="part-orderno">${escapeHtml(p.partno)}</span></div>` : ''}
+      </div>`).join('');
+    partsEl.style.display = '';
+    partsLabel.style.display = '';
+  } else {
+    partsEl.style.display = 'none';
+    partsLabel.style.display = 'none';
+  }
+
+  // Notes
+  const notesEl    = document.getElementById('rNotes');
+  const notesLabel = document.getElementById('rNotesLabel');
+  const notes = details.notes || {};
+  const noteKeys = Object.keys(NOTE_LABELS).filter(k => (notes[k] || '').trim());
+
+  if (noteKeys.length) {
+    notesEl.innerHTML = noteKeys.map(k => `
+      <div class="note-item">
+        <div class="note-label">${NOTE_LABELS[k]}</div>
+        <div class="note-body">${escapeHtml(notes[k])}</div>
+      </div>`).join('');
+    notesEl.style.display = '';
+    notesLabel.style.display = '';
+  } else {
+    notesEl.style.display = 'none';
+    notesLabel.style.display = 'none';
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 // ─────────────────────────────────────────────────────────────────
 // MAIN
 // ─────────────────────────────────────────────────────────────────
@@ -644,8 +759,17 @@ async function checkAndLoad() {
     const job = await fetchJob(id);
     if (!job) { showState('stateNotFound'); return; }
 
-    // 3. Render
+    // 3. Render core status
     renderJob(job);
+
+    // 4. Fetch + render parts/notes from jobsheet JSON (non-blocking for core UI)
+    try {
+      const details = await loadJobDetails(job.jobId, job.driveFolder);
+      renderJobDetails(details);
+    } catch (e) {
+      console.warn('Could not load parts/notes:', e.message);
+    }
+
     upd.textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' });
 
   } catch(err) {
