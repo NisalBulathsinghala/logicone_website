@@ -519,7 +519,7 @@
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <h3>Enquiry Sent</h3>
-          <p>Thanks for getting in touch. We'll get back to you within a few hours on business days (Mon – Fri, 10am – 5pm).</p>
+          <p>Thanks for getting in touch. We'll get back to you within a few hours on business days (Mon, Wed, Fri 10am–5pm · Sat 10am–2pm).</p>
         </div>
       </div>
     </div>
@@ -539,17 +539,19 @@
     <div class="cbox">
       <div class="clabel">Email</div>
       <div class="cval"><a href="mailto:info@logicone.com.au">info@logicone.com.au</a></div>
-      <div class="csub">We reply within 4 hours on business days (Mon – Fri, 10am – 5pm)</div>
+      <div class="csub">We reply within 4 hours on business days (Mon, Wed, Fri 10am–5pm · Sat 10am–2pm)</div>
     </div>
     <div class="cbox">
       <div class="clabel">Hours</div>
-      <div class="cval">Mon – Fri, 10am – 5pm</div>
+      <div class="cval">Mon, Wed, Fri 10am–5pm · Sat 10am–2pm</div>
       <div class="csub">ACST · Closed public holidays</div>
     </div>
   </div>
   <div class="hours-grid">
-    <div class="hcell"><div class="hday">Mon – Fri</div><div class="htime">10:00 am – 5:00 pm</div></div>
-    <div class="hcell"><div class="hday">Saturday</div><div class="htime closed">Closed</div></div>
+    <div class="hcell"><div class="hday">Mon, Wed, Fri</div><div class="htime">10:00 am – 5:00 pm</div></div>
+    <div class="hcell"><div class="hday">Tuesday</div><div class="htime closed">Closed</div></div>
+    <div class="hcell"><div class="hday">Thursday</div><div class="htime closed">Closed</div></div>
+    <div class="hcell"><div class="hday">Saturday</div><div class="htime">10:00 am – 2:00 pm</div></div>
     <div class="hcell"><div class="hday">Sunday</div><div class="htime closed">Closed</div></div>
     <div class="hcell"><div class="hday">Public Holidays</div><div class="htime closed">Closed</div></div>
   </div>
@@ -597,87 +599,45 @@ document.addEventListener('click',e=>{
 });
 
 async function submitForm(){
-  // Clear any previous errors
-  document.querySelectorAll('.field-error').forEach(e => e.remove());
-  document.querySelectorAll('.fg input, .fg textarea, .fg select').forEach(f => f.classList.remove('input-error'));
+  const fields=document.querySelectorAll('#booking-form input,#booking-form select,#booking-form textarea');
+  let ok=true;
+  fields.forEach(f=>{if(!f.value.trim())ok=false;});
+  if(!ok){alert('Please fill in all fields before submitting.');return;}
 
-  const first   = document.querySelector('input[placeholder="Alex"]').value.trim();
-  const last    = document.querySelector('input[placeholder="Nguyen"]').value.trim();
-  const emailEl = document.querySelector('input[type="email"]');
-  const phoneEl = document.querySelector('input[type="tel"]');
-  const enquiry = document.getElementById('type-sel').value.trim();
-  const details = document.querySelector('textarea').value.trim();
+  const first=document.querySelector('input[placeholder="Alex"]').value.trim();
+  const last=document.querySelector('input[placeholder="Nguyen"]').value.trim();
+  const email=document.querySelector('input[type="email"]').value.trim();
+  const phone=document.querySelector('input[type="tel"]').value.trim();
+  const enquiry=document.getElementById('type-sel').value.trim();
+  const details=document.querySelector('textarea').value.trim();
 
-  const email = emailEl.value.trim();
-  const phone = phoneEl.value.trim();
-
-  let hasError = false;
-
-  const showError = (el, msg) => {
-    el.classList.add('input-error');
-    const err = document.createElement('span');
-    err.className = 'field-error';
-    err.textContent = msg;
-    el.parentNode.appendChild(err);
-    hasError = true;
-  };
-
-  // Required field checks
-  if (!first)   showError(document.querySelector('input[placeholder="Alex"]'),   'First name is required');
-  if (!last)    showError(document.querySelector('input[placeholder="Nguyen"]'), 'Last name is required');
-  if (!details) showError(document.querySelector('textarea'), 'Please describe your project or issue');
-  if (!enquiry) showError(document.getElementById('type-sel'), 'Please select an enquiry type');
-
-  // Email validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email) {
-    showError(emailEl, 'Email address is required');
-  } else if (!emailRegex.test(email)) {
-    showError(emailEl, 'Please enter a valid email address (e.g. you@example.com)');
-  }
-
-  // Phone validation — AU mobile or landline
-  const phoneClean = phone.replace(/[\s\-().+]/g, '');
-  const phoneValid =
-    /^04\d{8}$/.test(phoneClean) ||          // 04xx xxx xxx
-    /^614\d{8}$/.test(phoneClean) ||          // +61 4xx xxx xxx
-    /^0[2378]\d{8}$/.test(phoneClean) ||      // AU landline
-    /^61[2378]\d{8}$/.test(phoneClean);       // +61 landline
-
-  if (!phone) {
-    showError(phoneEl, 'Phone number is required');
-  } else if (!phoneValid) {
-    showError(phoneEl, 'Please enter a valid Australian phone number (e.g. 0412 345 678)');
-  }
-
-  if (hasError) {
-    // Scroll to first error
-    const firstErr = document.querySelector('.input-error');
-    if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return;
-  }
-
-  const btn = document.querySelector('.btn-submit');
-  btn.textContent = 'Sending…';
-  btn.disabled = true;
+  const btn=document.querySelector('.btn-submit');
+  btn.textContent='Sending…';
+  btn.disabled=true;
 
   try {
-    const res = await fetch('https://formspree.io/f/mvzdlzkq', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ name: first + ' ' + last, email, phone, enquiry_type: enquiry, message: details })
+    const res=await fetch('https://formspree.io/f/mvzdlzkq',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({
+        name:first+' '+last,
+        email,
+        phone,
+        enquiry_type:enquiry,
+        message:details
+      })
     });
-    if (res.ok) {
-      document.getElementById('booking-form').style.display = 'none';
-      document.getElementById('form-success').style.display = 'block';
+    if(res.ok){
+      document.getElementById('booking-form').style.display='none';
+      document.getElementById('form-success').style.display='block';
     } else {
-      btn.textContent = 'Send Enquiry via Email →';
-      btn.disabled = false;
+      btn.textContent='Send Enquiry via Email →';
+      btn.disabled=false;
       alert('Something went wrong. Please try again or email us directly at info@logicone.com.au');
     }
-  } catch(e) {
-    btn.textContent = 'Send Enquiry via Email →';
-    btn.disabled = false;
+  } catch(e){
+    btn.textContent='Send Enquiry via Email →';
+    btn.disabled=false;
     alert('Could not send. Please check your connection or email us at info@logicone.com.au');
   }
 }

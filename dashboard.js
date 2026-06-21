@@ -390,7 +390,7 @@ function showDetail(j) {
       icon: '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
       color: '#10b981',
       bg: 'rgba(16,185,129,0.08)',
-      text: `Hi ${firstName},\n\nGreat news! Your ${device} (Job No: ${j.jobId}) has been repaired and is ready for collection. Our workshop is open Mon–Fri 10am–5pm. Please bring this message as reference.\n\nThank you for choosing Logic One SA!`
+      text: `Hi ${firstName},\n\nGreat news! Your ${device} (Job No: ${j.jobId}) has been repaired and is ready for collection. Our workshop is open Mon, Wed, Fri 10am–5pm and Sat 10am–2pm. Please bring this message as reference.\n\nThank you for choosing Logic One SA!`
     },
     {
       label: 'Cannot Repair',
@@ -1237,7 +1237,7 @@ const SMS_QUICK_REPLIES = [
   { label: 'Inspection done',  text: "Hi, we've completed the inspection on your device. We'll send through the report and repair quote shortly." },
   { label: 'Parts ordered',    text: "Hi, parts for your repair have been ordered. We'll update you as soon as they arrive." },
   { label: 'Parts arrived',    text: "Hi, the parts for your repair have arrived and we'll be getting started shortly." },
-  { label: 'Repair complete',  text: "Hi, great news — your device has been repaired and is ready for collection. Our workshop is open Mon–Fri. Please bring your receipt." },
+  { label: 'Repair complete',  text: "Hi, great news — your device has been repaired and is ready for collection. Our workshop is open Mon, Wed, Fri 10am–5pm and Sat 10am–2pm. Please bring your receipt." },
   { label: 'Ready to collect', text: "Hi, just a reminder that your device is ready for collection at Logic One SA. Let us know if you need to arrange a different time." },
   { label: 'Delay update',     text: "Hi, we wanted to let you know there's been a slight delay with your repair. We'll keep you updated and apologise for the inconvenience." },
 ];
