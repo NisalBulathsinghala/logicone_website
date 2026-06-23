@@ -75,6 +75,21 @@ exports.handler = async function (event) {
       } catch (logErr) {
         console.warn('Drive log failed (non-fatal):', logErr.message);
       }
+
+      // Dual-write to Firestore (fire and forget)
+      const host = event.headers['x-forwarded-proto'] + '://' + event.headers['x-forwarded-host'];
+      fetch(host + '/.netlify/functions/firestore-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action:  'log-outbound',
+          jobId,
+          to:      toNorm,
+          msgBody: messageBody,
+          msgSid:  data.sid,
+          timestamp: new Date().toISOString(),
+        }),
+      }).catch(e => console.warn('Firestore outbound SMS write failed (non-fatal):', e.message));
     }
 
     return {

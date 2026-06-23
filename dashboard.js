@@ -1077,17 +1077,39 @@ async function smsInboxInit() {
 async function smsInboxRefresh() {
   const isFirst = !_smsLoaded;
   try {
-    const res = await callScript({ action: 'loadSmsInbox', page: 0, pageSize: 200 });
-    if (res.ok && res.data && res.data.conversations) {
-      const incoming = res.data.conversations;
+    let incoming = null;
 
-      // Invalidate thread cache for any conv where lastMessageAt has changed
+    // Try Firestore first — fast, no cold start
+    try {
+      const fsRes = await fetch('/.netlify/functions/firestore-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load-inbox' }),
+      });
+      const fsData = await fsRes.json();
+      if (fsData.ok && fsData.data && fsData.data.conversations) {
+        incoming = fsData.data.conversations;
+        console.log('SMS inbox loaded from Firestore');
+      }
+    } catch (fe) {
+      console.warn('Firestore inbox load failed, trying Apps Script:', fe.message);
+    }
+
+    // Fall back to Apps Script / Drive
+    if (!incoming) {
+      const res = await callScript({ action: 'loadSmsInbox', page: 0, pageSize: 200 });
+      if (res.ok && res.data && res.data.conversations) {
+        incoming = res.data.conversations;
+        console.log('SMS inbox loaded from Apps Script (Firestore fallback)');
+      }
+    }
+
+    if (incoming) {
+      // Invalidate thread cache for convs with new messages
       incoming.forEach(c => {
         const prev = _smsConvs.find(p => p.jobId === c.jobId);
         if (prev && prev.lastMessageAt !== c.lastMessageAt) {
-          // New message arrived — clear cached thread so it reloads fresh
           delete _smsThreads[c.jobId];
-          // If this is the open thread, reload it immediately
           if (_smsActiveConv && _smsActiveConv.jobId === c.jobId) {
             _smsActiveConv = c;
             smsLoadThread(c.jobId);
@@ -1176,7 +1198,12 @@ async function smsOpenConv(jobId) {
   smsRenderConvList(_smsConvs);
   smsUpdateBadge(_smsConvs);
 
-  // Mark as read on server
+  // Mark as read on server — write to both Firestore and Apps Script
+  fetch('/.netlify/functions/firestore-sms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'mark-read', jobId }),
+  }).catch(() => {});
   callScript({ action: 'markSmsRead', jobId }).catch(() => {});
 
   // Show thread panel
@@ -1201,19 +1228,45 @@ async function smsLoadThread(jobId) {
   const msgEl = document.getElementById('smsThreadMessages');
   if (!msgEl) return;
 
-  // Use cache if available
   if (_smsThreads[jobId]) {
     smsRenderThread(_smsThreads[jobId]);
     return;
   }
 
   msgEl.innerHTML = '<div class="sms-thread-no-msgs" style="opacity:0.5">Loading…</div>';
+
   try {
-    const job2 = jobs.find(j => j.jobId === jobId);
-    const res  = await callScript({ action: 'loadSmsThread', jobId, driveFolder: job2 && job2.driveFolder });
-    if (res.ok && res.data) {
-      _smsThreads[jobId] = res.data;
-      smsRenderThread(res.data);
+    let messages = null;
+
+    // Try Firestore first
+    try {
+      const fsRes = await fetch('/.netlify/functions/firestore-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load-thread', jobId }),
+      });
+      const fsData = await fsRes.json();
+      if (fsData.ok && fsData.data && fsData.data.length > 0) {
+        messages = fsData.data;
+        console.log(`Thread for ${jobId} loaded from Firestore`);
+      }
+    } catch (fe) {
+      console.warn('Firestore thread load failed, trying Apps Script:', fe.message);
+    }
+
+    // Fall back to Drive via Apps Script
+    if (!messages) {
+      const job2 = jobs.find(j => j.jobId === jobId);
+      const res  = await callScript({ action: 'loadSmsThread', jobId, driveFolder: job2 && job2.driveFolder });
+      if (res.ok && res.data) {
+        messages = res.data;
+        console.log(`Thread for ${jobId} loaded from Drive (Firestore fallback)`);
+      }
+    }
+
+    if (messages) {
+      _smsThreads[jobId] = messages;
+      smsRenderThread(messages);
     } else {
       msgEl.innerHTML = '<div class="sms-thread-no-msgs">No messages yet — send the first one below</div>';
     }

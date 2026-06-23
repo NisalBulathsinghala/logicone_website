@@ -90,6 +90,23 @@ exports.handler = async function (event) {
         console.warn(`sms-receive: retry also failed (${e2.message}) — SMS logged to Twilio only`);
       }
     }
+
+    // Dual-write to Firestore (fire and forget — Drive is still source of truth)
+    const firestoreUrl = new URL(event.headers['x-forwarded-proto'] + '://' + event.headers['x-forwarded-host'] + '/.netlify/functions/firestore-sms').href;
+    fetch(firestoreUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action:       'log-inbound',
+        jobId:        matchedJobId,
+        customerName: matchedName,
+        phone:        normalisePhone(from),
+        from,
+        msgBody:      body,
+        msgSid,
+        timestamp,
+      }),
+    }).catch(e => console.warn('Firestore SMS write failed (non-fatal):', e.message));
   }
 
   // Return TwiML immediately
@@ -99,6 +116,16 @@ exports.handler = async function (event) {
     body: `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
   };
 };
+
+function normalisePhone(raw) {
+  if (!raw) return '';
+  let n = String(raw).replace(/[\s\-().]/g, '');
+  if (n.startsWith('+61')) return n;
+  if (n.startsWith('0061')) return '+61' + n.slice(4);
+  if (n.startsWith('61') && n.length === 11) return '+' + n;
+  if (n.startsWith('0') && n.length === 10) return '+61' + n.slice(1);
+  return n;
+}
 
 function validateTwilioSignature(event, authToken) {
   try {
