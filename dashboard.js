@@ -1077,34 +1077,16 @@ async function smsInboxInit() {
 async function smsInboxRefresh() {
   const isFirst = !_smsLoaded;
   try {
-    let incoming = null;
+    const fsRes  = await fetch('/.netlify/functions/firestore-sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load-inbox' }),
+    });
+    const fsData = await fsRes.json();
 
-    // Try Firestore first — fast, no cold start
-    try {
-      const fsRes = await fetch('/.netlify/functions/firestore-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'load-inbox' }),
-      });
-      const fsData = await fsRes.json();
-      if (fsData.ok && fsData.data && fsData.data.conversations) {
-        incoming = fsData.data.conversations;
-        console.log('SMS inbox loaded from Firestore');
-      }
-    } catch (fe) {
-      console.warn('Firestore inbox load failed, trying Apps Script:', fe.message);
-    }
+    if (fsData.ok && fsData.data && fsData.data.conversations) {
+      const incoming = fsData.data.conversations;
 
-    // Fall back to Apps Script / Drive
-    if (!incoming) {
-      const res = await callScript({ action: 'loadSmsInbox', page: 0, pageSize: 200 });
-      if (res.ok && res.data && res.data.conversations) {
-        incoming = res.data.conversations;
-        console.log('SMS inbox loaded from Apps Script (Firestore fallback)');
-      }
-    }
-
-    if (incoming) {
       // Invalidate thread cache for convs with new messages
       incoming.forEach(c => {
         const prev = _smsConvs.find(p => p.jobId === c.jobId);
@@ -1198,13 +1180,12 @@ async function smsOpenConv(jobId) {
   smsRenderConvList(_smsConvs);
   smsUpdateBadge(_smsConvs);
 
-  // Mark as read on server — write to both Firestore and Apps Script
+  // Mark as read on server — Firestore only
   fetch('/.netlify/functions/firestore-sms', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'mark-read', jobId }),
   }).catch(() => {});
-  callScript({ action: 'markSmsRead', jobId }).catch(() => {});
 
   // Show thread panel
   document.getElementById('smsThreadEmpty').style.display = 'none';
@@ -1234,39 +1215,16 @@ async function smsLoadThread(jobId) {
   }
 
   msgEl.innerHTML = '<div class="sms-thread-no-msgs" style="opacity:0.5">Loading…</div>';
-
   try {
-    let messages = null;
-
-    // Try Firestore first
-    try {
-      const fsRes = await fetch('/.netlify/functions/firestore-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'load-thread', jobId }),
-      });
-      const fsData = await fsRes.json();
-      if (fsData.ok && fsData.data && fsData.data.length > 0) {
-        messages = fsData.data;
-        console.log(`Thread for ${jobId} loaded from Firestore`);
-      }
-    } catch (fe) {
-      console.warn('Firestore thread load failed, trying Apps Script:', fe.message);
-    }
-
-    // Fall back to Drive via Apps Script
-    if (!messages) {
-      const job2 = jobs.find(j => j.jobId === jobId);
-      const res  = await callScript({ action: 'loadSmsThread', jobId, driveFolder: job2 && job2.driveFolder });
-      if (res.ok && res.data) {
-        messages = res.data;
-        console.log(`Thread for ${jobId} loaded from Drive (Firestore fallback)`);
-      }
-    }
-
-    if (messages) {
-      _smsThreads[jobId] = messages;
-      smsRenderThread(messages);
+    const fsRes  = await fetch('/.netlify/functions/firestore-sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load-thread', jobId }),
+    });
+    const fsData = await fsRes.json();
+    if (fsData.ok && fsData.data) {
+      _smsThreads[jobId] = fsData.data;
+      smsRenderThread(fsData.data);
     } else {
       msgEl.innerHTML = '<div class="sms-thread-no-msgs">No messages yet — send the first one below</div>';
     }
