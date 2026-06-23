@@ -863,14 +863,14 @@ async function jsSetStatus(el) {
         driveFolder: jsCurrentJob.driveFolder,
         timestamps: JSON.stringify(jsCurrentJob.statusTimestamps)
       });
-      // Dual-write to Firestore
+      // Dual-write to Firestore — include _status so Firestore always has current status
       fetch('/.netlify/functions/firestore-jobsheet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'timestamps-save',
           jobId: jsCurrentJob.jobId,
-          timestamps: jsCurrentJob.statusTimestamps,
+          timestamps: { ...jsCurrentJob.statusTimestamps, _status: newStatus },
         }),
       }).catch(e => console.warn('Firestore timestamps write failed (non-fatal):', e.message));
     }

@@ -626,6 +626,16 @@ async function moveJob(id, newStatus) {
         timestamps: JSON.stringify(j.statusTimestamps)
       });
     }
+    // 3. Dual-write status + timestamps to Firestore (fire and forget)
+    fetch('/.netlify/functions/firestore-jobsheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'timestamps-save',
+        jobId: id,
+        timestamps: { ...j.statusTimestamps, _status: newStatus },
+      }),
+    }).catch(e => console.warn('Firestore status write failed (non-fatal):', e.message));
   }
 }
 
