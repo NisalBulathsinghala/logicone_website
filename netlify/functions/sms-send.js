@@ -76,20 +76,25 @@ exports.handler = async function (event) {
         console.warn('Drive log failed (non-fatal):', logErr.message);
       }
 
-      // Dual-write to Firestore (fire and forget)
-      const host = event.headers['x-forwarded-proto'] + '://' + event.headers['x-forwarded-host'];
-      fetch(host + '/.netlify/functions/firestore-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action:  'log-outbound',
-          jobId,
-          to:      toNorm,
-          msgBody: messageBody,
-          msgSid:  data.sid,
-          timestamp: new Date().toISOString(),
-        }),
-      }).catch(e => console.warn('Firestore outbound SMS write failed (non-fatal):', e.message));
+      // Dual-write to Firestore — awaited to ensure it completes before handler returns
+      try {
+        const host = (event.headers['x-forwarded-proto'] || 'https') + '://' + (event.headers['x-forwarded-host'] || event.headers.host || '');
+        await fetch(host + '/.netlify/functions/firestore-sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action:    'log-outbound',
+            jobId,
+            to:        toNorm,
+            msgBody:   messageBody,
+            msgSid:    data.sid,
+            timestamp: new Date().toISOString(),
+          }),
+        });
+        console.log(`Firestore outbound SMS logged for job=${jobId}`);
+      } catch (fe) {
+        console.warn('Firestore outbound SMS write failed (non-fatal):', fe.message);
+      }
     }
 
     return {

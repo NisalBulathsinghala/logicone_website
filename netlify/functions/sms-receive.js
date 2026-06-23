@@ -91,22 +91,30 @@ exports.handler = async function (event) {
       }
     }
 
-    // Dual-write to Firestore (fire and forget — Drive is still source of truth)
-    const firestoreUrl = new URL(event.headers['x-forwarded-proto'] + '://' + event.headers['x-forwarded-host'] + '/.netlify/functions/firestore-sms').href;
-    fetch(firestoreUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action:       'log-inbound',
-        jobId:        matchedJobId,
-        customerName: matchedName,
-        phone:        normalisePhone(from),
-        from,
-        msgBody:      body,
-        msgSid,
-        timestamp,
-      }),
-    }).catch(e => console.warn('Firestore SMS write failed (non-fatal):', e.message));
+    // Dual-write to Firestore — must be awaited before returning
+    // Netlify kills background fetches on handler return
+    if (process.env.APPS_SCRIPT_URL) {
+      try {
+        const host = (event.headers['x-forwarded-proto'] || 'https') + '://' + (event.headers['x-forwarded-host'] || event.headers.host || '');
+        await fetch(host + '/.netlify/functions/firestore-sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action:       'log-inbound',
+            jobId:        matchedJobId,
+            customerName: matchedName,
+            phone:        normalisePhone(from),
+            from,
+            msgBody:      body,
+            msgSid,
+            timestamp,
+          }),
+        });
+        console.log('sms-receive: Firestore write OK');
+      } catch (fe) {
+        console.warn('sms-receive: Firestore write failed (non-fatal):', fe.message);
+      }
+    }
   }
 
   // Return TwiML immediately
