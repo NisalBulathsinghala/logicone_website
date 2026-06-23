@@ -513,22 +513,52 @@ async function jsOpenJob(jobId) {
     }
   } catch(e) { console.warn('loadTimestamps error:', e); }
 
-  // Step 2: Load saved job sheet JSON — pass driveFolder directly
+  // Step 2: Load saved job sheet — try Firestore first, fall back to Drive
   jsShowLoadingOverlay('Loading saved data…');
   try {
-    const sheetResult = await callScript({ action: 'loadJobSheet', jobId, driveFolder: j.driveFolder });
-    console.log('loadJobSheet response:', JSON.stringify(sheetResult).substring(0, 200));
-    if (sheetResult.ok && sheetResult.data) {
-      const saved = sheetResult.data;
-      if (saved.statusTimestamps) {
-        j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
-        jsRenderTimeline(j);
+    let loaded = false;
+
+    // Try Firestore first (fast, reliable)
+    try {
+      const fsResult = await fetch('/.netlify/functions/firestore-jobsheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load', jobId }),
+      });
+      const fsData = await fsResult.json();
+      if (fsData.ok && fsData.data) {
+        const saved = fsData.data;
+        if (saved.statusTimestamps) {
+          j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
+          jsRenderTimeline(j);
+        }
+        jsLoadFromData(saved);
+        jsSetSaveIndicator(true, saved.savedAt || saved._savedAt);
+        driveDataLoaded = true;
+        loaded = true;
+        console.log('Loaded jobsheet from Firestore');
       }
-      jsLoadFromData(saved);
-      jsSetSaveIndicator(true, saved.savedAt);
-      driveDataLoaded = true;
-    } else {
-      console.warn('loadJobSheet not found or error:', sheetResult);
+    } catch (fe) {
+      console.warn('Firestore load failed, trying Drive:', fe.message);
+    }
+
+    // Fall back to Drive if Firestore had nothing
+    if (!loaded) {
+      const sheetResult = await callScript({ action: 'loadJobSheet', jobId, driveFolder: j.driveFolder });
+      console.log('loadJobSheet response:', JSON.stringify(sheetResult).substring(0, 200));
+      if (sheetResult.ok && sheetResult.data) {
+        const saved = sheetResult.data;
+        if (saved.statusTimestamps) {
+          j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
+          jsRenderTimeline(j);
+        }
+        jsLoadFromData(saved);
+        jsSetSaveIndicator(true, saved.savedAt);
+        driveDataLoaded = true;
+        console.log('Loaded jobsheet from Drive (Firestore fallback)');
+      } else {
+        console.warn('loadJobSheet not found or error:', sheetResult);
+      }
     }
   } catch(e) { console.warn('loadJobSheet error:', e); }
 
@@ -833,6 +863,16 @@ async function jsSetStatus(el) {
         driveFolder: jsCurrentJob.driveFolder,
         timestamps: JSON.stringify(jsCurrentJob.statusTimestamps)
       });
+      // Dual-write to Firestore
+      fetch('/.netlify/functions/firestore-jobsheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'timestamps-save',
+          jobId: jsCurrentJob.jobId,
+          timestamps: jsCurrentJob.statusTimestamps,
+        }),
+      }).catch(e => console.warn('Firestore timestamps write failed (non-fatal):', e.message));
     }
   }
 }
@@ -1099,6 +1139,12 @@ async function jsSaveSheet() {
   } else {
     const result = await callScript({ action: 'saveJobSheet', data: JSON.stringify(data) });
     if (result.ok) {
+      // Dual-write to Firestore in parallel (non-blocking — Drive is still source of truth)
+      fetch('/.netlify/functions/firestore-jobsheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save', jobId: data.jobId, data }),
+      }).catch(e => console.warn('Firestore jobsheet write failed (non-fatal):', e.message));
       jsSetSaveIndicator(true);
       jsSaveOverlayHide();
 
