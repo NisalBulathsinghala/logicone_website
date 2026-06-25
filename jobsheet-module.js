@@ -513,52 +513,22 @@ async function jsOpenJob(jobId) {
     }
   } catch(e) { console.warn('loadTimestamps error:', e); }
 
-  // Step 2: Load saved job sheet — try Firestore first, fall back to Drive
+  // Step 2: Load saved job sheet JSON — pass driveFolder directly
   jsShowLoadingOverlay('Loading saved data…');
   try {
-    let loaded = false;
-
-    // Try Firestore first (fast, reliable)
-    try {
-      const fsResult = await fetch('/.netlify/functions/firestore-jobsheet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'load', jobId }),
-      });
-      const fsData = await fsResult.json();
-      if (fsData.ok && fsData.data) {
-        const saved = fsData.data;
-        if (saved.statusTimestamps) {
-          j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
-          jsRenderTimeline(j);
-        }
-        jsLoadFromData(saved);
-        jsSetSaveIndicator(true, saved.savedAt || saved._savedAt);
-        driveDataLoaded = true;
-        loaded = true;
-        console.log('Loaded jobsheet from Firestore');
+    const sheetResult = await callScript({ action: 'loadJobSheet', jobId, driveFolder: j.driveFolder });
+    console.log('loadJobSheet response:', JSON.stringify(sheetResult).substring(0, 200));
+    if (sheetResult.ok && sheetResult.data) {
+      const saved = sheetResult.data;
+      if (saved.statusTimestamps) {
+        j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
+        jsRenderTimeline(j);
       }
-    } catch (fe) {
-      console.warn('Firestore load failed, trying Drive:', fe.message);
-    }
-
-    // Fall back to Drive if Firestore had nothing
-    if (!loaded) {
-      const sheetResult = await callScript({ action: 'loadJobSheet', jobId, driveFolder: j.driveFolder });
-      console.log('loadJobSheet response:', JSON.stringify(sheetResult).substring(0, 200));
-      if (sheetResult.ok && sheetResult.data) {
-        const saved = sheetResult.data;
-        if (saved.statusTimestamps) {
-          j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
-          jsRenderTimeline(j);
-        }
-        jsLoadFromData(saved);
-        jsSetSaveIndicator(true, saved.savedAt);
-        driveDataLoaded = true;
-        console.log('Loaded jobsheet from Drive (Firestore fallback)');
-      } else {
-        console.warn('loadJobSheet not found or error:', sheetResult);
-      }
+      jsLoadFromData(saved);
+      jsSetSaveIndicator(true, saved.savedAt);
+      driveDataLoaded = true;
+    } else {
+      console.warn('loadJobSheet not found or error:', sheetResult);
     }
   } catch(e) { console.warn('loadJobSheet error:', e); }
 
@@ -816,6 +786,8 @@ function jsSetSvc(el, val) {
   document.querySelectorAll('.js-svc-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('jsFSvcType').value = val;
+  // Update Zoho card — invoice visibility depends on service type
+  jsUpdateZohoCard(jsCurrentJob);
 }
 
 async function jsSetStatus(el) {
@@ -863,16 +835,6 @@ async function jsSetStatus(el) {
         driveFolder: jsCurrentJob.driveFolder,
         timestamps: JSON.stringify(jsCurrentJob.statusTimestamps)
       });
-      // Dual-write to Firestore — include _status so Firestore always has current status
-      fetch('/.netlify/functions/firestore-jobsheet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'timestamps-save',
-          jobId: jsCurrentJob.jobId,
-          timestamps: { ...jsCurrentJob.statusTimestamps, _status: newStatus },
-        }),
-      }).catch(e => console.warn('Firestore timestamps write failed (non-fatal):', e.message));
     }
   }
 }
@@ -1139,12 +1101,6 @@ async function jsSaveSheet() {
   } else {
     const result = await callScript({ action: 'saveJobSheet', data: JSON.stringify(data) });
     if (result.ok) {
-      // Dual-write to Firestore in parallel (non-blocking — Drive is still source of truth)
-      fetch('/.netlify/functions/firestore-jobsheet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save', jobId: data.jobId, data }),
-      }).catch(e => console.warn('Firestore jobsheet write failed (non-fatal):', e.message));
       jsSetSaveIndicator(true);
       jsSaveOverlayHide();
 
@@ -1231,12 +1187,20 @@ function jsSetSaveIndicator(saved, at) {
 // ZOHO BOOKS ACTIONS
 // ============================================================
 
-// Show Zoho card only for out-of-warranty jobs
+// Show Zoho card based on service type selection:
+// - Quote: always visible (warranty void cases need a quote even on in-warranty jobs)
+// - Invoice: only for No Warranty Repair (chargeable jobs)
 function jsUpdateZohoCard(j) {
   const card = document.getElementById('jsZohoCard');
   if (!card) return;
-  card.style.display = (j && j.warranty === 'Out of Warranty') ? 'block' : 'none';
-  // Reset status line when opening a new job
+  card.style.display = 'block';
+
+  const svcType = (document.getElementById('jsFSvcType') || {}).value || (j && j.svcType) || '';
+  const isChargeable = svcType === 'No Warranty Repair';
+
+  const invoiceBtn = document.getElementById('jsZohoBtnInvoice');
+  if (invoiceBtn) invoiceBtn.style.display = isChargeable ? '' : 'none';
+
   const status = document.getElementById('jsZohoStatus');
   if (status) { status.style.display = 'none'; status.textContent = ''; }
 }
