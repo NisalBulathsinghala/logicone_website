@@ -528,7 +528,14 @@ async function loadInbox(force = false, showSpinner = false) {
 
   let res;
   try {
-    res = await callScript({ action: 'loadSmsInbox', page: 0, pageSize: 200 });
+    const fsRes = await fetch('/.netlify/functions/firestore-sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load-inbox' }),
+    });
+    res = await fsRes.json();
+    // Normalise to match existing shape
+    if (res.ok && res.data) res = { ok: true, data: res.data };
   } finally {
     document.getElementById('convLoading').style.display = 'none';
     btn.classList.remove('spinning');
@@ -633,8 +640,12 @@ async function openConv(jobId) {
   updateTopBadge();
   renderConvList();
 
-  // Mark read on server (fire and forget — non-critical)
-  callScript({ action: 'markSmsRead', jobId }).catch(() => {});
+  // Mark read on server — Firestore
+  fetch('/.netlify/functions/firestore-sms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'mark-read', jobId }),
+  }).catch(() => {});
 
   // Update thread header
   document.getElementById('threadName').textContent = conv.customerName || jobId;
@@ -667,12 +678,21 @@ async function loadThread(jobId) {
 
   el.innerHTML = '<div class="thread-no-msgs" style="opacity:0.5">Loading…</div>';
 
-  const res = await callScript({ action: 'loadSmsThread', jobId });
-  if (res.ok && res.data) {
-    _threads[jobId] = res.data;
-    renderThread(res.data);
-  } else {
-    el.innerHTML = '<div class="thread-no-msgs">No messages yet — send the first one below</div>';
+  try {
+    const fsRes = await fetch('/.netlify/functions/firestore-sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load-thread', jobId }),
+    });
+    const res = await fsRes.json();
+    if (res.ok && res.data) {
+      _threads[jobId] = res.data;
+      renderThread(res.data);
+    } else {
+      el.innerHTML = '<div class="thread-no-msgs">No messages yet — send the first one below</div>';
+    }
+  } catch (e) {
+    el.innerHTML = '<div class="thread-no-msgs">Could not load messages</div>';
   }
 }
 
