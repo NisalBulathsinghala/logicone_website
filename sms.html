@@ -551,8 +551,9 @@ async function loadInbox(force = false, showSpinner = false) {
   }
 
   if (res.ok && res.data && res.data.conversations) {
-    // Invalidate thread cache for convs where lastMessageAt changed
-    res.data.conversations.forEach(c => {
+    const incoming = res.data.conversations;
+    // Invalidate thread cache for convs with new messages
+    incoming.forEach(c => {
       const prev = _convs.find(p => p.jobId === c.jobId);
       if (prev && prev.lastMessageAt !== c.lastMessageAt) {
         delete _threads[c.jobId];
@@ -562,10 +563,10 @@ async function loadInbox(force = false, showSpinner = false) {
         }
       }
     });
-    _convs  = res.data.conversations;
+    _convs  = incoming;
     _loaded = true;
     updateTopBadge();
-    renderConvList();
+    renderConvList(); // always re-render — Firestore is the source of truth
   } else if (!_loaded) {
     document.getElementById('convItems').innerHTML = '<div class="conv-empty">Could not load messages</div>';
   }
@@ -664,7 +665,7 @@ async function openConv(jobId) {
   document.getElementById('panelWrap').classList.add('thread-open');
 
   // Start polling the active thread for new inbound messages
-  scheduleThreadPoll();
+  // Poll loop handles thread refresh automatically
 
   // Render quick replies
   renderQuickReplies();
@@ -679,8 +680,6 @@ async function openConv(jobId) {
 function goBack() {
   document.getElementById('panelWrap').classList.remove('thread-open');
   _activeConv = null;
-  clearTimeout(_threadPollTimer);
-  // Blur keyboard
   document.getElementById('composeText').blur();
 }
 
@@ -843,30 +842,26 @@ function updateTopBadge() {
 }
 
 // ── Smart poll ────────────────────────────────────────────
-// • 3s while page is visible (fast enough to feel near-real-time)
-// • 30s while backgrounded (saves battery)
-// • Fires immediately when page becomes visible again
-//
-// Single _polling guard prevents overlapping requests.
+// Single loop — no competing timers.
+// 5s visible, 30s backgrounded, immediate on visibility restore.
 
-const POLL_ACTIVE     = 3000;
+const POLL_ACTIVE     = 5000;
 const POLL_BACKGROUND = 30000;
 
-let _pollTimer      = null;
-let _polling        = false;
+let _pollTimer       = null;
 let _threadPollTimer = null;
+let _polling         = false;
 
 async function pollOnce() {
   if (_polling) return;
   _polling = true;
   try {
-    await loadInbox(true, false); // silent — no spinner
+    await loadInbox(true, false);
   } finally {
     _polling = false;
   }
 }
 
-// Also poll the active thread directly so new messages appear immediately
 async function pollActiveThread() {
   if (!_activeConv) return;
   const jobId = _activeConv.jobId;
@@ -879,7 +874,6 @@ async function pollActiveThread() {
     const res = await fsRes.json();
     if (res.ok && res.data) {
       const current = _threads[jobId] || [];
-      // Only re-render if message count changed
       if (res.data.length !== current.length) {
         _threads[jobId] = res.data;
         renderThread(res.data);
@@ -888,41 +882,43 @@ async function pollActiveThread() {
   } catch (e) { /* non-fatal */ }
 }
 
-function scheduleThreadPoll() {
-  clearTimeout(_threadPollTimer);
-  if (!_activeConv || document.hidden) return;
-  _threadPollTimer = setTimeout(async () => {
-    await pollActiveThread();
-    scheduleThreadPoll();
-  }, POLL_ACTIVE);
-}
-
-function schedulePoll(ms) {
-  clearTimeout(_pollTimer);
-  _pollTimer = setTimeout(async () => {
+function startPolling() {
+  stopPolling();
+  const tick = async () => {
     await pollOnce();
-    schedulePoll(document.hidden ? POLL_BACKGROUND : POLL_ACTIVE);
-  }, ms);
+    if (_activeConv) await pollActiveThread();
+    _pollTimer = setTimeout(tick, document.hidden ? POLL_BACKGROUND : POLL_ACTIVE);
+  };
+  _pollTimer = setTimeout(tick, POLL_ACTIVE);
 }
 
-// Visible again (phone unlocked, app switcher back, Telegram → SMS)
-document.addEventListener('visibilitychange', () => {
+function stopPolling() {
   clearTimeout(_pollTimer);
   clearTimeout(_threadPollTimer);
+  _pollTimer = null;
+  _threadPollTimer = null;
+}
+
+document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
-    // Immediate refresh when coming back
-    pollOnce().then(() => schedulePoll(POLL_ACTIVE));
-    if (_activeConv) pollActiveThread().then(() => scheduleThreadPoll());
+    stopPolling();
+    pollOnce().then(() => {
+      if (_activeConv) pollActiveThread();
+      startPolling();
+    });
   } else {
-    schedulePoll(POLL_BACKGROUND);
-    clearTimeout(_threadPollTimer);
+    stopPolling();
+    _pollTimer = setTimeout(async () => {
+      await pollOnce();
+      startPolling();
+    }, POLL_BACKGROUND);
   }
 });
 
 // Focus restore (desktop / iPad)
 window.addEventListener('focus', () => {
-  clearTimeout(_pollTimer);
-  pollOnce().then(() => schedulePoll(POLL_ACTIVE));
+  stopPolling();
+  pollOnce().then(() => startPolling());
 });
 
 // ── Handle back gesture / hardware back button ─────────────
@@ -936,7 +932,7 @@ window.addEventListener('popstate', () => {
 history.pushState(null, '', '');
 
 // ── Init ───────────────────────────────────────────────────
-loadInbox(false, false).then(() => schedulePoll(POLL_ACTIVE));
+loadInbox(false, false).then(() => startPolling());
 </script>
 </body>
 </html>
