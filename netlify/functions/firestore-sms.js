@@ -67,7 +67,6 @@ exports.handler = async function (event) {
     // ── Log outbound message ──────────────────────────────────
     if (action === 'log-outbound') {
       const { jobId, customerName, phone, to, msgBody, msgSid, timestamp } = body;
-      if (!jobId) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing jobId' }) };
 
       const msg = {
         direction: 'out',
@@ -75,35 +74,43 @@ exports.handler = async function (event) {
         body:      msgBody,
         msgSid:    msgSid || '',
         timestamp: timestamp || new Date().toISOString(),
-        jobId,
-        read: true,
+        jobId:     jobId || null,
+        read:      true,
       };
 
-      await db.collection('sms').doc(jobId)
-        .collection('messages').add(msg);
+      if (jobId) {
+        // Linked to a job — store in job thread + update index
+        await db.collection('sms').doc(jobId)
+          .collection('messages').add(msg);
 
-      // Update index entry (outbound — don't increment unread)
-      const indexRef = db.collection('sms').doc('_index')
-        .collection('conversations').doc(jobId);
-      const snap = await indexRef.get();
-      const existing = snap.exists ? snap.data() : {};
-      await indexRef.set({
-        jobId,
-        customerName: customerName || existing.customerName || '',
-        phone:        phone || to  || existing.phone        || '',
-        unread:       existing.unread || 0,
-        lastMessageAt:        msg.timestamp,
-        lastMessageBody:      (msgBody || '').slice(0, 100),
-        lastMessageDirection: 'out',
-      });
+        const indexRef = db.collection('sms').doc('_index')
+          .collection('conversations').doc(jobId);
+        const snap = await indexRef.get();
+        const existing = snap.exists ? snap.data() : {};
+        await indexRef.set({
+          jobId,
+          customerName: customerName || existing.customerName || '',
+          phone:        phone || to  || existing.phone        || '',
+          unread:       existing.unread || 0,
+          lastMessageAt:        msg.timestamp,
+          lastMessageBody:      (msgBody || '').slice(0, 100),
+          lastMessageDirection: 'out',
+        });
+      } else {
+        // No job linked — store in _unlinked collection for reference
+        await db.collection('sms').doc('_unlinked')
+          .collection('messages').add(msg);
+      }
 
       return { statusCode: 200, body: JSON.stringify({ ok: true }) };
     }
 
     // ── Load inbox (conversation index) ──────────────────────
     if (action === 'load-inbox') {
+      console.log('firestore-sms: load-inbox called');
       const snap = await db.collection('sms').doc('_index')
         .collection('conversations').get();
+      console.log(`firestore-sms: got ${snap.docs.length} conversations`);
 
       const convs = snap.docs.map(d => d.data())
         .sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));

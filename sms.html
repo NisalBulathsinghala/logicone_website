@@ -528,14 +528,23 @@ async function loadInbox(force = false, showSpinner = false) {
 
   let res;
   try {
-    const fsRes = await fetch('/.netlify/functions/firestore-sms', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'load-inbox' }),
-    });
-    res = await fsRes.json();
-    // Normalise to match existing shape
-    if (res.ok && res.data) res = { ok: true, data: res.data };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+      const fsRes = await fetch('/.netlify/functions/firestore-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load-inbox' }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      res = await fsRes.json();
+      if (res.ok && res.data) res = { ok: true, data: res.data };
+    } catch (fetchErr) {
+      clearTimeout(timer);
+      console.warn('loadInbox fetch failed:', fetchErr.message);
+      res = { ok: false };
+    }
   } finally {
     document.getElementById('convLoading').style.display = 'none';
     btn.classList.remove('spinning');
