@@ -519,40 +519,39 @@ function initials(name) {
 async function loadInbox(force = false, showSpinner = false) {
   if (_loaded && !force) { renderConvList(); return; }
 
-  const btn = document.getElementById('refreshBtn');
+  const btn      = document.getElementById('refreshBtn');
+  const loadingEl = document.getElementById('convLoading');
 
-  if (!_loaded) {
-    document.getElementById('convLoading').style.display = 'flex';
-  }
-  if (showSpinner) btn.classList.add('spinning');
+  const stopSpinner = () => {
+    try { if (btn) btn.classList.remove('spinning'); } catch(e) {}
+    try { if (loadingEl) loadingEl.style.display = 'none'; } catch(e) {}
+  };
 
-  let res;
+  try {
+    if (!_loaded && loadingEl) loadingEl.style.display = 'flex';
+    if (showSpinner && btn) btn.classList.add('spinning');
+  } catch(e) {}
+
+  let res = { ok: false };
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10000);
-    try {
-      const fsRes = await fetch('/.netlify/functions/firestore-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'load-inbox' }),
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      res = await fsRes.json();
-      if (res.ok && res.data) res = { ok: true, data: res.data };
-    } catch (fetchErr) {
-      clearTimeout(timer);
-      console.warn('loadInbox fetch failed:', fetchErr.message);
-      res = { ok: false };
-    }
+    const fsRes = await fetch('/.netlify/functions/firestore-sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load-inbox' }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    res = await fsRes.json();
+  } catch (e) {
+    console.warn('loadInbox error:', e.message);
   } finally {
-    document.getElementById('convLoading').style.display = 'none';
-    btn.classList.remove('spinning');
+    stopSpinner();
   }
 
   if (res.ok && res.data && res.data.conversations) {
     const incoming = res.data.conversations;
-    // Invalidate thread cache for convs with new messages
     incoming.forEach(c => {
       const prev = _convs.find(p => p.jobId === c.jobId);
       if (prev && prev.lastMessageAt !== c.lastMessageAt) {
@@ -566,15 +565,22 @@ async function loadInbox(force = false, showSpinner = false) {
     _convs  = incoming;
     _loaded = true;
     updateTopBadge();
-    renderConvList(); // always re-render — Firestore is the source of truth
+    renderConvList();
   } else if (!_loaded) {
-    document.getElementById('convItems').innerHTML = '<div class="conv-empty">Could not load messages</div>';
+    const el = document.getElementById('convItems');
+    if (el) el.innerHTML = '<div class="conv-empty">Could not load messages</div>';
   }
 }
 
 async function doRefresh() {
-  await loadInbox(true, true);   // true = show spinner (manual tap)
-  toast('success', 'Refreshed');
+  try {
+    await loadInbox(true, true);
+    toast('success', 'Refreshed');
+  } catch(e) {
+    const btn = document.getElementById('refreshBtn');
+    if (btn) btn.classList.remove('spinning');
+    toast('error', 'Refresh failed');
+  }
 }
 
 // ── Filter / search ────────────────────────────────────────
