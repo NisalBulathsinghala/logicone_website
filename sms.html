@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -33,7 +33,7 @@
 }
 
 html, body {
-  height: 100%; height: 100dvh;
+  height: 100%;
   font-family: 'Inter', -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -43,7 +43,7 @@ html, body {
 /* ── App shell — two panels stacked, slide on mobile ───────── */
 .app {
   display: flex;
-  height: 100dvh;
+  height: 100%;
   position: relative;
   overflow: hidden;
 }
@@ -654,6 +654,9 @@ async function openConv(jobId) {
   // Slide to thread
   document.getElementById('panelWrap').classList.add('thread-open');
 
+  // Start polling the active thread for new inbound messages
+  scheduleThreadPoll();
+
   // Render quick replies
   renderQuickReplies();
 
@@ -667,6 +670,7 @@ async function openConv(jobId) {
 function goBack() {
   document.getElementById('panelWrap').classList.remove('thread-open');
   _activeConv = null;
+  clearTimeout(_threadPollTimer);
   // Blur keyboard
   document.getElementById('composeText').blur();
 }
@@ -830,29 +834,58 @@ function updateTopBadge() {
 }
 
 // ── Smart poll ────────────────────────────────────────────
-// • 8s while page is visible
-// • 60s while backgrounded (saves battery / requests)
-// • Fires immediately when page becomes visible again —
-//   so switching back from Telegram shows the message instantly
+// • 3s while page is visible (fast enough to feel near-real-time)
+// • 30s while backgrounded (saves battery)
+// • Fires immediately when page becomes visible again
 //
 // Single _polling guard prevents overlapping requests.
-// loadInbox is always called with showSpinner=false here
-// so the refresh icon never spins during background polls.
 
-const POLL_ACTIVE     = 8000;
-const POLL_BACKGROUND = 60000;
+const POLL_ACTIVE     = 3000;
+const POLL_BACKGROUND = 30000;
 
-let _pollTimer = null;
-let _polling   = false;
+let _pollTimer      = null;
+let _polling        = false;
+let _threadPollTimer = null;
 
 async function pollOnce() {
-  if (_polling) return;           // skip if a request is already in flight
+  if (_polling) return;
   _polling = true;
   try {
     await loadInbox(true, false); // silent — no spinner
   } finally {
     _polling = false;
   }
+}
+
+// Also poll the active thread directly so new messages appear immediately
+async function pollActiveThread() {
+  if (!_activeConv) return;
+  const jobId = _activeConv.jobId;
+  try {
+    const fsRes = await fetch('/.netlify/functions/firestore-sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load-thread', jobId }),
+    });
+    const res = await fsRes.json();
+    if (res.ok && res.data) {
+      const current = _threads[jobId] || [];
+      // Only re-render if message count changed
+      if (res.data.length !== current.length) {
+        _threads[jobId] = res.data;
+        renderThread(res.data);
+      }
+    }
+  } catch (e) { /* non-fatal */ }
+}
+
+function scheduleThreadPoll() {
+  clearTimeout(_threadPollTimer);
+  if (!_activeConv || document.hidden) return;
+  _threadPollTimer = setTimeout(async () => {
+    await pollActiveThread();
+    scheduleThreadPoll();
+  }, POLL_ACTIVE);
 }
 
 function schedulePoll(ms) {
@@ -866,10 +899,14 @@ function schedulePoll(ms) {
 // Visible again (phone unlocked, app switcher back, Telegram → SMS)
 document.addEventListener('visibilitychange', () => {
   clearTimeout(_pollTimer);
+  clearTimeout(_threadPollTimer);
   if (!document.hidden) {
+    // Immediate refresh when coming back
     pollOnce().then(() => schedulePoll(POLL_ACTIVE));
+    if (_activeConv) pollActiveThread().then(() => scheduleThreadPoll());
   } else {
     schedulePoll(POLL_BACKGROUND);
+    clearTimeout(_threadPollTimer);
   }
 });
 
