@@ -181,9 +181,10 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to:    job.phone,
-          body:  template.text,
-          jobId: job.jobId,
+          to:           job.phone,
+          body:         template.text,
+          jobId:        job.jobId,
+          customerName: job.name || '',
         }),
       });
 

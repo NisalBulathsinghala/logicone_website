@@ -1131,7 +1131,7 @@ function smsRenderConvList(convs) {
     const dirArrow = c.lastMessageDirection === 'out' ? '↑ ' : '';
     return `<div class="sms-conv-item ${active} ${unread ? 'unread' : ''}" onclick="smsOpenConv('${c.jobId}')">
       <div class="sms-conv-item-top">
-        <span class="sms-conv-name">${escHtmlSms(c.customerName || c.jobId)}</span>
+        <span class="sms-conv-name">${escHtmlSms(c.customerName || (jobs.find(j => j.jobId === c.jobId) || {}).name || c.jobId)}</span>
         <span class="sms-conv-time">${time}</span>
       </div>
       <div class="sms-conv-item-bottom">
@@ -1199,7 +1199,7 @@ async function smsOpenConv(jobId) {
   const job = jobs.find(j => j.jobId === jobId);
   document.getElementById('smsThreadHeader').innerHTML = `
     <div class="sms-thread-header-info">
-      <div class="sms-thread-name">${escHtmlSms(conv.customerName || jobId)}</div>
+      <div class="sms-thread-name">${escHtmlSms(conv.customerName || (job || {}).name || jobId)}</div>
       <div class="sms-thread-sub">${escHtmlSms(conv.phone || '')} · ${escHtmlSms(jobId)}</div>
     </div>
     ${job ? `<button class="sms-thread-open-job" onclick="showDetail('${jobId}')">Open Job</button>` : ''}`;
@@ -1300,9 +1300,10 @@ async function smsThreadSend() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        to:    _smsActiveConv.phone,
-        body:  text,
-        jobId: _smsActiveConv.jobId,
+        to:           _smsActiveConv.phone,
+        body:         text,
+        jobId:        _smsActiveConv.jobId,
+        customerName: _smsActiveConv.customerName || '',
       }),
     });
     const data = await res.json();
