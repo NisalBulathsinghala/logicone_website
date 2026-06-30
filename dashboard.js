@@ -60,6 +60,10 @@ document.addEventListener('DOMContentLoaded', () => {
   buildBoard();
   loadData();
 
+  // Load SMS conversation data immediately so kanban badges show
+  // unread counts without requiring a visit to the SMS tab first
+  smsInboxRefresh().then(() => smsRefreshKanbanBadges());
+
   // Restore sidebar collapsed state
   if (localStorage.getItem('sidebarCollapsed') === 'true') {
     document.getElementById('sidebar').classList.add('collapsed');
@@ -1372,12 +1376,20 @@ function smsUpdateBadge(convs) {
   }
 }
 
-// Periodically poll for new inbound messages (every 60s)
+// Periodically poll for new inbound messages (every 10s)
 // Refreshes the inbox and kanban badges regardless of which view is active
 setInterval(async () => {
   await smsInboxRefresh();
   smsRefreshKanbanBadges();
-}, 60000);
+}, 10000);
+
+// Immediate refresh when returning to the tab — catches replies that
+// arrived while the dashboard was backgrounded
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    smsInboxRefresh().then(() => smsRefreshKanbanBadges());
+  }
+});
 
 // Refresh SMS unread badges on all visible kanban cards
 function smsRefreshKanbanBadges() {
