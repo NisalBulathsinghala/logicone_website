@@ -1,9 +1,10 @@
 // netlify/functions/firestore-jobsheet.js
-// Handles Firestore read/write for jobsheets.
+// Handles Firestore read/write for jobsheets AND core job records.
 // Called directly from the dashboard — bypasses Apps Script entirely.
 //
 // Actions:
-//   save   — write jobsheet data to Firestore
+//   save-records-batch — write/merge many job records at once (jobs/{jobId})
+//   save   — write jobsheet data to Firestore (jobs/{jobId}/jobsheet/current)
 //   load   — read jobsheet data from Firestore
 //   timestamps-save — write status timestamps
 //   timestamps-load — read status timestamps
@@ -19,12 +20,40 @@ exports.handler = async function (event) {
   try { body = JSON.parse(event.body); }
   catch { return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Invalid JSON' }) }; }
 
-  const { action, jobId } = body;
-  if (!jobId) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing jobId' }) };
-
-  const jobRef = db.collection('jobs').doc(jobId);
+  const { action } = body;
 
   try {
+    // ── Batch-sync job records (core fields from the Sheet, not jobsheet) ──
+    // Used by the dashboard's fetchSheet() to push every job into Firestore
+    // on every load — this is what backfills existing jobs and keeps new
+    // ones in sync, without needing an Apps Script change.
+    if (action === 'save-records-batch') {
+      const records = Array.isArray(body.records) ? body.records.filter(r => r && r.jobId) : [];
+      if (!records.length) {
+        return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing records' }) };
+      }
+      const syncedAt = new Date().toISOString();
+      // Firestore batches cap at 500 writes — chunk just in case job count grows
+      const CHUNK = 450;
+      let written = 0;
+      for (let i = 0; i < records.length; i += CHUNK) {
+        const batch = db.batch();
+        records.slice(i, i + CHUNK).forEach(rec => {
+          const ref = db.collection('jobs').doc(rec.jobId);
+          batch.set(ref, Object.assign({}, rec, { _syncedAt: syncedAt }), { merge: true });
+        });
+        await batch.commit();
+        written += Math.min(CHUNK, records.length - i);
+      }
+      console.log(`Firestore: batch-synced ${written} job records`);
+      return { statusCode: 200, body: JSON.stringify({ ok: true, count: written }) };
+    }
+
+    // Every action below operates on one job and needs a jobId
+    const { jobId } = body;
+    if (!jobId) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing jobId' }) };
+    const jobRef = db.collection('jobs').doc(jobId);
+
     // ── Save jobsheet ─────────────────────────────────────────
     if (action === 'save') {
       const data = body.data;

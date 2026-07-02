@@ -143,6 +143,14 @@ async function fetchSheet() {
     }).filter(j => j.jobId || j.name);
 
     renderAll();
+
+    // Background sync: push every job record into Firestore too.
+    // Sheets stays the write path for now (intake form still writes here);
+    // this just keeps a synced copy in Firestore so nothing has to change
+    // upstream. Runs on every load, so it also backfills existing jobs
+    // the first time it runs after deploy.
+    syncJobsToFirestore(jobs);
+
   } catch (err) {
     // Don't overwrite real job data with demo data on a transient fetch failure.
     // Only fall back to demo if we have no jobs at all (first load).
@@ -158,6 +166,21 @@ async function fetchSheet() {
 }
 
 function refreshData() { loadData(); }
+
+// Push the full job list to Firestore in one batched call. Fire-and-forget —
+// Sheets is still the source of truth for rendering, this is a side sync.
+function syncJobsToFirestore(jobList) {
+  const records = (jobList || []).filter(j => j.jobId);
+  if (!records.length) return;
+  fetch('/.netlify/functions/firestore-jobsheet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'save-records-batch', records })
+  })
+    .then(r => r.json())
+    .then(res => { if (!res.ok) console.warn('Firestore job sync failed:', res.error); })
+    .catch(e => console.warn('Firestore job sync error:', e));
+}
 
 // ============================================================
 // KANBAN
