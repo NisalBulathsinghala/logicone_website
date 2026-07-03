@@ -166,7 +166,7 @@
 .js-summary-nav-spacer { width: 168px; flex-shrink: 0; }
 .js-summary-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 @media (max-width: 900px) { .js-summary-nav-spacer { display: none; } }
-.js-summary-top { display: flex; align-items: center; justify-content: flex-end; gap: 16px; flex-wrap: wrap; }
+.js-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .js-summary-id-group { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .js-summary-avatar {
   width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
