@@ -160,7 +160,8 @@
 .js-summary-bar {
   position: sticky; top: 0; z-index: 9;
   background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  margin: 0 -28px 14px; padding: 12px 28px;
+  padding: 14px 28px; margin-bottom: 14px;
+  display: flex; flex-direction: column; gap: 16px;
 }
 .js-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .js-summary-id-group { display: flex; align-items: center; gap: 12px; min-width: 0; }
