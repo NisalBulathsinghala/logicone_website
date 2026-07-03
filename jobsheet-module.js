@@ -52,6 +52,8 @@
   color: var(--accent); background: rgba(0,180,216,0.1); border: 1px solid rgba(0,180,216,0.25);
   padding: 3px 10px; border-radius: 20px;
 }
+.js-summary-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.js-badge-sm { padding: 2px 8px; font-size: 9px; flex-shrink: 0; }
 .js-header-ids { display: flex; gap: 24px; flex-wrap: wrap; }
 .js-id-block { }
 .js-id-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 3px; }
@@ -175,7 +177,7 @@
 
 /* ===== JOB SHEET NAV RAIL ===== */
 .js-sheet-layout { display: flex; align-items: flex-start; gap: 24px; }
-.js-nav-rail { width: 168px; flex-shrink: 0; position: sticky; top: 92px; padding: 12px 0; }
+.js-nav-rail { width: 168px; flex-shrink: 0; position: sticky; top: 100px; padding: 12px 0; }
 .js-nav-link {
   padding: 7px 10px; font-size: 12px; color: var(--text-secondary);
   border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s;
@@ -449,12 +451,24 @@ const JS_NAV_SECTIONS = ['jsSecCustomer','jsSecComms','jsSecService','jsSecGoods
 function jsScrollToSection(id) {
   const area = document.getElementById('jsScrollArea');
   const target = document.getElementById(id);
+  const bar = document.getElementById('jsSummaryBar');
   if (!area || !target) return;
   const areaRect = area.getBoundingClientRect();
   const targetRect = target.getBoundingClientRect();
-  const offset = targetRect.top - areaRect.top + area.scrollTop;
-  area.scrollTo({ top: offset - 12, behavior: 'smooth' });
+  const barHeight = bar ? bar.offsetHeight : 0;
+  const offset = targetRect.top - areaRect.top + area.scrollTop - barHeight - 12;
+  area.scrollTo({ top: offset, behavior: 'smooth' });
 }
+
+// The summary bar's height isn't fixed (wraps differently at different
+// widths, content changes per job) — keep the nav rail's sticky offset
+// matched to it so the rail never sits under or floating below the bar.
+function jsSyncStickyOffsets() {
+  const bar  = document.getElementById('jsSummaryBar');
+  const rail = document.getElementById('jsNavRail');
+  if (bar && rail) rail.style.top = bar.offsetHeight + 'px';
+}
+window.addEventListener('resize', jsSyncStickyOffsets);
 
 function jsUpdateNavActive() {
   const area = document.getElementById('jsScrollArea');
@@ -593,6 +607,7 @@ async function jsOpenJob(jobId) {
   jsUpdateScooterChecklist(j.deviceType || '');
   jsLoadComms(j);
   jsApplySentToggles(j);
+  requestAnimationFrame(jsSyncStickyOffsets);
 
   // Show the form with loading overlay covering editable content
   document.getElementById('jsJobPicker').style.display = 'none';
