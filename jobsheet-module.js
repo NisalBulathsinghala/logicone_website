@@ -56,6 +56,18 @@
 .js-id-block { }
 .js-id-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 3px; }
 .js-id-val { font-size: 13px; font-weight: 700; font-family: 'Orbitron', sans-serif; letter-spacing: 0.3px; }
+
+.js-summary-ids { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+.js-summary-id-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 2px; }
+.js-summary-id-row { display: flex; align-items: center; gap: 4px; }
+.js-summary-id-val { font-size: 12px; font-weight: 700; font-family: 'Orbitron', sans-serif; letter-spacing: 0.3px; }
+.js-copy-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 4px; border: none; background: transparent;
+  color: var(--text-secondary); cursor: pointer; padding: 0; flex-shrink: 0;
+}
+.js-copy-btn:hover { background: var(--bg-surface-hover); color: var(--accent); }
+.js-copy-btn.copied { color: #10b981; }
 .js-id-muted { font-size: 12px; font-family: 'Inter', sans-serif; font-weight: 400; color: var(--text-secondary); }
 .js-card-title {
   font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
@@ -739,6 +751,34 @@ function jsInitials(name) {
   if (!parts.length) return '?';
   if (parts.length === 1) return parts[0][0].toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+async function jsCopyValue(elId, btn) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const text = el.textContent.trim();
+  if (!text || text === '—') return;
+
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    // Clipboard API blocked/unavailable — fall back to a hidden textarea
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e2) { /* give up quietly */ }
+    document.body.removeChild(ta);
+  }
+
+  if (btn) {
+    const original = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>';
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = original; }, 1200);
+  }
 }
 
 // Only called when no saved Drive data exists — sets sensible defaults for a fresh job sheet

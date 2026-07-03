@@ -183,6 +183,30 @@
               <div class="js-summary-sub" id="jsSummarySub">—</div>
             </div>
           </div>
+          <div class="js-summary-ids">
+            <div class="js-summary-id-block">
+              <div class="js-summary-id-label">Job ID</div>
+              <div class="js-summary-id-row">
+                <span class="js-summary-id-val" id="jsDispJobId">—</span>
+                <button class="js-copy-btn" onclick="jsCopyValue('jsDispJobId', this)" title="Copy job ID">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="js-summary-id-block">
+              <div class="js-summary-id-label">Case Number</div>
+              <div class="js-summary-id-row">
+                <span class="js-summary-id-val" id="jsDispCaseNo">—</span>
+                <button class="js-copy-btn" onclick="jsCopyValue('jsDispCaseNo', this)" title="Copy case number">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="js-summary-id-block">
+              <div class="js-summary-id-label">Drive Folder</div>
+              <div id="jsDispDrive"><span class="js-id-muted">Not linked</span></div>
+            </div>
+          </div>
         </div>
         <div class="js-summary-status-row" id="jsSummaryStatusRow">
           <div class="js-status-pill" onclick="jsSetStatus(this)">Intake</div>
@@ -218,11 +242,6 @@
           <div class="js-header-left">
             <div class="js-logo">Logic <span>One</span> SA</div>
             <div class="js-badge">Service Job Sheet</div>
-          </div>
-          <div class="js-header-ids">
-            <div class="js-id-block"><div class="js-id-label">Job ID</div><div class="js-id-val" id="jsDispJobId">—</div></div>
-            <div class="js-id-block"><div class="js-id-label">Case Number</div><div class="js-id-val" id="jsDispCaseNo">—</div></div>
-            <div class="js-id-block"><div class="js-id-label">Drive Folder</div><div id="jsDispDrive"><span class="js-id-muted">Not linked</span></div></div>
           </div>
         </div>
 
