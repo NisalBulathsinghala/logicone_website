@@ -37,7 +37,7 @@
 .js-picker-search input:focus { outline: none; border-color: var(--accent); }
 .js-picker-table-wrap { border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border); }
 .js-open-btn { font-size: 12px; color: var(--accent); font-weight: 600; cursor: pointer; }
-.js-sheet-wrap { max-width: 960px; }
+.js-sheet-wrap { flex: 1; min-width: 0; }
 .js-card {
   background: var(--bg-surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 22px 24px; margin-bottom: 14px;
@@ -159,9 +159,13 @@
 /* ===== STICKY SUMMARY BAR ===== */
 .js-summary-bar {
   position: sticky; top: 0; z-index: 9;
-  background: var(--bg-surface); border-bottom: 1px solid var(--border);
-  padding: 12px 28px; display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 12px 28px; margin-bottom: 14px;
 }
+.js-summary-inner { display: flex; align-items: flex-start; gap: 24px; }
+.js-summary-nav-spacer { width: 168px; flex-shrink: 0; }
+.js-summary-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+@media (max-width: 900px) { .js-summary-nav-spacer { display: none; } }
 .js-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .js-summary-id-group { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .js-summary-avatar {

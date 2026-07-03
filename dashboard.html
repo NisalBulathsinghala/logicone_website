@@ -175,6 +175,9 @@
 
       <!-- Sticky summary: who this job is, and change status without scrolling -->
       <div class="js-summary-bar" id="jsSummaryBar">
+      <div class="js-summary-inner">
+        <div class="js-summary-nav-spacer" aria-hidden="true"></div>
+        <div class="js-summary-content">
         <div class="js-summary-top">
           <div class="js-summary-id-group">
             <div class="js-summary-avatar" id="jsSummaryAvatar">—</div>
@@ -220,6 +223,8 @@
           <div class="js-status-pill" onclick="jsSetStatus(this)">Complete</div>
           <div class="js-status-pill js-done" onclick="jsSetStatus(this)">Collected</div>
         </div>
+        </div>
+      </div>
       </div>
 
       <div class="js-sheet-layout">
