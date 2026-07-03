@@ -172,6 +172,45 @@
         <div class="js-spinner"></div>
         <div class="js-loading-msg" id="jsLoadingMsg">Loading job sheet…</div>
       </div>
+
+      <!-- Sticky summary: who this job is, and change status without scrolling -->
+      <div class="js-summary-bar" id="jsSummaryBar">
+        <div class="js-summary-top">
+          <div class="js-summary-id-group">
+            <div class="js-summary-avatar" id="jsSummaryAvatar">—</div>
+            <div style="min-width:0;">
+              <div class="js-summary-name" id="jsSummaryName">Select a job</div>
+              <div class="js-summary-sub" id="jsSummarySub">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="js-summary-status-row" id="jsSummaryStatusRow">
+          <div class="js-status-pill" onclick="jsSetStatus(this)">Intake</div>
+          <div class="js-status-pill" onclick="jsSetStatus(this)">Diagnosis</div>
+          <div class="js-status-pill" onclick="jsSetStatus(this)">Awaiting Parts</div>
+          <div class="js-status-pill" onclick="jsSetStatus(this)">In Repair</div>
+          <div class="js-status-pill" onclick="jsSetStatus(this)">Testing</div>
+          <div class="js-status-pill" onclick="jsSetStatus(this)">Complete</div>
+          <div class="js-status-pill js-done" onclick="jsSetStatus(this)">Collected</div>
+        </div>
+      </div>
+
+      <div class="js-sheet-layout">
+        <!-- Jump nav -->
+        <div class="js-nav-rail" id="jsNavRail">
+          <div class="js-nav-link" data-jump="jsSecCustomer">Customer &amp; device</div>
+          <div class="js-nav-link" data-jump="jsSecService">Service details</div>
+          <div class="js-nav-link" data-jump="jsSecComms">Communications</div>
+          <div class="js-nav-link" data-jump="jsSecGoods">Goods received</div>
+          <div class="js-nav-link" data-jump="jsSecNotes">Stage notes</div>
+          <div class="js-nav-link" data-jump="jsSecParts">Parts required</div>
+          <div class="js-nav-link" data-jump="jsSecCost">Cost summary</div>
+          <div class="js-nav-link" data-jump="jsSecRemarks">Remarks</div>
+          <div class="js-nav-link" data-jump="jsSecStatus">Job status</div>
+          <div class="js-nav-link" data-jump="jsZohoCard">Zoho Books</div>
+          <div class="js-nav-link" data-jump="jsPhotosCard">Photos &amp; videos</div>
+        </div>
+
       <div class="js-sheet-wrap">
 
         <!-- Header -->
@@ -188,7 +227,7 @@
         </div>
 
         <!-- Customer & Device (read-only from sheet) -->
-        <div class="js-card">
+        <div class="js-card" id="jsSecCustomer">
           <div class="js-card-title">Customer &amp; Device</div>
           <div class="js-fg js-fg3">
             <div class="js-f"><label>Customer Name</label><input type="text" id="jsFName" readonly></div>
@@ -203,8 +242,20 @@
           </div>
         </div>
 
+        <!-- Communications (SMS thread for this job's phone number) -->
+        <div class="js-card" id="jsSecComms">
+          <div class="js-card-title">Communications</div>
+          <div class="js-comms-thread" id="jsCommsThread">
+            <div class="js-comms-empty">Open a job to load its messages.</div>
+          </div>
+          <div class="js-comms-compose">
+            <textarea id="jsCommsText" placeholder="Type a message…" onkeydown="jsCommsKeydown(event)"></textarea>
+            <button class="btn btn-primary" id="jsCommsSendBtn" onclick="jsCommsSend()">Send</button>
+          </div>
+        </div>
+
         <!-- Service Details -->
-        <div class="js-card">
+        <div class="js-card" id="jsSecService">
           <div class="js-card-title">Service Details</div>
           <div class="js-fg js-fg3" style="margin-bottom:14px;">
             <div class="js-f"><label>Service Date</label><input type="date" id="jsFDate"></div>
@@ -233,7 +284,7 @@
         </div>
 
         <!-- Goods Received -->
-        <div class="js-card">
+        <div class="js-card" id="jsSecGoods">
           <div class="js-card-title">Goods Received</div>
           <div class="js-checklist" id="jsChecklist"></div>
           <div class="js-f" style="margin-top:12px;"><label>Other Items</label><input type="text" id="jsFOtherGoods" placeholder="Any additional items…"></div>
@@ -269,7 +320,7 @@
         </div>
 
         <!-- Stage Notes -->
-        <div class="js-card">
+        <div class="js-card" id="jsSecNotes">
           <div class="js-card-title">Stage Notes</div>
           <div class="js-stage-notes">
             <div class="js-stage-note-block">
@@ -304,7 +355,7 @@
         </div>
 
         <!-- Parts -->
-        <div class="js-card">
+        <div class="js-card" id="jsSecParts">
           <div class="js-card-title">Parts Required</div>
           <div style="overflow-x:auto;">
             <table class="js-parts-table">
@@ -321,7 +372,7 @@
         </div>
 
         <!-- Cost -->
-        <div class="js-card">
+        <div class="js-card" id="jsSecCost">
           <div class="js-card-title">Cost Summary</div>
           <div style="display:flex;justify-content:flex-end;">
             <div class="js-cost-box">
@@ -335,7 +386,7 @@
         </div>
 
         <!-- Remarks -->
-        <div class="js-card">
+        <div class="js-card" id="jsSecRemarks">
           <div class="js-card-title">Remarks</div>
           <div class="js-fg js-fg3">
             <div class="js-f"><label>Customer Remark</label><textarea id="jsFCustRemark" placeholder="Customer's reported issue or notes…"></textarea></div>
@@ -344,7 +395,7 @@
         </div>
 
         <!-- Status -->
-        <div class="js-card">
+        <div class="js-card" id="jsSecStatus">
           <div class="js-card-title">Job Status</div>
           <div class="js-status-flow" id="jsStatusFlow">
             <div class="js-status-pill" onclick="jsSetStatus(this)">Intake</div>
@@ -375,6 +426,16 @@
             </button>
           </div>
           <div id="jsZohoStatus" style="margin-top:12px;font-size:12px;color:var(--text-secondary);display:none;"></div>
+          <div class="js-sent-row">
+            <div class="js-sent-toggle" id="jsQuoteSentToggle" onclick="jsToggleSent('Quote Sent','jsQuoteSentToggle')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+              Quote sent
+            </div>
+            <div class="js-sent-toggle" id="jsInvoiceSentToggle" onclick="jsToggleSent('Invoice Sent','jsInvoiceSentToggle')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+              Invoice sent
+            </div>
+          </div>
         </div>
 
         <!-- Status Timeline -->
@@ -402,6 +463,7 @@
 
 
       </div><!-- /js-sheet-wrap -->
+      </div><!-- /js-sheet-layout -->
     </div><!-- /jsSheetForm -->
 
     </div><!-- /jsScrollArea -->

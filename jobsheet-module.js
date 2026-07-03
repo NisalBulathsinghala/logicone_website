@@ -141,6 +141,56 @@
 .js-status-pill:hover { border-color: var(--accent); }
 .js-status-pill.active { background: rgba(0,180,216,0.1); border-color: var(--accent); color: #0369a1; }
 .js-status-pill.js-done.active { background: rgba(16,185,129,0.1); border-color: #10b981; color: #065f46; }
+
+/* ===== STICKY SUMMARY BAR ===== */
+.js-summary-bar {
+  position: sticky; top: 0; z-index: 9;
+  background: var(--bg-surface); border-bottom: 1px solid var(--border);
+  padding: 12px 28px; display: flex; flex-direction: column; gap: 10px;
+}
+.js-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.js-summary-id-group { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.js-summary-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(0,180,216,0.12); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; font-family: 'Inter', sans-serif;
+}
+.js-summary-name { font-size: 14px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.js-summary-sub { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.js-summary-status-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.js-summary-status-row .js-status-pill { padding: 5px 12px; font-size: 11px; }
+
+/* ===== JOB SHEET NAV RAIL ===== */
+.js-sheet-layout { display: flex; align-items: flex-start; gap: 24px; }
+.js-nav-rail { width: 168px; flex-shrink: 0; position: sticky; top: 92px; padding: 12px 0; }
+.js-nav-link {
+  padding: 7px 10px; font-size: 12px; color: var(--text-secondary);
+  border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.js-nav-link:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+.js-nav-link.active { background: rgba(0,180,216,0.1); color: var(--accent); font-weight: 600; }
+@media (max-width: 900px) { .js-nav-rail { display: none; } }
+
+/* ===== COMMUNICATIONS (SMS) ===== */
+.js-comms-thread { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px; margin-bottom: 12px; border: 1px solid var(--border-light); border-radius: var(--radius-md); }
+.js-comms-empty { padding: 20px; text-align: center; color: var(--text-secondary); font-size: 12.5px; }
+.js-comms-msg { max-width: 75%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4; word-break: break-word; }
+.js-comms-msg-in { align-self: flex-start; background: var(--bg-surface-hover); }
+.js-comms-msg-out { align-self: flex-end; background: rgba(0,180,216,0.12); }
+.js-comms-msg-time { font-size: 10px; color: var(--text-secondary); margin-top: 3px; }
+.js-comms-compose { display: flex; gap: 8px; align-items: flex-end; }
+.js-comms-compose textarea { flex: 1; min-height: 44px; max-height: 100px; resize: vertical; }
+
+/* ===== QUOTE / INVOICE SENT TRACKING ===== */
+.js-sent-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.js-sent-toggle {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  font-size: 12px; font-weight: 500; border-radius: 20px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary);
+}
+.js-sent-toggle.sent { background: rgba(5,150,105,0.1); border-color: rgba(5,150,105,0.3); color: #065f46; }
 .js-zoho-btn {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 8px 18px; font-size: 12.5px; font-weight: 500; font-family: 'Inter', sans-serif;
@@ -371,10 +421,44 @@
         } else {
           svg.querySelector('polyline').setAttribute('points', '6 9 12 15 18 9');
         }
+        jsUpdateNavActive();
       });
     }
+
+    // Jump nav: click a link, smooth-scroll the section under the sticky bars
+    document.querySelectorAll('.js-nav-link').forEach(link => {
+      link.addEventListener('click', () => jsScrollToSection(link.dataset.jump));
+    });
   });
 })();
+
+const JS_NAV_SECTIONS = ['jsSecCustomer','jsSecComms','jsSecService','jsSecGoods','jsSecNotes','jsSecParts','jsSecCost','jsSecRemarks','jsSecStatus','jsZohoCard','jsPhotosCard'];
+
+function jsScrollToSection(id) {
+  const area = document.getElementById('jsScrollArea');
+  const target = document.getElementById(id);
+  if (!area || !target) return;
+  const areaRect = area.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const offset = targetRect.top - areaRect.top + area.scrollTop;
+  area.scrollTo({ top: offset - 12, behavior: 'smooth' });
+}
+
+function jsUpdateNavActive() {
+  const area = document.getElementById('jsScrollArea');
+  if (!area) return;
+  const areaRect = area.getBoundingClientRect();
+  let current = null;
+  JS_NAV_SECTIONS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el.offsetParent === null) return; // skip hidden sections
+    const top = el.getBoundingClientRect().top - areaRect.top;
+    if (top <= 80) current = id;
+  });
+  document.querySelectorAll('.js-nav-link').forEach(link => {
+    link.classList.toggle('active', link.dataset.jump === current);
+  });
+}
 
 // ============================================================
 // STATE
@@ -495,6 +579,8 @@ async function jsOpenJob(jobId) {
   // Populate read-only intake fields immediately
   jsPopulateIntake(j);
   jsUpdateScooterChecklist(j.deviceType || '');
+  jsLoadComms(j);
+  jsApplySentToggles(j);
 
   // Show the form with loading overlay covering editable content
   document.getElementById('jsJobPicker').style.display = 'none';
@@ -638,6 +724,21 @@ function jsPopulateIntake(j) {
   document.getElementById('jsFSerial').value = j.serial || '';
   document.getElementById('jsFWarranty').value = j.warranty || '';
   document.getElementById('jsFIssue').value = j.issue || '';
+
+  // Sticky summary bar
+  const nameEl = document.getElementById('jsSummaryName');
+  const subEl  = document.getElementById('jsSummarySub');
+  const avEl   = document.getElementById('jsSummaryAvatar');
+  if (nameEl) nameEl.textContent = j.name || 'Unnamed customer';
+  if (subEl)  subEl.textContent  = [j.phone, [j.brand, j.model].filter(Boolean).join(' ')].filter(Boolean).join(' \u00b7 ') || '—';
+  if (avEl)   avEl.textContent   = jsInitials(j.name);
+}
+
+function jsInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 // Only called when no saved Drive data exists — sets sensible defaults for a fresh job sheet
@@ -659,13 +760,11 @@ function jsResetEditableFields(j) {
   if (repLvl) repLvl.value = '';
   jsUpdateRepairLevelHint();
   document.querySelectorAll('.js-svc-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.js-status-pill').forEach(p => p.classList.toggle('active', p.textContent.trim() === (j.status||'Intake')));
   if ((j.warranty||'').toLowerCase().includes('in warranty')) {
     const btn = [...document.querySelectorAll('.js-svc-btn')].find(b => b.textContent.includes('In Warranty'));
     if (btn) jsSetSvc(btn, 'In Warranty Repair');
   }
-  const sp = [...document.querySelectorAll('.js-status-pill')].find(p => p.textContent.trim() === (j.status||'Intake'));
-  if (sp) sp.classList.add('active');
   jsBuildChecklist(j.accessories || '', j.deviceType || '');
   jsUpdateScooterChecklist(j.deviceType || '');
   jsClearScooterChecklist();
@@ -858,9 +957,8 @@ function jsSetSvc(el, val) {
 }
 
 async function jsSetStatus(el) {
-  document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
   const newStatus = el.textContent.trim();
+  document.querySelectorAll('.js-status-pill').forEach(p => p.classList.toggle('active', p.textContent.trim() === newStatus));
   if (!jsCurrentJob) return;
 
   const oldStatus = jsCurrentJob.status;
@@ -887,9 +985,7 @@ async function jsSetStatus(el) {
     if (!statusResult.ok) {
       jsCurrentJob.status = oldStatus;
       if (jobInList) { jobInList.status = oldStatus; jobInList.statusTimestamps = jsCurrentJob.statusTimestamps; }
-      document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
-      const revertPill = [...document.querySelectorAll('.js-status-pill')].find(p => p.textContent.trim() === oldStatus);
-      if (revertPill) revertPill.classList.add('active');
+      document.querySelectorAll('.js-status-pill').forEach(p => p.classList.toggle('active', p.textContent.trim() === oldStatus));
       jsRenderTimeline(jsCurrentJob);
       renderAll();
       if (typeof showToast === 'function') showToast('error', 'Status update failed — sheet not updated');
@@ -1082,13 +1178,13 @@ function jsLoadFromData(data) {
   jsParts = Array.isArray(data.parts) ? data.parts : [];
 
   // Status pill — sync jsCurrentJob.status from Drive JSON (source of truth)
-  document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
   if (data.status) {
     if (jsCurrentJob) jsCurrentJob.status = data.status;
     const jobInList = (typeof jobs !== 'undefined') && jobs.find(j => j.jobId === jsCurrentJob?.jobId);
     if (jobInList) jobInList.status = data.status;
-    const pill = [...document.querySelectorAll('.js-status-pill')].find(p => p.textContent.trim() === data.status);
-    if (pill) pill.classList.add('active');
+    document.querySelectorAll('.js-status-pill').forEach(p => p.classList.toggle('active', p.textContent.trim() === data.status));
+  } else {
+    document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
   }
 
   // Timestamps — Drive timestamps.json already merged into jsCurrentJob before this runs
@@ -1386,4 +1482,146 @@ async function jsCreateZohoQuote() {
     jsSetZohoStatus('Error: ' + err.message, 'error');
     showToast('error', 'Zoho error: ' + err.message);
   }
+}
+
+// ============================================================
+// COMMUNICATIONS — per-job SMS thread, keyed by phone (same
+// Firestore backend as the main SMS inbox)
+// ============================================================
+function jsEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function jsLoadComms(job) {
+  const box = document.getElementById('jsCommsThread');
+  if (!box) return;
+  if (!job || !job.phone) {
+    box.innerHTML = '<div class="js-comms-empty">No phone number on this job</div>';
+    return;
+  }
+  box.innerHTML = '<div class="js-comms-empty">Loading…</div>';
+  try {
+    const res = await fetch('/.netlify/functions/firestore-sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load-thread', phone: job.phone })
+    }).then(r => r.json());
+    jsRenderCommsThread(res.ok ? res.data : []);
+    // Mark read — fire and forget, also nudges the main SMS badge counts
+    fetch('/.netlify/functions/firestore-sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mark-read', phone: job.phone })
+    }).catch(() => {});
+    if (typeof smsInboxRefresh === 'function') smsInboxRefresh();
+  } catch (e) {
+    box.innerHTML = '<div class="js-comms-empty">Could not load messages</div>';
+  }
+}
+
+function jsRenderCommsThread(msgs) {
+  const box = document.getElementById('jsCommsThread');
+  if (!box) return;
+  if (!msgs || !msgs.length) {
+    box.innerHTML = '<div class="js-comms-empty">No messages yet — send the first one below</div>';
+    return;
+  }
+  box.innerHTML = msgs.map(m => `
+    <div class="js-comms-msg js-comms-msg-${m.direction === 'out' ? 'out' : 'in'}">
+      ${jsEsc(m.body || '').replace(/\n/g, '<br>')}
+      <div class="js-comms-msg-time">${jsFmtCommsTime(m.timestamp)}</div>
+    </div>`).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function jsFmtCommsTime(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' ' +
+           d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
+  } catch (e) { return ''; }
+}
+
+function jsCommsKeydown(e) {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    jsCommsSend();
+  }
+}
+
+async function jsCommsSend() {
+  const job = jsCurrentJob;
+  const ta  = document.getElementById('jsCommsText');
+  const btn = document.getElementById('jsCommsSendBtn');
+  if (!job || !ta) return;
+  const text = ta.value.trim();
+  if (!text) return;
+  if (!job.phone) { showToast('error', 'No phone number on this job'); return; }
+
+  btn.disabled = true;
+  ta.disabled = true;
+  try {
+    const res = await fetch('/.netlify/functions/sms-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: job.phone, body: text, jobId: job.jobId, customerName: job.name || '' })
+    }).then(r => r.json());
+    if (res.ok) {
+      ta.value = '';
+      await jsLoadComms(job);
+      showToast('success', '✓ SMS sent');
+    } else {
+      showToast('error', 'SMS failed: ' + (res.error || 'Unknown error'));
+    }
+  } catch (e) {
+    showToast('error', 'SMS error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    ta.disabled = false;
+    ta.focus();
+  }
+}
+
+// ============================================================
+// QUOTE / INVOICE SENT TRACKING (out-of-warranty jobs)
+// Reuses the same smsSentTemplates map/actions built for the SMS
+// template dots — "Quote Sent" / "Invoice Sent" are just two more
+// named milestones in the same map, not actual SMS messages.
+// ============================================================
+function jsApplySentToggles(j) {
+  const sent = (j && j.smsSentTemplates) || {};
+  jsSetSentToggleState('jsQuoteSentToggle', 'Quote', sent['Quote Sent']);
+  jsSetSentToggleState('jsInvoiceSentToggle', 'Invoice', sent['Invoice Sent']);
+}
+
+function jsSetSentToggleState(id, label, sentAt) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('sent', !!sentAt);
+  const check = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>';
+  el.innerHTML = sentAt
+    ? `${check} ${label} sent · ${fmtDate(sentAt)}`
+    : `${check} ${label} sent`;
+}
+
+function jsToggleSent(template, btnId) {
+  const j = jsCurrentJob;
+  if (!j) return;
+  const el = document.getElementById(btnId);
+  const alreadySent = el && el.classList.contains('sent');
+  const newSentAt = alreadySent ? '' : new Date().toISOString();
+  const label = template === 'Quote Sent' ? 'Quote' : 'Invoice';
+
+  if (!j.smsSentTemplates) j.smsSentTemplates = {};
+  j.smsSentTemplates[template] = newSentAt;
+  jsSetSentToggleState(btnId, label, newSentAt);
+  if (typeof renderAll === 'function') renderAll();
+
+  fetch('/.netlify/functions/firestore-jobsheet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'mark-sms-sent', jobId: j.jobId, template, sentAt: newSentAt })
+  }).catch(e => console.warn('mark-sms-sent error:', e));
 }
