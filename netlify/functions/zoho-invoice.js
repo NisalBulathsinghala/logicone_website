@@ -191,7 +191,7 @@ async function createTechnocityInvoice(token, { brand, period, lineItems }) {
     if (m) return parseFloat(m[1]);
     // Level number fallback
     const lvl = String(item.repairLevel || '').match(/level\s*(\d)/i);
-    if (lvl) return ({ 1: 85, 2: 100, 3: 125 })[parseInt(lvl[1])] || 0;
+    if (lvl) return ({ 0: 65, 1: 85, 2: 100, 3: 125 })[parseInt(lvl[1])] || 0;
     return 0;
   };
 

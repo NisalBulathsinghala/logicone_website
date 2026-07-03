@@ -254,25 +254,45 @@
     job.finalRemark || job.inspectionNote || job.issue || '—';
 
   // ── Repair level cost lookup ──────────────────────────────
-  // Populated from costs.json on Drive (loaded when modal opens).
-  // Falls back to parsing the dollar amount from the label string.
-  let repairLevelCosts = {}; // e.g. { "Level 2 — $100": 100 }
+  // Firestore first (fast), then still refreshed from Drive in the
+  // background since that's the file Nisal actually edits — whatever
+  // Drive returns gets pushed back to Firestore for next time.
+  let repairLevelCosts = {}; // e.g. { "Level 2": 100 }
+
+  function applyRepairLevelCosts(repairLevels) {
+    if (!repairLevels) return;
+    repairLevelCosts = {};
+    Object.entries(repairLevels).forEach(([label, obj]) => {
+      repairLevelCosts[label] = typeof obj === 'object' ? obj.cost : obj;
+    });
+  }
 
   async function loadRepairLevelCosts() {
+    try {
+      const fsRes = await fetch('/.netlify/functions/firestore-costs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load' })
+      }).then(r => r.json());
+      if (fsRes.ok && fsRes.data && fsRes.data.repairLevels) applyRepairLevelCosts(fsRes.data.repairLevels);
+    } catch (e) { /* fall through to Drive */ }
+
     if (!cfg || !cfg.appsScriptUrl || typeof callScript !== 'function') return;
     try {
       const res = await callScript({ action: 'loadCosts' });
       if (res && res.ok && res.data && res.data.repairLevels) {
-        repairLevelCosts = {};
-        Object.entries(res.data.repairLevels).forEach(([label, obj]) => {
-          repairLevelCosts[label] = typeof obj === 'object' ? obj.cost : obj;
-        });
+        applyRepairLevelCosts(res.data.repairLevels);
+        fetch('/.netlify/functions/firestore-costs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'save', data: res.data })
+        }).catch(() => {});
       }
     } catch (e) { /* fall back to string parsing */ }
   }
 
   // Hardcoded fallback costs used when costs.json and string parsing both fail
-  const DEFAULT_LEVEL_COSTS = { 1: 85, 2: 100, 3: 125 };
+  const DEFAULT_LEVEL_COSTS = { 0: 65, 1: 85, 2: 100, 3: 125 };
 
   const costFromRepairLevel = (repairLevel) => {
     // 1. Look up in costs.json data (authoritative)

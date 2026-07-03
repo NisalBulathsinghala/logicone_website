@@ -448,6 +448,22 @@ function jsHideLoadingOverlay() {
   if (el) el.classList.remove('show');
 }
 
+// Shared helper for all Firestore jobsheet calls (load / save / timestamps).
+// Never throws — callers just check result.ok.
+async function fsJobsheet(action, payload) {
+  try {
+    const res = await fetch('/.netlify/functions/firestore-jobsheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ action }, payload))
+    });
+    return await res.json();
+  } catch (e) {
+    console.warn('firestore-jobsheet ' + action + ' error:', e);
+    return { ok: false, error: e.message };
+  }
+}
+
 async function jsOpenJob(jobId) {
   const j = jobs.find(x => x.jobId === jobId);
   if (!j) return;
@@ -491,46 +507,64 @@ async function jsOpenJob(jobId) {
   jsRenderTimeline(j);
   jsUpdateZohoCard(j);
 
-  // No Apps Script configured — just show fresh defaults
-  if (!cfg.appsScriptUrl || !j.driveFolder) {
-    jsResetEditableFields(j);
-    return;
-  }
-
   // Show loading overlay
   jsShowLoadingOverlay('Loading job sheet…');
 
   let driveDataLoaded = false;
 
-  // Step 1: Load timestamps.json — pass driveFolder directly, no sheet lookup needed
-  try {
-    const tsResult = await callScript({ action: 'loadTimestamps', jobId, driveFolder: j.driveFolder });
-    if (tsResult.ok && tsResult.data) {
-      j.statusTimestamps = Object.assign({}, j.statusTimestamps || {}, tsResult.data);
-      jsRenderTimeline(j);
-    } else {
-      console.log('loadTimestamps:', tsResult);
-    }
-  } catch(e) { console.warn('loadTimestamps error:', e); }
+  // Step 1: Load timestamps — Firestore first, Apps Script/Drive fallback
+  let tsFromFirestore = false;
+  const fsTs = await fsJobsheet('timestamps-load', { jobId });
+  if (fsTs.ok && fsTs.data) {
+    j.statusTimestamps = Object.assign({}, j.statusTimestamps || {}, fsTs.data);
+    jsRenderTimeline(j);
+    tsFromFirestore = true;
+  }
 
-  // Step 2: Load saved job sheet JSON — pass driveFolder directly
-  jsShowLoadingOverlay('Loading saved data…');
-  try {
-    const sheetResult = await callScript({ action: 'loadJobSheet', jobId, driveFolder: j.driveFolder });
-    console.log('loadJobSheet response:', JSON.stringify(sheetResult).substring(0, 200));
-    if (sheetResult.ok && sheetResult.data) {
-      const saved = sheetResult.data;
-      if (saved.statusTimestamps) {
-        j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
+  if (!tsFromFirestore && cfg.appsScriptUrl && j.driveFolder) {
+    try {
+      const tsResult = await callScript({ action: 'loadTimestamps', jobId, driveFolder: j.driveFolder });
+      if (tsResult.ok && tsResult.data) {
+        j.statusTimestamps = Object.assign({}, j.statusTimestamps || {}, tsResult.data);
         jsRenderTimeline(j);
+      } else {
+        console.log('loadTimestamps:', tsResult);
       }
-      jsLoadFromData(saved);
-      jsSetSaveIndicator(true, saved.savedAt);
-      driveDataLoaded = true;
-    } else {
-      console.warn('loadJobSheet not found or error:', sheetResult);
+    } catch(e) { console.warn('loadTimestamps error:', e); }
+  }
+
+  // Step 2: Load saved job sheet — Firestore first, Apps Script/Drive fallback
+  jsShowLoadingOverlay('Loading saved data…');
+  const fsSheet = await fsJobsheet('load', { jobId });
+  if (fsSheet.ok && fsSheet.data) {
+    const saved = fsSheet.data;
+    if (saved.statusTimestamps) {
+      j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
+      jsRenderTimeline(j);
     }
-  } catch(e) { console.warn('loadJobSheet error:', e); }
+    jsLoadFromData(saved);
+    jsSetSaveIndicator(true, saved._savedAt || saved.savedAt);
+    driveDataLoaded = true;
+  }
+
+  if (!driveDataLoaded && cfg.appsScriptUrl && j.driveFolder) {
+    try {
+      const sheetResult = await callScript({ action: 'loadJobSheet', jobId, driveFolder: j.driveFolder });
+      console.log('loadJobSheet response:', JSON.stringify(sheetResult).substring(0, 200));
+      if (sheetResult.ok && sheetResult.data) {
+        const saved = sheetResult.data;
+        if (saved.statusTimestamps) {
+          j.statusTimestamps = Object.assign({}, saved.statusTimestamps, j.statusTimestamps);
+          jsRenderTimeline(j);
+        }
+        jsLoadFromData(saved);
+        jsSetSaveIndicator(true, saved.savedAt);
+        driveDataLoaded = true;
+      } else {
+        console.warn('loadJobSheet not found or error:', sheetResult);
+      }
+    } catch(e) { console.warn('loadJobSheet error:', e); }
+  }
 
   // Hide overlay — show form with loaded (or fresh) data
   jsHideLoadingOverlay();
@@ -730,30 +764,63 @@ function jsRemoveOrderNum(i) {
 // Repair level hints and costs — seeded from hardcoded defaults,
 // overwritten by costs.json from Drive when a job is opened.
 let REPAIR_LEVEL_HINTS = {
-  'Level 1 — $85':  'External works only; adjustments, external parts, machinery',
-  'Level 2 — $100': 'Internal repairs; PCB, motors, batteries, front fork',
-  'Level 3 — $125': 'Full disassembly; frame & structural parts, 2+ major errors',
+  'Level 0':  'Minor / no-parts fix; cleaning, resets, firmware, cosmetic adjustments',
+  'Level 1':  'External works only; adjustments, external parts, machinery',
+  'Level 2':  'Internal repairs; PCB, motors, batteries, front fork',
+  'Level 3':  'Full disassembly; frame & structural parts, 2+ major errors',
 };
 let REPAIR_LEVEL_COSTS = {
-  'Level 1 — $85':  85,
-  'Level 2 — $100': 100,
-  'Level 3 — $125': 125,
+  'Level 0':  65,
+  'Level 1':  85,
+  'Level 2':  100,
+  'Level 3':  125,
 };
 
-// Load costs.json from Drive and merge into local lookups
+// Old jobs may still have a saved value like "Level 1 — $85" from before
+// prices were dropped from the label. Strip that suffix so they still
+// match a real <option> in the dropdown instead of showing blank.
+function jsNormaliseRepairLevel(val) {
+  if (!val) return val;
+  return String(val).replace(/\s*—\s*\$\d+(?:\.\d+)?\s*$/, '').trim();
+}
+
+// Load costs.json — Firestore first (fast, no Apps Script cold start),
+// then still refresh from Drive in the background since that's the file
+// Nisal actually edits. Whatever Drive returns gets pushed to Firestore
+// so the next lookup is fast too.
+function jsApplyCostsData(data) {
+  if (!data || !data.repairLevels) return;
+  Object.entries(data.repairLevels).forEach(([label, obj]) => {
+    REPAIR_LEVEL_COSTS[label] = typeof obj === 'object' ? obj.cost : obj;
+    if (typeof obj === 'object' && obj.description) {
+      REPAIR_LEVEL_HINTS[label] = obj.description;
+    }
+  });
+}
+
 async function jsLoadCosts() {
+  try {
+    const fsRes = await fetch('/.netlify/functions/firestore-costs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load' })
+    }).then(r => r.json());
+    if (fsRes.ok && fsRes.data) jsApplyCostsData(fsRes.data);
+  } catch (e) { /* fall through to Drive */ }
+
   if (!cfg || !cfg.appsScriptUrl || typeof callScript !== 'function') return;
   try {
     const res = await callScript({ action: 'loadCosts' });
     if (res && res.ok && res.data && res.data.repairLevels) {
-      Object.entries(res.data.repairLevels).forEach(([label, obj]) => {
-        REPAIR_LEVEL_COSTS[label] = typeof obj === 'object' ? obj.cost : obj;
-        if (typeof obj === 'object' && obj.description) {
-          REPAIR_LEVEL_HINTS[label] = obj.description;
-        }
-      });
+      jsApplyCostsData(res.data);
+      // Sync back to Firestore for next time — fire and forget
+      fetch('/.netlify/functions/firestore-costs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save', data: res.data })
+      }).catch(() => {});
     }
-  } catch (e) { /* keep defaults */ }
+  } catch (e) { /* keep whatever we already have */ }
 }
 
 function jsUpdateRepairLevelHint() {
@@ -836,6 +903,12 @@ async function jsSetStatus(el) {
         timestamps: JSON.stringify(jsCurrentJob.statusTimestamps)
       });
     }
+
+    // Dual-write timestamps to Firestore too (doesn't need driveFolder)
+    fsJobsheet('timestamps-save', {
+      jobId: jsCurrentJob.jobId,
+      timestamps: jsCurrentJob.statusTimestamps
+    });
   }
 }
 
@@ -964,7 +1037,7 @@ function jsLoadFromData(data) {
 
   // Repair level
   const repLvl = document.getElementById('jsFRepairLevel');
-  if (repLvl) { repLvl.value = data.repairLevel || ''; jsUpdateRepairLevelHint(); }
+  if (repLvl) { repLvl.value = jsNormaliseRepairLevel(data.repairLevel) || ''; jsUpdateRepairLevelHint(); }
 
   // Service type
   document.querySelectorAll('.js-svc-btn').forEach(b => b.classList.remove('active'));
@@ -1104,6 +1177,11 @@ async function jsSaveSheet() {
       jsSetSaveIndicator(true);
       jsSaveOverlayHide();
 
+      // Dual-write the jobsheet to Firestore too
+      const fsSaveResult = await fsJobsheet('save', { jobId: data.jobId, data });
+      const firestoreSaveOk = !!fsSaveResult.ok;
+      if (!firestoreSaveOk) console.warn('Firestore save failed:', fsSaveResult);
+
       // Build the checklist string from ticked items for the Accessories column
       const tickedItems = [...document.querySelectorAll('.js-check-item input:checked')]
         .map(cb => cb.parentElement.textContent.trim()).filter(Boolean);
@@ -1141,9 +1219,13 @@ async function jsSaveSheet() {
         renderAll();
       }
 
-      if (!syncResult.ok) {
+      if (!syncResult.ok && !firestoreSaveOk) {
+        showToast('success', 'Saved to Drive (sheet sync + Firestore both failed)');
+      } else if (!syncResult.ok) {
         // Non-fatal — Drive save succeeded, sheet sync failed
         showToast('success', 'Saved to Drive (sheet sync failed — ' + syncResult.error + ')');
+      } else if (!firestoreSaveOk) {
+        showToast('success', 'Saved to Drive (Firestore sync failed)');
       } else {
         showToast('success', 'Job sheet saved');
       }
