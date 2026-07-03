@@ -213,7 +213,12 @@
 
   const completionDate = (job) => {
     const ts = job.statusTimestamps || {};
-    return ts['Collected'] || ts['Complete'] || ts['Testing'] || job.savedAt || '';
+    // 'Complete' is when the repair itself finished — that's what should decide
+    // which month's invoice a job belongs to. 'Collected' is just pickup, which
+    // can happen days or weeks later if the customer's slow to come get it.
+    // Checking 'Collected' first (as this used to) meant a job repaired in June
+    // but not picked up until July would silently disappear from June's batch.
+    return ts['Complete'] || ts['Collected'] || ts['Testing'] || job.savedAt || '';
   };
 
   const isCompleted = (job) =>
