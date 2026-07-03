@@ -253,7 +253,7 @@ function mkCard(j) {
   const smsBadgeHtml = (() => {
     const conv = typeof _smsConvs !== 'undefined' && _smsConvs.find(c => c.jobId === j.jobId);
     const n = conv ? (conv.unread || 0) : 0;
-    return n > 0 ? `<span class="card-sms-badge" title="SMS replies" onclick="event.stopPropagation();switchView('sms');setTimeout(()=>smsOpenConv('${j.jobId}'),100)">${n}</span>` : '';
+    return n > 0 ? `<span class="card-sms-badge" title="SMS replies" onclick="event.stopPropagation();switchView('sms');setTimeout(()=>smsOpenConv('${conv.phone}'),100)">${n}</span>` : '';
   })();
 
   card.innerHTML = `
@@ -1089,7 +1089,7 @@ document.querySelectorAll('.modal-overlay').forEach(o => { o.addEventListener('c
 // ============================================================
 
 let _smsConvs       = [];   // conversation metadata from index (no messages)
-let _smsThreads     = {};   // jobId → full message array, loaded on demand
+let _smsThreads     = {};   // phone → full message array, loaded on demand
 let _smsActiveConv  = null;
 let _smsLoaded      = false;
 let _smsFilter      = 'all'; // 'all' | 'unread' | 'needs'
@@ -1116,12 +1116,12 @@ async function smsInboxRefresh() {
 
       // Invalidate thread cache for convs with new messages
       incoming.forEach(c => {
-        const prev = _smsConvs.find(p => p.jobId === c.jobId);
+        const prev = _smsConvs.find(p => p.phone === c.phone);
         if (prev && prev.lastMessageAt !== c.lastMessageAt) {
-          delete _smsThreads[c.jobId];
-          if (_smsActiveConv && _smsActiveConv.jobId === c.jobId) {
+          delete _smsThreads[c.phone];
+          if (_smsActiveConv && _smsActiveConv.phone === c.phone) {
             _smsActiveConv = c;
-            smsLoadThread(c.jobId);
+            smsLoadThread(c.phone);
           }
         }
       });
@@ -1150,18 +1150,22 @@ function smsRenderConvList(convs) {
     const unread  = c.unread || 0;
     const preview = escHtmlSms((c.lastMessageBody || '—').slice(0, 60));
     const time    = c.lastMessageAt ? smsFmtTime(c.lastMessageAt) : '';
-    const active  = _smsActiveConv && _smsActiveConv.jobId === c.jobId ? 'active' : '';
+    const active  = _smsActiveConv && _smsActiveConv.phone === c.phone ? 'active' : '';
     const dirArrow = c.lastMessageDirection === 'out' ? '↑ ' : '';
-    return `<div class="sms-conv-item ${active} ${unread ? 'unread' : ''}" onclick="smsOpenConv('${c.jobId}')">
+    const displayName = c.customerName || (c.jobId && (jobs.find(j => j.jobId === c.jobId) || {}).name) || c.phone || 'Unknown';
+    const metaLine = c.jobId
+      ? `${escHtmlSms(c.jobId)} · ${escHtmlSms(c.phone || '')}`
+      : `${escHtmlSms(c.phone || '')} · no job linked`;
+    return `<div class="sms-conv-item ${active} ${unread ? 'unread' : ''}" onclick="smsOpenConv('${c.phone}')">
       <div class="sms-conv-item-top">
-        <span class="sms-conv-name">${escHtmlSms(c.customerName || (jobs.find(j => j.jobId === c.jobId) || {}).name || c.jobId)}</span>
+        <span class="sms-conv-name">${escHtmlSms(displayName)}</span>
         <span class="sms-conv-time">${time}</span>
       </div>
       <div class="sms-conv-item-bottom">
         <span class="sms-conv-preview">${dirArrow}${preview}</span>
         ${unread ? `<span class="sms-conv-unread">${unread}</span>` : ''}
       </div>
-      <div class="sms-conv-meta">${escHtmlSms(c.jobId)} · ${escHtmlSms(c.phone || '')}</div>
+      <div class="sms-conv-meta">${metaLine}</div>
     </div>`;
   }).join('');
 }
@@ -1197,8 +1201,8 @@ function smsApplyFilter() {
   smsRenderConvList(convs);
 }
 
-async function smsOpenConv(jobId) {
-  const conv = _smsConvs.find(c => c.jobId === jobId);
+async function smsOpenConv(phone) {
+  const conv = _smsConvs.find(c => c.phone === phone);
   if (!conv) return;
   _smsActiveConv = conv;
 
@@ -1211,7 +1215,7 @@ async function smsOpenConv(jobId) {
   fetch('/.netlify/functions/firestore-sms', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'mark-read', jobId }),
+    body: JSON.stringify({ action: 'mark-read', phone }),
   }).catch(() => {});
 
   // Show thread panel
@@ -1219,25 +1223,26 @@ async function smsOpenConv(jobId) {
   document.getElementById('smsThreadWrap').style.display  = 'flex';
 
   // Header
-  const job = jobs.find(j => j.jobId === jobId);
+  const job = conv.jobId ? jobs.find(j => j.jobId === conv.jobId) : null;
+  const headerName = conv.customerName || (job || {}).name || phone;
   document.getElementById('smsThreadHeader').innerHTML = `
     <div class="sms-thread-header-info">
-      <div class="sms-thread-name">${escHtmlSms(conv.customerName || (job || {}).name || jobId)}</div>
-      <div class="sms-thread-sub">${escHtmlSms(conv.phone || '')} · ${escHtmlSms(jobId)}</div>
+      <div class="sms-thread-name">${escHtmlSms(headerName)}</div>
+      <div class="sms-thread-sub">${escHtmlSms(phone)}${conv.jobId ? ' · ' + escHtmlSms(conv.jobId) : ''}</div>
     </div>
-    ${job ? `<button class="sms-thread-open-job" onclick="showDetail('${jobId}')">Open Job</button>` : ''}`;
+    ${job ? `<button class="sms-thread-open-job" onclick="showDetail('${conv.jobId}')">Open Job</button>` : ''}`;
 
-  await smsLoadThread(jobId);
+  await smsLoadThread(phone);
   document.getElementById('smsComposeText').focus();
   smsInitQuickReplies();
 }
 
-async function smsLoadThread(jobId) {
+async function smsLoadThread(phone) {
   const msgEl = document.getElementById('smsThreadMessages');
   if (!msgEl) return;
 
-  if (_smsThreads[jobId]) {
-    smsRenderThread(_smsThreads[jobId]);
+  if (_smsThreads[phone]) {
+    smsRenderThread(_smsThreads[phone]);
     return;
   }
 
@@ -1246,11 +1251,11 @@ async function smsLoadThread(jobId) {
     const fsRes  = await fetch('/.netlify/functions/firestore-sms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'load-thread', jobId }),
+      body: JSON.stringify({ action: 'load-thread', phone }),
     });
     const fsData = await fsRes.json();
     if (fsData.ok && fsData.data) {
-      _smsThreads[jobId] = fsData.data;
+      _smsThreads[phone] = fsData.data;
       smsRenderThread(fsData.data);
     } else {
       msgEl.innerHTML = '<div class="sms-thread-no-msgs">No messages yet — send the first one below</div>';
@@ -1325,23 +1330,23 @@ async function smsThreadSend() {
       body: JSON.stringify({
         to:           _smsActiveConv.phone,
         body:         text,
-        jobId:        _smsActiveConv.jobId,
+        jobId:        _smsActiveConv.jobId || null,
         customerName: _smsActiveConv.customerName || '',
       }),
     });
     const data = await res.json();
 
     if (data.ok) {
-      const jobId = _smsActiveConv.jobId;
+      const phone = _smsActiveConv.phone;
       const msg   = { direction: 'out', body: text, timestamp: new Date().toISOString(), msgSid: data.sid || '', read: true };
 
       // Add to thread cache
-      if (!_smsThreads[jobId]) _smsThreads[jobId] = [];
-      _smsThreads[jobId].push(msg);
-      smsRenderThread(_smsThreads[jobId]);
+      if (!_smsThreads[phone]) _smsThreads[phone] = [];
+      _smsThreads[phone].push(msg);
+      smsRenderThread(_smsThreads[phone]);
 
       // Update conversation list metadata
-      let conv = _smsConvs.find(c => c.jobId === jobId);
+      let conv = _smsConvs.find(c => c.phone === phone);
       if (!conv) {
         conv = { ..._smsActiveConv, unread: 0 };
         _smsConvs.unshift(conv);
@@ -1356,11 +1361,11 @@ async function smsThreadSend() {
       showToast('success', '✓ SMS sent');
     } else {
       // Show failed message bubble in thread
-      const jobId = _smsActiveConv.jobId;
+      const phone = _smsActiveConv.phone;
       const failedMsg = { direction: 'out', body: text, timestamp: new Date().toISOString(), failed: true, read: true };
-      if (!_smsThreads[jobId]) _smsThreads[jobId] = [];
-      _smsThreads[jobId].push(failedMsg);
-      smsRenderThread(_smsThreads[jobId]);
+      if (!_smsThreads[phone]) _smsThreads[phone] = [];
+      _smsThreads[phone].push(failedMsg);
+      smsRenderThread(_smsThreads[phone]);
       showToast('error', 'Failed: ' + (data.error || 'Unknown error'));
     }
   } catch (e) {
@@ -1428,7 +1433,12 @@ function smsRefreshKanbanBadges() {
       if (!badge) {
         badge = document.createElement('span');
         badge.className = 'card-sms-badge';
-        badge.onclick = e => { e.stopPropagation(); switchView('sms'); setTimeout(() => smsOpenConv(jobId), 100); };
+        badge.onclick = e => {
+          e.stopPropagation();
+          switchView('sms');
+          const c = _smsConvs.find(x => x.jobId === jobId);
+          if (c) setTimeout(() => smsOpenConv(c.phone), 100);
+        };
         const top = card.querySelector('.card-top');
         if (top) top.appendChild(badge);
       }

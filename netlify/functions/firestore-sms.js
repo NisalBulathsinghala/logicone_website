@@ -1,14 +1,31 @@
 // netlify/functions/firestore-sms.js
 // Handles all Firestore SMS operations.
 //
+// This is the main SMS dashboard for the business number, so conversations
+// are keyed by PHONE NUMBER (E.164, e.g. +61466697696) — NOT job ID. Every
+// number that texts in or gets texted shows up as a conversation. jobId /
+// customerName are optional metadata attached when a job happens to match,
+// never a requirement for the conversation to exist.
+//
 // Actions (POST):
-//   log-inbound    — save inbound message + update index
-//   log-outbound   — save outbound message + update index
+//   log-inbound    — save inbound message + update index (keyed by phone)
+//   log-outbound   — save outbound message + update index (keyed by phone)
 //   load-inbox     — load conversation index (sorted, paginated)
-//   load-thread    — load full message thread for a job
-//   mark-read      — set unread count to 0 for a job
+//   load-thread    — load full message thread for a phone number
+//   mark-read      — set unread count to 0 for a phone number
 
 const { db } = require('./firebase');
+
+function normalisePhone(raw) {
+  if (!raw) return null;
+  let n = String(raw).replace(/[\s\-().]/g, '');
+  if (n.startsWith('+61')) return n;
+  if (n.startsWith('0061')) return '+61' + n.slice(4);
+  if (n.startsWith('61') && n.length === 11) return '+' + n;
+  if (n.startsWith('0') && n.length === 10) return '+61' + n.slice(1);
+  if (n.startsWith('+')) return n;
+  return n; // last resort — store whatever we got rather than drop the message
+}
 
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') {
@@ -26,6 +43,8 @@ exports.handler = async function (event) {
     // ── Log inbound message ───────────────────────────────────
     if (action === 'log-inbound') {
       const { jobId, customerName, phone, from, msgBody, msgSid, timestamp } = body;
+      const key = normalisePhone(phone || from);
+      if (!key) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing phone' }) };
 
       const msg = {
         direction:  'in',
@@ -36,37 +55,34 @@ exports.handler = async function (event) {
         jobId:      jobId || null,
       };
 
-      // Write message to thread (if job matched)
-      if (jobId) {
-        await db.collection('sms').doc(jobId)
-          .collection('messages').add(msg);
+      await db.collection('sms').doc(key)
+        .collection('messages').add(msg);
 
-        // Update index entry
-        const indexRef = db.collection('sms').doc('_index')
-          .collection('conversations').doc(jobId);
-        const snap = await indexRef.get();
-        const existing = snap.exists ? snap.data() : {};
-        await indexRef.set({
-          jobId,
-          customerName: customerName || existing.customerName || '',
-          phone:        phone        || existing.phone        || '',
-          unread:       (existing.unread || 0) + 1,
-          lastMessageAt:        msg.timestamp,
-          lastMessageBody:      (msgBody || '').slice(0, 100),
-          lastMessageDirection: 'in',
-        });
-      } else {
-        // No job match — log to unmatched collection
-        await db.collection('sms').doc('_unmatched')
-          .collection('messages').add(msg);
-      }
+      const indexRef = db.collection('sms').doc('_index')
+        .collection('conversations').doc(key);
+      const snap = await indexRef.get();
+      const existing = snap.exists ? snap.data() : {};
+      await indexRef.set({
+        phone:        key,
+        // Only overwrite jobId/customerName if this message actually matched
+        // one — a transient lookup miss on one message shouldn't erase a
+        // link a previous message already established.
+        jobId:        jobId || existing.jobId || null,
+        customerName: customerName || existing.customerName || '',
+        unread:       (existing.unread || 0) + 1,
+        lastMessageAt:        msg.timestamp,
+        lastMessageBody:      (msgBody || '').slice(0, 100),
+        lastMessageDirection: 'in',
+      }, { merge: true });
 
-      return { statusCode: 200, body: JSON.stringify({ ok: true, jobId: jobId || null }) };
+      return { statusCode: 200, body: JSON.stringify({ ok: true, phone: key, jobId: jobId || null }) };
     }
 
     // ── Log outbound message ──────────────────────────────────
     if (action === 'log-outbound') {
       const { jobId, customerName, phone, to, msgBody, msgSid, timestamp } = body;
+      const key = normalisePhone(phone || to);
+      if (!key) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing phone' }) };
 
       const msg = {
         direction: 'out',
@@ -78,39 +94,30 @@ exports.handler = async function (event) {
         read:      true,
       };
 
-      if (jobId) {
-        // Linked to a job — store in job thread + update index
-        await db.collection('sms').doc(jobId)
-          .collection('messages').add(msg);
+      await db.collection('sms').doc(key)
+        .collection('messages').add(msg);
 
-        const indexRef = db.collection('sms').doc('_index')
-          .collection('conversations').doc(jobId);
-        const snap = await indexRef.get();
-        const existing = snap.exists ? snap.data() : {};
-        await indexRef.set({
-          jobId,
-          customerName: customerName || existing.customerName || '',
-          phone:        phone || to  || existing.phone        || '',
-          unread:       existing.unread || 0,
-          lastMessageAt:        msg.timestamp,
-          lastMessageBody:      (msgBody || '').slice(0, 100),
-          lastMessageDirection: 'out',
-        });
-      } else {
-        // No job linked — store in _unlinked collection for reference
-        await db.collection('sms').doc('_unlinked')
-          .collection('messages').add(msg);
-      }
+      const indexRef = db.collection('sms').doc('_index')
+        .collection('conversations').doc(key);
+      const snap = await indexRef.get();
+      const existing = snap.exists ? snap.data() : {};
+      await indexRef.set({
+        phone:        key,
+        jobId:        jobId || existing.jobId || null,
+        customerName: customerName || existing.customerName || '',
+        unread:       existing.unread || 0,
+        lastMessageAt:        msg.timestamp,
+        lastMessageBody:      (msgBody || '').slice(0, 100),
+        lastMessageDirection: 'out',
+      }, { merge: true });
 
-      return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+      return { statusCode: 200, body: JSON.stringify({ ok: true, phone: key }) };
     }
 
     // ── Load inbox (conversation index) ──────────────────────
     if (action === 'load-inbox') {
-      console.log('firestore-sms: load-inbox called');
       const snap = await db.collection('sms').doc('_index')
         .collection('conversations').get();
-      console.log(`firestore-sms: got ${snap.docs.length} conversations`);
 
       const convs = snap.docs.map(d => d.data())
         .sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));
@@ -118,12 +125,14 @@ exports.handler = async function (event) {
       return { statusCode: 200, body: JSON.stringify({ ok: true, data: { conversations: convs, total: convs.length } }) };
     }
 
-    // ── Load thread for a job ─────────────────────────────────
+    // ── Load thread for a phone number ────────────────────────
     if (action === 'load-thread') {
-      const { jobId } = body;
-      if (!jobId) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing jobId' }) };
+      // Accept jobId too, for any caller that hasn't been updated yet —
+      // but phone is the real key from here on.
+      const key = normalisePhone(body.phone) || body.phone || body.jobId;
+      if (!key) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing phone' }) };
 
-      const snap = await db.collection('sms').doc(jobId)
+      const snap = await db.collection('sms').doc(key)
         .collection('messages')
         .orderBy('timestamp', 'asc')
         .get();
@@ -134,11 +143,11 @@ exports.handler = async function (event) {
 
     // ── Mark conversation as read ─────────────────────────────
     if (action === 'mark-read') {
-      const { jobId } = body;
-      if (!jobId) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing jobId' }) };
+      const key = normalisePhone(body.phone) || body.phone || body.jobId;
+      if (!key) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing phone' }) };
 
       await db.collection('sms').doc('_index')
-        .collection('conversations').doc(jobId)
+        .collection('conversations').doc(key)
         .set({ unread: 0 }, { merge: true });
 
       return { statusCode: 200, body: JSON.stringify({ ok: true }) };

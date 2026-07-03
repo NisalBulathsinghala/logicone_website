@@ -51,28 +51,29 @@ exports.handler = async function (event) {
 
     console.log(`SMS sent job=${jobId || '?'} to=${toNorm} sid=${data.sid}`);
 
-    // 2. Log to Firestore — awaited so it completes before handler returns
-    if (jobId) {
-      try {
-        const host = (event.headers['x-forwarded-proto'] || 'https') + '://' + (event.headers['x-forwarded-host'] || event.headers.host || '');
-        await fetch(host + '/.netlify/functions/firestore-sms', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action:       'log-outbound',
-            jobId,
-            customerName: customerName || '',
-            phone:        phone || toNorm,
-            to:           toNorm,
-            msgBody:      messageBody,
-            msgSid:       data.sid,
-            timestamp:    new Date().toISOString(),
-          }),
-        });
-        console.log(`Firestore outbound SMS logged for job=${jobId}`);
-      } catch (fe) {
-        console.warn('Firestore log failed (non-fatal):', fe.message);
-      }
+    // 2. Log to Firestore — awaited so it completes before handler returns.
+    // No longer gated on jobId: this is the main SMS dashboard for the
+    // business number, so every outbound message gets logged under the
+    // phone number whether or not a job happens to be linked.
+    try {
+      const host = (event.headers['x-forwarded-proto'] || 'https') + '://' + (event.headers['x-forwarded-host'] || event.headers.host || '');
+      await fetch(host + '/.netlify/functions/firestore-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action:       'log-outbound',
+          jobId:        jobId || null,
+          customerName: customerName || '',
+          phone:        phone || toNorm,
+          to:           toNorm,
+          msgBody:      messageBody,
+          msgSid:       data.sid,
+          timestamp:    new Date().toISOString(),
+        }),
+      });
+      console.log(`Firestore outbound SMS logged for phone=${phone || toNorm} job=${jobId || 'none'}`);
+    } catch (fe) {
+      console.warn('Firestore log failed (non-fatal):', fe.message);
     }
 
     return { statusCode: 200, body: JSON.stringify({ ok: true, sid: data.sid, to: toNorm }) };

@@ -442,7 +442,7 @@ const APPS_SCRIPT_URL = _CFG.appsScriptUrl || '';
 
 // ── State ──────────────────────────────────────────────────
 let _convs       = [];
-let _threads     = {};   // jobId → message array
+let _threads     = {};   // phone → message array
 let _activeConv  = null;
 let _loaded      = false;
 let _filter      = 'all';
@@ -553,12 +553,12 @@ async function loadInbox(force = false, showSpinner = false) {
   if (res.ok && res.data && res.data.conversations) {
     const incoming = res.data.conversations;
     incoming.forEach(c => {
-      const prev = _convs.find(p => p.jobId === c.jobId);
+      const prev = _convs.find(p => p.phone === c.phone);
       if (prev && prev.lastMessageAt !== c.lastMessageAt) {
-        delete _threads[c.jobId];
-        if (_activeConv && _activeConv.jobId === c.jobId) {
+        delete _threads[c.phone];
+        if (_activeConv && _activeConv.phone === c.phone) {
           _activeConv = c;
-          loadThread(c.jobId);
+          loadThread(c.phone);
         }
       }
     });
@@ -622,19 +622,21 @@ function renderConvList() {
   el.innerHTML = list.map(c => {
     const unread   = c.unread || 0;
     const preview  = esc((c.lastMessageBody || '—').slice(0, 70));
-    const isActive = _activeConv && _activeConv.jobId === c.jobId;
+    const isActive = _activeConv && _activeConv.phone === c.phone;
     const dirArrow = c.lastMessageDirection === 'out' ? '↑ ' : '';
     const needsReply = c.lastMessageDirection === 'in';
+    const displayName = c.customerName || c.phone || 'Unknown';
+    const subLine = c.jobId ? `${esc(c.jobId)} · ${esc(c.phone || '')}` : `${esc(c.phone || '')} · no job linked`;
     return `<div class="conv-item${unread ? ' unread' : ''}${isActive ? ' active' : ''}"
-         onclick="openConv('${esc(c.jobId)}')">
+         onclick="openConv('${esc(c.phone)}')">
       <div class="conv-avatar">
         ${esc(initials(c.customerName))}
         <div class="conv-avatar-unread"></div>
       </div>
       <div class="conv-body">
-        <div class="conv-name">${esc(c.customerName || c.jobId)}</div>
+        <div class="conv-name">${esc(displayName)}</div>
         <div class="conv-preview${needsReply ? ' needs-reply' : ''}">${dirArrow}${preview}</div>
-        <div class="conv-jobid">${esc(c.jobId)} · ${esc(c.phone || '')}</div>
+        <div class="conv-jobid">${subLine}</div>
       </div>
       <div class="conv-meta">
         <div class="conv-time">${fmtTime(c.lastMessageAt)}</div>
@@ -646,8 +648,8 @@ function renderConvList() {
 }
 
 // ── Open conversation ──────────────────────────────────────
-async function openConv(jobId) {
-  const conv = _convs.find(c => c.jobId === jobId);
+async function openConv(phone) {
+  const conv = _convs.find(c => c.phone === phone);
   if (!conv) return;
   _activeConv = conv;
 
@@ -660,12 +662,12 @@ async function openConv(jobId) {
   fetch('/.netlify/functions/firestore-sms', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'mark-read', jobId }),
+    body: JSON.stringify({ action: 'mark-read', phone }),
   }).catch(() => {});
 
   // Update thread header
-  document.getElementById('threadName').textContent = conv.customerName || jobId;
-  document.getElementById('threadSub').textContent  = (conv.phone || '') + ' · ' + jobId;
+  document.getElementById('threadName').textContent = conv.customerName || phone;
+  document.getElementById('threadSub').textContent  = phone + (conv.jobId ? ' · ' + conv.jobId : '');
 
   // Slide to thread
   document.getElementById('panelWrap').classList.add('thread-open');
@@ -677,7 +679,7 @@ async function openConv(jobId) {
   renderQuickReplies();
 
   // Load thread
-  await loadThread(jobId);
+  await loadThread(phone);
 
   // Focus compose (slight delay to let keyboard settle)
   setTimeout(() => document.getElementById('composeText').focus(), 350);
@@ -690,9 +692,9 @@ function goBack() {
 }
 
 // ── Load thread ────────────────────────────────────────────
-async function loadThread(jobId) {
+async function loadThread(phone) {
   const el = document.getElementById('threadMessages');
-  if (_threads[jobId]) { renderThread(_threads[jobId]); return; }
+  if (_threads[phone]) { renderThread(_threads[phone]); return; }
 
   el.innerHTML = '<div class="thread-no-msgs" style="opacity:0.5">Loading…</div>';
 
@@ -700,11 +702,11 @@ async function loadThread(jobId) {
     const fsRes = await fetch('/.netlify/functions/firestore-sms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'load-thread', jobId }),
+      body: JSON.stringify({ action: 'load-thread', phone }),
     });
     const res = await fsRes.json();
     if (res.ok && res.data) {
-      _threads[jobId] = res.data;
+      _threads[phone] = res.data;
       renderThread(res.data);
     } else {
       el.innerHTML = '<div class="thread-no-msgs">No messages yet — send the first one below</div>';
@@ -773,23 +775,23 @@ async function sendMessage() {
       body: JSON.stringify({
         to:    _activeConv.phone,
         body:  text,
-        jobId: _activeConv.jobId,
+        jobId: _activeConv.jobId || null,
       }),
     });
     const data = await res.json();
 
-    const jobId = _activeConv.jobId;
+    const phone = _activeConv.phone;
     const now   = new Date().toISOString();
 
     if (data.ok) {
       // Optimistic: add to thread
       const msg = { direction: 'out', body: text, timestamp: now, msgSid: data.sid || '', read: true };
-      if (!_threads[jobId]) _threads[jobId] = [];
-      _threads[jobId].push(msg);
-      renderThread(_threads[jobId]);
+      if (!_threads[phone]) _threads[phone] = [];
+      _threads[phone].push(msg);
+      renderThread(_threads[phone]);
 
       // Update conv list
-      let conv = _convs.find(c => c.jobId === jobId);
+      let conv = _convs.find(c => c.phone === phone);
       if (!conv) { conv = { ..._activeConv, unread: 0 }; _convs.unshift(conv); }
       conv.lastMessageAt        = now;
       conv.lastMessageBody      = text.slice(0, 100);
@@ -802,9 +804,9 @@ async function sendMessage() {
     } else {
       // Failed bubble
       const failMsg = { direction: 'out', body: text, timestamp: now, failed: true, read: true };
-      if (!_threads[jobId]) _threads[jobId] = [];
-      _threads[jobId].push(failMsg);
-      renderThread(_threads[jobId]);
+      if (!_threads[phone]) _threads[phone] = [];
+      _threads[phone].push(failMsg);
+      renderThread(_threads[phone]);
       toast('error', 'Failed: ' + (data.error || 'Unknown'));
     }
   } catch (e) {
@@ -870,18 +872,18 @@ async function pollOnce() {
 
 async function pollActiveThread() {
   if (!_activeConv) return;
-  const jobId = _activeConv.jobId;
+  const phone = _activeConv.phone;
   try {
     const fsRes = await fetch('/.netlify/functions/firestore-sms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'load-thread', jobId }),
+      body: JSON.stringify({ action: 'load-thread', phone }),
     });
     const res = await fsRes.json();
     if (res.ok && res.data) {
-      const current = _threads[jobId] || [];
+      const current = _threads[phone] || [];
       if (res.data.length !== current.length) {
-        _threads[jobId] = res.data;
+        _threads[phone] = res.data;
         renderThread(res.data);
       }
     }
