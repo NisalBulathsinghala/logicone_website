@@ -119,7 +119,14 @@ exports.handler = async function (event) {
       const snap = await db.collection('sms').doc('_index')
         .collection('conversations').get();
 
-      const convs = snap.docs.map(d => d.data())
+      // Conversations are keyed by phone (always starts with '+' once
+      // normalised). Old jobId-keyed docs from before the phone-keyed
+      // migration (e.g. "LO-260702-006") are left in place on purpose —
+      // migration doesn't delete anything — but they're not real
+      // conversations anymore, just inert leftovers, so skip them here.
+      const convs = snap.docs
+        .filter(d => d.id.startsWith('+'))
+        .map(d => d.data())
         .sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));
 
       return { statusCode: 200, body: JSON.stringify({ ok: true, data: { conversations: convs, total: convs.length } }) };
