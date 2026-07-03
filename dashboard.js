@@ -295,9 +295,9 @@ function mkCard(j) {
     folderH = `<a class="card-folder" href="${j.driveFolder}" target="_blank" title="Open Drive folder" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></a>`;
   }
 
-  const daysInStatus = getDaysInStatus(j);
-  const dayClass = daysInStatus >= 7 ? 'alert' : daysInStatus >= 3 ? 'warn' : '';
-  const dayBadge = `<span class="card-day-badge ${dayClass}">${daysInStatus}d</span>`;
+  const totalDays = getTotalDays(j);
+  const dayClass = totalDays >= 7 ? 'alert' : totalDays >= 3 ? 'warn' : '';
+  const dayBadge = `<span class="card-day-badge ${dayClass}">${totalDays === '—' ? '—' : totalDays + 'd'}</span>`;
 
   const smsBadgeHtml = (() => {
     const conv = typeof _smsConvs !== 'undefined' && _smsConvs.find(c => c.jobId === j.jobId);
