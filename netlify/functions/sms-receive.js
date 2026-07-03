@@ -96,7 +96,9 @@ exports.handler = async function (event) {
   }
 
   // 3. Telegram notification
-  if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    console.warn('sms-receive: Telegram not configured (TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing)');
+  } else {
     const fromDisplay = from.startsWith('+61') ? '0' + from.slice(3) : from;
     const jobLine = matchedJobId
       ? `Job: ${matchedJobId}${matchedName ? ' — ' + matchedName : ''}`
@@ -106,7 +108,18 @@ exports.handler = async function (event) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text }),
-    }).catch(e => console.warn('Telegram failed:', e.message));
+    })
+      .then(async r => {
+        const resData = await r.json().catch(() => ({}));
+        if (!r.ok || !resData.ok) {
+          // fetch() does NOT reject on 4xx/5xx, so this is the only place
+          // a bad token / wrong chat_id / blocked bot would ever show up
+          console.error('sms-receive: Telegram API rejected the message —', r.status, JSON.stringify(resData));
+        } else {
+          console.log('sms-receive: Telegram notification sent OK, message_id', resData.result && resData.result.message_id);
+        }
+      })
+      .catch(e => console.error('sms-receive: Telegram fetch failed:', e.message));
   }
 
   // Return TwiML immediately
