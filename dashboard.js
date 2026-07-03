@@ -52,6 +52,16 @@ const cfg = {
 
 const DEMO = [];
 
+// Labels/colors mirror the SMS_TEMPLATES built per-job in showDetail() —
+// kept separate here since the card indicator only needs label+color,
+// not the interpolated per-job message text.
+const SMS_TEMPLATE_META = [
+  { label: 'Received',      color: '#6366f1' },
+  { label: 'Parts Ordered', color: '#f59e0b' },
+  { label: 'Repair Done',   color: '#10b981' },
+  { label: 'Cannot Repair', color: '#ef4444' },
+];
+
 
 // ============================================================
 // INIT
@@ -151,6 +161,11 @@ async function fetchSheet() {
     // the first time it runs after deploy.
     syncJobsToFirestore(jobs);
 
+    // Load which SMS templates have already been sent per job, so kanban
+    // cards can show sent/not-sent. Merged in after the fact since this
+    // lives in Firestore, not the Sheet — re-renders once it's in.
+    loadSmsSentStatus();
+
   } catch (err) {
     // Don't overwrite real job data with demo data on a transient fetch failure.
     // Only fall back to demo if we have no jobs at all (first load).
@@ -180,6 +195,40 @@ function syncJobsToFirestore(jobList) {
     .then(r => r.json())
     .then(res => { if (!res.ok) console.warn('Firestore job sync failed:', res.error); })
     .catch(e => console.warn('Firestore job sync error:', e));
+}
+
+// Fetch { jobId: { "Received": "2026-...", ... } } for every job and merge
+// it onto the in-memory jobs array, then re-render so cards pick it up.
+function loadSmsSentStatus() {
+  fetch('/.netlify/functions/firestore-jobsheet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'load-sms-status-batch' })
+  })
+    .then(r => r.json())
+    .then(res => {
+      if (!res.ok || !res.data) return;
+      jobs.forEach(j => { j.smsSentTemplates = res.data[j.jobId] || j.smsSentTemplates || {}; });
+      renderAll();
+    })
+    .catch(e => console.warn('loadSmsSentStatus error:', e));
+}
+
+// Called after a template SMS successfully sends (from sms-module.js).
+// Updates local state immediately and persists to Firestore.
+function markSmsTemplateSent(jobId, templateLabel) {
+  const sentAt = new Date().toISOString();
+  const job = jobs.find(j => j.jobId === jobId);
+  if (job) {
+    if (!job.smsSentTemplates) job.smsSentTemplates = {};
+    job.smsSentTemplates[templateLabel] = sentAt;
+    renderAll();
+  }
+  fetch('/.netlify/functions/firestore-jobsheet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'mark-sms-sent', jobId, template: templateLabel, sentAt })
+  }).catch(e => console.warn('markSmsTemplateSent error:', e));
 }
 
 // ============================================================
@@ -256,6 +305,17 @@ function mkCard(j) {
     return n > 0 ? `<span class="card-sms-badge" title="SMS replies" onclick="event.stopPropagation();switchView('sms');setTimeout(()=>smsOpenConv('${conv.phone}'),100)">${n}</span>` : '';
   })();
 
+  const smsSentHtml = (() => {
+    const sent = j.smsSentTemplates || {};
+    const dots = SMS_TEMPLATE_META.map(t => {
+      const sentAt = sent[t.label];
+      const cls = sentAt ? 'sms-dot-sent' : '';
+      const tip = t.label + ': ' + (sentAt ? 'sent ' + fmtDate(sentAt) : 'not sent');
+      return `<span class="sms-progress-dot ${cls}" style="--dot-color:${t.color}" title="${tip}"></span>`;
+    }).join('');
+    return `<div class="card-sms-progress">${dots}</div>`;
+  })();
+
   card.innerHTML = `
     <div class="card-top"><span class="card-id">${j.jobId||'—'}</span><span class="card-brand-tag ${bt}">${j.brand||'—'}</span>${smsBadgeHtml}</div>
     <div class="card-device">${j.brand||''} ${j.model||''}</div>
@@ -266,6 +326,7 @@ function mkCard(j) {
     </div>
     ${caseH}
     <div class="card-issue">${j.issue||'—'}</div>
+    ${smsSentHtml}
     <div class="card-footer">
       <span class="card-customer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${j.name||'—'}</span>
       <div class="card-footer-r">${dayBadge}${folderH}</div>
@@ -437,12 +498,17 @@ function showDetail(j) {
       <div class="sms-grid">`;
 
   SMS_TEMPLATES.forEach((t, i) => {
+    const sentAt = (j.smsSentTemplates || {})[t.label];
+    const sentBadge = sentAt
+      ? `<span class="sms-sent-badge" title="Sent ${fmtDateTime(sentAt)}">✓ Sent ${fmtDate(sentAt)}</span>`
+      : '';
     h += `
         <div class="sms-card" style="--sms-color:${t.color};--sms-bg:${t.bg};">
           <div class="sms-card-top">
             <div class="sms-label">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" style="color:${t.color};">${t.icon}</svg>
               ${t.label}
+              ${sentBadge}
             </div>
             <button class="sms-copy-btn" onclick="copySms(${i}, '${j.jobId}')" id="smsBtn${i}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>

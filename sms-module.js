@@ -195,6 +195,11 @@
         showToast('success', `✓ SMS sent to ${job.name}`);
         // Log the outbound in the inbox panel optimistically
         appendOutboundToInbox(template.label, template.text);
+        // Track that this template has now been sent for this job —
+        // updates the kanban card dots and the modal's own "Sent" badge
+        if (job.jobId && typeof markSmsTemplateSent === 'function') {
+          markSmsTemplateSent(job.jobId, template.label);
+        }
         // Revert after a delay so user can send again if needed
         setTimeout(() => {
           setBtnState(btn, '', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send`);

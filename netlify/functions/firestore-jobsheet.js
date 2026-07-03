@@ -3,11 +3,13 @@
 // Called directly from the dashboard — bypasses Apps Script entirely.
 //
 // Actions:
-//   save-records-batch — write/merge many job records at once (jobs/{jobId})
+//   save-records-batch    — write/merge many job records at once (jobs/{jobId})
+//   load-sms-status-batch — read smsSentTemplates for every job at once
 //   save   — write jobsheet data to Firestore (jobs/{jobId}/jobsheet/current)
 //   load   — read jobsheet data from Firestore
 //   timestamps-save — write status timestamps
 //   timestamps-load — read status timestamps
+//   mark-sms-sent   — record that a named SMS template was sent for a job
 
 const { db } = require('./firebase');
 
@@ -49,10 +51,38 @@ exports.handler = async function (event) {
       return { statusCode: 200, body: JSON.stringify({ ok: true, count: written }) };
     }
 
+    // ── Batch-read SMS-sent status for every job ──────────────────
+    // Returns { [jobId]: { "Received": "2026-07-01T...", "Parts Ordered": "..." } }
+    // for every job that has sent at least one template. Called once per
+    // dashboard load so kanban cards can show sent/not-sent without a
+    // per-job round trip.
+    if (action === 'load-sms-status-batch') {
+      const snap = await db.collection('jobs').get();
+      const result = {};
+      snap.forEach(doc => {
+        const data = doc.data();
+        if (data.smsSentTemplates) result[doc.id] = data.smsSentTemplates;
+      });
+      return { statusCode: 200, body: JSON.stringify({ ok: true, data: result }) };
+    }
+
     // Every action below operates on one job and needs a jobId
     const { jobId } = body;
     if (!jobId) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing jobId' }) };
     const jobRef = db.collection('jobs').doc(jobId);
+
+    // ── Mark an SMS template as sent for this job ─────────────────
+    if (action === 'mark-sms-sent') {
+      const template = body.template;
+      if (!template) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing template' }) };
+      const sentAt = body.sentAt || new Date().toISOString();
+      // merge:true recurses into nested maps, so this only touches this
+      // one key inside smsSentTemplates — every other template's sent
+      // status (and every other job field) is left alone.
+      await jobRef.set({ smsSentTemplates: { [template]: sentAt } }, { merge: true });
+      console.log(`Firestore: marked "${template}" sent for ${jobId}`);
+      return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+    }
 
     // ── Save jobsheet ─────────────────────────────────────────
     if (action === 'save') {
