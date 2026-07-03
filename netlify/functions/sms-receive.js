@@ -95,7 +95,11 @@ exports.handler = async function (event) {
     console.warn('sms-receive: Firestore write failed:', fe.message);
   }
 
-  // 3. Telegram notification
+  // 3. Telegram notification — AWAITED. This was the actual bug: firing it
+  // without awaiting meant it raced the TwiML return below. Lambda can freeze
+  // the execution environment the instant a response is sent, which can kill
+  // an in-flight fetch before it ever resolves OR rejects — explaining why
+  // no success log, no error log, nothing showed up for real inbound SMS.
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     console.warn('sms-receive: Telegram not configured (TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing)');
   } else {
@@ -104,22 +108,23 @@ exports.handler = async function (event) {
       ? `Job: ${matchedJobId}${matchedName ? ' — ' + matchedName : ''}`
       : 'No matching job found';
     const text = `📩 New SMS Reply\nFrom: ${fromDisplay}\n${jobLine}\n\n${body}`;
-    fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text }),
-    })
-      .then(async r => {
-        const resData = await r.json().catch(() => ({}));
-        if (!r.ok || !resData.ok) {
-          // fetch() does NOT reject on 4xx/5xx, so this is the only place
-          // a bad token / wrong chat_id / blocked bot would ever show up
-          console.error('sms-receive: Telegram API rejected the message —', r.status, JSON.stringify(resData));
-        } else {
-          console.log('sms-receive: Telegram notification sent OK, message_id', resData.result && resData.result.message_id);
-        }
-      })
-      .catch(e => console.error('sms-receive: Telegram fetch failed:', e.message));
+    try {
+      const tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text }),
+      });
+      const resData = await tgRes.json().catch(() => ({}));
+      if (!tgRes.ok || !resData.ok) {
+        // fetch() does NOT reject on 4xx/5xx, so this is the only place
+        // a bad token / wrong chat_id / blocked bot would ever show up
+        console.error('sms-receive: Telegram API rejected the message —', tgRes.status, JSON.stringify(resData));
+      } else {
+        console.log('sms-receive: Telegram notification sent OK, message_id', resData.result && resData.result.message_id);
+      }
+    } catch (e) {
+      console.error('sms-receive: Telegram fetch failed:', e.message);
+    }
   }
 
   // Return TwiML immediately
