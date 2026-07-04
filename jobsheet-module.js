@@ -495,6 +495,17 @@ let jsCurrentJob = null;
 
 const STATUS_ORDER = ['Intake','Diagnosis','Awaiting Parts','In Repair','Testing','Complete','Collected'];
 
+// The furthest-along status in STATUS_ORDER that actually has a recorded
+// timestamp — this is the real current status, since progressing a job
+// always writes a new timestamp entry, even when the full jobsheet form
+// itself doesn't get re-saved (e.g. status changed via kanban drag).
+function jsLatestStatusFromTimestamps(timestamps) {
+  if (!timestamps) return null;
+  let latest = null;
+  STATUS_ORDER.forEach(s => { if (timestamps[s]) latest = s; });
+  return latest;
+}
+
 // JOB SHEET VIEW
 // ============================================================
 
@@ -1233,22 +1244,28 @@ function jsLoadFromData(data) {
   // Parts
   jsParts = Array.isArray(data.parts) ? data.parts : [];
 
-  // Status pill — sync jsCurrentJob.status from Drive JSON (source of truth)
-  if (data.status) {
-    if (jsCurrentJob) jsCurrentJob.status = data.status;
-    const jobInList = (typeof jobs !== 'undefined') && jobs.find(j => j.jobId === jsCurrentJob?.jobId);
-    if (jobInList) jobInList.status = data.status;
-    document.querySelectorAll('.js-status-pill').forEach(p => p.classList.toggle('active', p.textContent.trim() === data.status));
-  } else {
-    document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
-  }
-
   // Timestamps — Drive timestamps.json already merged into jsCurrentJob before this runs
   // Only apply saved timestamps for statuses not already in Drive data
   if (data.statusTimestamps && jsCurrentJob) {
     jsCurrentJob.statusTimestamps = Object.assign({}, data.statusTimestamps, jsCurrentJob.statusTimestamps);
-    jsRenderTimeline(jsCurrentJob);
   }
+
+  // Status pill — reconcile against timestamps rather than trusting
+  // data.status blindly. A status can advance via kanban drag (which
+  // updates the Sheet + timestamps) without the jobsheet ever being
+  // re-saved, so data.status here can be stale. The furthest-along status
+  // that actually has a recorded timestamp is the real current status.
+  const timestampStatus = jsLatestStatusFromTimestamps(jsCurrentJob ? jsCurrentJob.statusTimestamps : null);
+  const effectiveStatus = timestampStatus || data.status;
+  if (effectiveStatus) {
+    if (jsCurrentJob) jsCurrentJob.status = effectiveStatus;
+    const jobInList = (typeof jobs !== 'undefined') && jobs.find(j => j.jobId === jsCurrentJob?.jobId);
+    if (jobInList) jobInList.status = effectiveStatus;
+    document.querySelectorAll('.js-status-pill').forEach(p => p.classList.toggle('active', p.textContent.trim() === effectiveStatus));
+  } else {
+    document.querySelectorAll('.js-status-pill').forEach(p => p.classList.remove('active'));
+  }
+  if (jsCurrentJob) jsRenderTimeline(jsCurrentJob);
 
   jsRenderParts();
   jsCalcCost();
