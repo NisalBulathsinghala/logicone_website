@@ -234,10 +234,20 @@
     // can happen days or weeks later if the customer's slow to come get it.
     // Checking 'Collected' first (as this used to) meant a job repaired in June
     // but not picked up until July would silently disappear from June's batch.
-    // job.ts (intake date) is a last-resort fallback for older jobs with no
-    // status-timestamp data at all — not accurate, but keeps them visible in
-    // a month filter instead of vanishing with a blank date forever.
-    return ts['Complete'] || ts['Collected'] || ts['Testing'] || job.savedAt || job.ts || '';
+    const iso = ts['Complete'] || ts['Collected'] || ts['Testing'] || job.savedAt || '';
+    if (iso) return iso;
+    // Last resort: intake date, for jobs with no status-timestamp data at all.
+    // job.ts comes straight from the Sheet in M/D/YYYY H:MM:SS format, not
+    // ISO like every other source above — normalise it, or downstream code
+    // that does .slice(0, 7) to get a "YYYY-MM" key silently produces
+    // garbage (this is exactly what caused "Invalid Date" in the period
+    // dropdown). Not an accurate completion date, but keeps the job visible
+    // in a month filter instead of vanishing with a blank date forever.
+    if (job.ts) {
+      const d = new Date(job.ts);
+      if (!isNaN(d.getTime())) return d.toISOString();
+    }
+    return '';
   };
 
   const isCompleted = (job) =>
@@ -348,23 +358,42 @@
     const canEnrich = typeof cfg !== 'undefined' && cfg && cfg.appsScriptUrl
       && typeof callScript === 'function';
 
-    const results = await Promise.allSettled(
-      baseJobs.map(async (job) => {
-        if (!canEnrich || !job.driveFolder) return job;
-        try {
-          const res = await callScript({
-            action: 'loadJobSheet',
-            jobId: job.jobId,
-            driveFolder: job.driveFolder,
-          });
-          if (res && res.ok && res.data) {
-            return Object.assign({}, job, res.data);
-          }
-        } catch (e) { /* ignore */ }
-        return job;
-      })
-    );
-    return results.map(r => r.status === 'fulfilled' ? r.value : r.reason);
+    async function enrichOne(job) {
+      if (!canEnrich || !job.driveFolder) return job;
+      try {
+        const res = await callScript({
+          action: 'loadJobSheet',
+          jobId: job.jobId,
+          driveFolder: job.driveFolder,
+        });
+        if (res && res.ok && res.data) {
+          return Object.assign({}, job, res.data);
+        }
+      } catch (e) { /* ignore */ }
+      return job;
+    }
+
+    // Apps Script web apps can only serve a limited number of simultaneous
+    // executions. Firing a call for every job at once (previously: map +
+    // Promise.allSettled, no throttling) regularly exceeded that limit —
+    // Apps Script rejected or timed out a random subset each time, that
+    // failure was swallowed silently, and the job fell back to unenriched
+    // data. That's the actual cause of the completed count changing between
+    // runs: a different random set of jobs "lost" its Drive data each time,
+    // not a real change in what's completed. Small batches stay under the
+    // limit instead of overwhelming it.
+    const BATCH_SIZE = 6;
+    const out = [];
+    for (let i = 0; i < baseJobs.length; i += BATCH_SIZE) {
+      const batch = baseJobs.slice(i, i + BATCH_SIZE);
+      const settled = await Promise.allSettled(batch.map(enrichOne));
+      settled.forEach((r, idx) => out.push(r.status === 'fulfilled' ? r.value : batch[idx]));
+      const msgEl = document.getElementById('loInvLoadingMsg');
+      if (msgEl) {
+        msgEl.textContent = `Checking jobs from Drive… (${Math.min(i + BATCH_SIZE, baseJobs.length)}/${baseJobs.length})`;
+      }
+    }
+    return out;
   }
 
   // ── Build available month options ────────────────────────────
