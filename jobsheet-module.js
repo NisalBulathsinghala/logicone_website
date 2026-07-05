@@ -1258,8 +1258,22 @@ function jsLoadFromData(data) {
   const timestampStatus = jsLatestStatusFromTimestamps(jsCurrentJob ? jsCurrentJob.statusTimestamps : null);
   const effectiveStatus = timestampStatus || data.status;
   if (effectiveStatus) {
-    if (jsCurrentJob) jsCurrentJob.status = effectiveStatus;
     const jobInList = (typeof jobs !== 'undefined') && jobs.find(j => j.jobId === jsCurrentJob?.jobId);
+    // The Sheet's status column is what isCompleted() and the invoice
+    // export actually read — not this jobsheet JSON. If what we just
+    // reconciled doesn't match what the Sheet has on file, this job would
+    // silently keep failing isCompleted() checks (and stay off invoices)
+    // even though the display now looks correct. Push the correction back.
+    const sheetStatus = jobInList ? jobInList.status : null;
+    if (sheetStatus && sheetStatus !== effectiveStatus && cfg && cfg.appsScriptUrl) {
+      callScript({ action: 'updateStatus', jobId: jsCurrentJob.jobId, status: effectiveStatus })
+        .then(res => {
+          if (res && res.ok) console.log(`jobsheet: corrected stale Sheet status for ${jsCurrentJob.jobId}: "${sheetStatus}" → "${effectiveStatus}"`);
+          else console.warn('jobsheet: Sheet status auto-correction failed:', res);
+        })
+        .catch(e => console.warn('jobsheet: Sheet status auto-correction error:', e));
+    }
+    if (jsCurrentJob) jsCurrentJob.status = effectiveStatus;
     if (jobInList) jobInList.status = effectiveStatus;
     document.querySelectorAll('.js-status-pill').forEach(p => p.classList.toggle('active', p.textContent.trim() === effectiveStatus));
   } else {
