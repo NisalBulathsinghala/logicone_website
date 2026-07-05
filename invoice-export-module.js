@@ -180,6 +180,22 @@
 }
 .lo-inv-footer-info { font-size: 12px; color: var(--text-secondary, #64748b); }
 .lo-inv-footer-actions { display: flex; gap: 10px; }
+
+.lo-inv-verify { border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; background: #f8fafc; }
+.lo-inv-verify-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lo-inv-verify-upload {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+  font-size: 12.5px; font-weight: 600; color: #334155; background: #fff;
+  border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+}
+.lo-inv-verify-upload:hover { border-color: #94a3b8; }
+.lo-inv-verify-hint { font-size: 12px; color: #64748b; }
+.lo-inv-verify-summary { font-size: 12.5px; font-weight: 600; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0; }
+.lo-inv-verify-summary.clean { color: #059669; }
+.lo-inv-verify-summary.has-issues { color: #b45309; }
+.lo-inv-verify-group { margin-top: 8px; }
+.lo-inv-verify-group-title { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: #475569; margin-bottom: 4px; }
+.lo-inv-verify-item { font-size: 12.5px; color: #334155; padding: 3px 0 3px 10px; border-left: 2px solid #e2e8f0; }
 `;
 
   // ── SheetJS loader ───────────────────────────────────────────
@@ -218,7 +234,10 @@
     // can happen days or weeks later if the customer's slow to come get it.
     // Checking 'Collected' first (as this used to) meant a job repaired in June
     // but not picked up until July would silently disappear from June's batch.
-    return ts['Complete'] || ts['Collected'] || ts['Testing'] || job.savedAt || '';
+    // job.ts (intake date) is a last-resort fallback for older jobs with no
+    // status-timestamp data at all — not accurate, but keeps them visible in
+    // a month filter instead of vanishing with a blank date forever.
+    return ts['Complete'] || ts['Collected'] || ts['Testing'] || job.savedAt || job.ts || '';
   };
 
   const isCompleted = (job) =>
@@ -412,6 +431,19 @@
               <select class="lo-inv-filter-select" id="loInvMonthFilter" onchange="window.invoiceExportSetMonth(this.value)">
                 <option value="">All time</option>
               </select>
+            </div>
+
+            <!-- Technocity verification -->
+            <div class="lo-inv-verify" id="loInvVerify">
+              <div class="lo-inv-verify-row">
+                <label class="lo-inv-verify-upload">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Verify against Technocity sheet
+                  <input type="file" accept=".xlsx,.xls" id="loInvTcFile" onchange="window.invoiceExportVerifyFile(this.files[0])" style="display:none;">
+                </label>
+                <span class="lo-inv-verify-hint" id="loInvVerifyHint">Upload Technocity's order export to cross-check before sending</span>
+              </div>
+              <div id="loInvVerifyResults" style="display:none;"></div>
             </div>
 
             <!-- Preview table -->
@@ -698,6 +730,100 @@
   window.invoiceExportSetMonth = function (val) {
     filterMonth = val;
     renderTable();
+  };
+
+  // ── Public: verify against an uploaded Technocity order sheet ──
+  // Cross-checks Technocity's own export against your records so you can
+  // catch gaps before sending an invoice, without waiting on a full fix
+  // of the underlying data. Purely informational — never blocks Download
+  // or Zoho, since the point is confidence, not another gate.
+  function escVerify(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  window.invoiceExportVerifyFile = async function (file) {
+    if (!file) return;
+    const hint = document.getElementById('loInvVerifyHint');
+    const results = document.getElementById('loInvVerifyResults');
+    hint.textContent = 'Reading ' + file.name + '…';
+    results.style.display = 'none';
+
+    try {
+      await ensureXlsx();
+      const buf = await file.arrayBuffer();
+      const wb  = XLSX.read(buf, { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+
+      // Technocity's export uses these exact headers as of this format
+      const CASE_COL     = 'Service Order No.(工单号)';
+      const WARRANTY_COL = 'Warranty Type(保修状态)';
+      const CLOSE_COL    = 'Order Close Time(完成时间)';
+      const MODEL_COL    = 'Model(机器)';
+
+      const tcRows = rows.filter(r => String(r[CASE_COL] || '').trim());
+      if (!tcRows.length) {
+        hint.textContent = 'Could not find expected columns in that file — is it a Technocity order export?';
+        return;
+      }
+
+      const missing = [], monthMismatch = [], warrantyMismatch = [];
+      let matchedCount = 0;
+
+      tcRows.forEach(r => {
+        const caseNo   = String(r[CASE_COL]).trim();
+        const warranty = String(r[WARRANTY_COL] || '').trim();
+        const isIW     = warranty === 'IW';
+        let closeMonth = '';
+        if (r[CLOSE_COL]) {
+          const d = new Date(r[CLOSE_COL]);
+          if (!isNaN(d.getTime())) closeMonth = d.toISOString().slice(0, 7);
+        }
+
+        const job = enrichedJobs.find(j => String(j.caseNo || '').trim() === caseNo) ||
+                    (typeof jobs !== 'undefined' ? jobs.find(j => String(j.caseNo || '').trim() === caseNo) : null);
+
+        if (isIW) {
+          if (!job || !isCompleted(job)) {
+            missing.push({ caseNo, model: r[MODEL_COL] || '' });
+            return;
+          }
+          const jobMonth = (completionDate(job) || '').slice(0, 7);
+          if (closeMonth && jobMonth && jobMonth !== closeMonth) {
+            monthMismatch.push({ caseNo, yourMonth: jobMonth, technocityMonth: closeMonth });
+          } else {
+            matchedCount++;
+          }
+        } else if (job && isCompleted(job) && isInWarranty(job)) {
+          // Technocity says this one isn't covered, but your records would invoice it
+          warrantyMismatch.push({ caseNo, warranty: warranty || '(blank)' });
+        }
+      });
+
+      hint.textContent = 'Checked against ' + file.name;
+      const issues = missing.length + monthMismatch.length + warrantyMismatch.length;
+      let html = `<div class="lo-inv-verify-summary ${issues ? 'has-issues' : 'clean'}">` +
+        `${matchedCount} matched clean` + (issues ? `, ${issues} need a look` : ' — nothing to check by hand') +
+        `</div>`;
+
+      if (missing.length) {
+        html += `<div class="lo-inv-verify-group"><div class="lo-inv-verify-group-title">Technocity says in-warranty &amp; complete, not found in your system (${missing.length})</div>` +
+          missing.map(m => `<div class="lo-inv-verify-item">${escVerify(m.caseNo)} — ${escVerify(m.model)}</div>`).join('') + `</div>`;
+      }
+      if (monthMismatch.length) {
+        html += `<div class="lo-inv-verify-group"><div class="lo-inv-verify-group-title">Dated a different month than Technocity's close date (${monthMismatch.length})</div>` +
+          monthMismatch.map(m => `<div class="lo-inv-verify-item">${escVerify(m.caseNo)} — yours: ${escVerify(m.yourMonth || '—')}, Technocity: ${escVerify(m.technocityMonth)}</div>`).join('') + `</div>`;
+      }
+      if (warrantyMismatch.length) {
+        html += `<div class="lo-inv-verify-group"><div class="lo-inv-verify-group-title">Technocity says NOT covered — check before invoicing (${warrantyMismatch.length})</div>` +
+          warrantyMismatch.map(m => `<div class="lo-inv-verify-item">${escVerify(m.caseNo)} — ${escVerify(m.warranty)}</div>`).join('') + `</div>`;
+      }
+
+      results.innerHTML = html;
+      results.style.display = 'block';
+    } catch (err) {
+      hint.textContent = 'Could not read that file: ' + err.message;
+    }
   };
 
   // ── Public: create Zoho Books invoice ───────────────────────
