@@ -195,7 +195,26 @@
 .lo-inv-verify-summary.has-issues { color: #b45309; }
 .lo-inv-verify-group { margin-top: 8px; }
 .lo-inv-verify-group-title { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: #475569; margin-bottom: 4px; }
-.lo-inv-verify-item { font-size: 12.5px; color: #334155; padding: 3px 0 3px 10px; border-left: 2px solid #e2e8f0; }
+.lo-inv-verify-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  font-size: 12.5px; color: #334155; padding: 5px 8px 5px 10px; border-left: 2px solid #e2e8f0;
+}
+.lo-inv-verify-item.lo-inv-verify-resolved { border-left-color: #10b981; background: rgba(16,185,129,0.06); }
+.lo-inv-verify-label { flex: 1; min-width: 180px; }
+.lo-inv-verify-level {
+  font-size: 12px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff;
+}
+.lo-inv-verify-action {
+  font-size: 11.5px; font-weight: 600; padding: 5px 10px; border-radius: 5px; cursor: pointer;
+  border: 1px solid #0ea5e9; background: #f0f9ff; color: #0369a1; flex-shrink: 0;
+}
+.lo-inv-verify-action:hover { background: #e0f2fe; }
+.lo-inv-verify-action.lo-inv-verify-danger { border-color: #f59e0b; background: #fffbeb; color: #b45309; }
+.lo-inv-verify-undo {
+  font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 5px; cursor: pointer;
+  border: 1px solid #cbd5e1; background: #fff; color: #64748b; flex-shrink: 0;
+}
+.lo-inv-verify-resolved-tag { font-size: 11px; font-weight: 700; color: #059669; }
 `;
 
   // ── SheetJS loader ───────────────────────────────────────────
@@ -218,6 +237,14 @@
   // ── State ────────────────────────────────────────────────────
   let enrichedJobs = [];   // jobs enriched with Drive sheet data
   let filterMonth  = '';   // '' = all time, or 'YYYY-MM'
+
+  // Manual corrections applied from the Technocity verification step —
+  // these let a person resolve a flagged mismatch right there instead of
+  // fixing the underlying job first, for when an invoice can't wait.
+  let manualIncludes  = new Set(); // caseNo → force into the invoice despite month/filter mismatch
+  let manualExcludes  = new Set(); // caseNo → force out even though it would normally qualify
+  let manualAdditions = [];        // synthetic line items for cases missing from your system entirely
+  let lastVerifyResults = null;    // most recent Technocity cross-check, for re-rendering after an action
 
   // ── Helpers ─────────────────────────────────────────────────
   const fmtDate = (iso) => {
@@ -408,7 +435,16 @@
 
   // ── Filtered job list for preview ───────────────────────────
   function filteredJobs() {
-    return enrichedJobs.filter(j => isCompleted(j) && isInWarranty(j) && matchesMonthFilter(j));
+    const base = enrichedJobs.filter(j =>
+      isCompleted(j) && isInWarranty(j) && matchesMonthFilter(j) &&
+      !manualExcludes.has(String(j.caseNo || '').trim())
+    );
+    const baseCaseNos = new Set(base.map(j => String(j.caseNo || '').trim()).filter(Boolean));
+    const forcedIncludes = enrichedJobs.filter(j => {
+      const cn = String(j.caseNo || '').trim();
+      return cn && manualIncludes.has(cn) && !baseCaseNos.has(cn) && !manualExcludes.has(cn);
+    });
+    return [...base, ...forcedIncludes, ...manualAdditions];
   }
 
   // ── Inject styles & build modal ─────────────────────────────
@@ -721,6 +757,13 @@
   window.invoiceExportOpen = async function () {
     injectStyles(); buildModal();
 
+    // Fresh start each time — manual corrections from a previous session
+    // shouldn't silently carry into a different run
+    manualIncludes  = new Set();
+    manualExcludes  = new Set();
+    manualAdditions = [];
+    lastVerifyResults = null;
+
     // Show modal with loading state
     document.getElementById('loInvOverlay').classList.add('show');
     document.getElementById('loInvContent').style.display = 'none';
@@ -824,35 +867,128 @@
             matchedCount++;
           }
         } else if (job && isCompleted(job) && isInWarranty(job)) {
-          // Technocity says this one isn't covered, but your records would invoice it
+          // Technocity says this one isn't covered — auto-exclude by default,
+          // safer than silently invoicing something they won't pay for
           warrantyMismatch.push({ caseNo, warranty: warranty || '(blank)' });
+          const cn = String(job.caseNo || '').trim();
+          if (cn && !manualIncludes.has(cn)) manualExcludes.add(cn);
         }
       });
 
+      lastVerifyResults = { missing, monthMismatch, warrantyMismatch };
       hint.textContent = 'Checked against ' + file.name;
-      const issues = missing.length + monthMismatch.length + warrantyMismatch.length;
-      let html = `<div class="lo-inv-verify-summary ${issues ? 'has-issues' : 'clean'}">` +
-        `${matchedCount} matched clean` + (issues ? `, ${issues} need a look` : ' — nothing to check by hand') +
-        `</div>`;
-
-      if (missing.length) {
-        html += `<div class="lo-inv-verify-group"><div class="lo-inv-verify-group-title">Technocity says in-warranty &amp; complete, not found in your system (${missing.length})</div>` +
-          missing.map(m => `<div class="lo-inv-verify-item">${escVerify(m.caseNo)} — ${escVerify(m.model)}</div>`).join('') + `</div>`;
-      }
-      if (monthMismatch.length) {
-        html += `<div class="lo-inv-verify-group"><div class="lo-inv-verify-group-title">Dated a different month than Technocity's close date (${monthMismatch.length})</div>` +
-          monthMismatch.map(m => `<div class="lo-inv-verify-item">${escVerify(m.caseNo)} — yours: ${escVerify(m.yourMonth || '—')}, Technocity: ${escVerify(m.technocityMonth)}</div>`).join('') + `</div>`;
-      }
-      if (warrantyMismatch.length) {
-        html += `<div class="lo-inv-verify-group"><div class="lo-inv-verify-group-title">Technocity says NOT covered — check before invoicing (${warrantyMismatch.length})</div>` +
-          warrantyMismatch.map(m => `<div class="lo-inv-verify-item">${escVerify(m.caseNo)} — ${escVerify(m.warranty)}</div>`).join('') + `</div>`;
-      }
-
-      results.innerHTML = html;
-      results.style.display = 'block';
+      renderVerifyResults();
+      renderTable();
     } catch (err) {
       hint.textContent = 'Could not read that file: ' + err.message;
     }
+  };
+
+  function renderVerifyResults() {
+    const results = document.getElementById('loInvVerifyResults');
+    if (!lastVerifyResults) { results.style.display = 'none'; return; }
+    const { missing, monthMismatch, warrantyMismatch } = lastVerifyResults;
+    const issues = missing.length + monthMismatch.length + warrantyMismatch.length;
+
+    let html = `<div class="lo-inv-verify-summary ${issues ? 'has-issues' : 'clean'}">` +
+      (issues ? `${issues} need a look` : 'Nothing to check by hand') + `</div>`;
+
+    if (missing.length) {
+      html += `<div class="lo-inv-verify-group"><div class="lo-inv-verify-group-title">Not in your system (${missing.length})</div>` +
+        missing.map((m, i) => {
+          const added = manualAdditions.find(a => a.caseNo === m.caseNo);
+          if (added) {
+            return `<div class="lo-inv-verify-item lo-inv-verify-resolved">
+              ${escVerify(m.caseNo)} — ${escVerify(m.model)} — added at ${escVerify(added.repairLevel)}
+              <button class="lo-inv-verify-undo" onclick="window.invoiceExportUndoAddition('${escVerify(m.caseNo)}')">Undo</button>
+            </div>`;
+          }
+          return `<div class="lo-inv-verify-item">
+            <span class="lo-inv-verify-label">${escVerify(m.caseNo)} — ${escVerify(m.model)}</span>
+            <select id="loInvLevel-${i}" class="lo-inv-verify-level">
+              ${Object.keys(repairLevelCosts).length ? Object.keys(repairLevelCosts).map(l => `<option value="${escVerify(l)}">${escVerify(l)}</option>`).join('')
+                : ['Level 0','Level 1','Level 2','Level 3'].map(l => `<option value="${l}">${l}</option>`).join('')}
+            </select>
+            <button class="lo-inv-verify-action" onclick="window.invoiceExportAddManual('${escVerify(m.caseNo)}', '${escVerify(m.model)}', document.getElementById('loInvLevel-${i}').value)">Add to invoice</button>
+          </div>`;
+        }).join('') + `</div>`;
+    }
+
+    if (monthMismatch.length) {
+      html += `<div class="lo-inv-verify-group"><div class="lo-inv-verify-group-title">Dated a different month than Technocity (${monthMismatch.length})</div>` +
+        monthMismatch.map(m => {
+          const included = manualIncludes.has(m.caseNo);
+          return `<div class="lo-inv-verify-item">
+            <span class="lo-inv-verify-label">${escVerify(m.caseNo)} — yours: ${escVerify(m.yourMonth || '—')}, Technocity: ${escVerify(m.technocityMonth)}</span>
+            ${included
+              ? `<span class="lo-inv-verify-resolved-tag">Included</span><button class="lo-inv-verify-undo" onclick="window.invoiceExportUndoInclude('${escVerify(m.caseNo)}')">Undo</button>`
+              : `<button class="lo-inv-verify-action" onclick="window.invoiceExportForceInclude('${escVerify(m.caseNo)}')">Include anyway</button>`}
+          </div>`;
+        }).join('') + `</div>`;
+    }
+
+    if (warrantyMismatch.length) {
+      html += `<div class="lo-inv-verify-group"><div class="lo-inv-verify-group-title">Technocity says NOT covered — excluded automatically (${warrantyMismatch.length})</div>` +
+        warrantyMismatch.map(m => {
+          const overridden = manualIncludes.has(m.caseNo);
+          return `<div class="lo-inv-verify-item">
+            <span class="lo-inv-verify-label">${escVerify(m.caseNo)} — ${escVerify(m.warranty)}</span>
+            ${overridden
+              ? `<span class="lo-inv-verify-resolved-tag">Included anyway</span><button class="lo-inv-verify-undo" onclick="window.invoiceExportForceExclude('${escVerify(m.caseNo)}')">Exclude again</button>`
+              : `<button class="lo-inv-verify-action lo-inv-verify-danger" onclick="window.invoiceExportForceInclude('${escVerify(m.caseNo)}')">Include anyway</button>`}
+          </div>`;
+        }).join('') + `</div>`;
+    }
+
+    results.innerHTML = html;
+    results.style.display = 'block';
+  }
+
+  // ── Public: resolve a verification issue ──────────────────────
+  window.invoiceExportAddManual = function (caseNo, model, repairLevel) {
+    manualAdditions = manualAdditions.filter(a => a.caseNo !== caseNo);
+    const assumedDate = filterMonth ? filterMonth + '-15T00:00:00.000Z' : new Date().toISOString();
+    manualAdditions.push({
+      jobId: 'MANUAL-' + caseNo,
+      caseNo,
+      model,
+      brand: /segway|ninebot/i.test(model) ? 'Segway' : 'Roborock',
+      repairLevel,
+      cost: repairLevelCosts[repairLevel] || 0,
+      savedAt: assumedDate,
+      status: 'Complete',
+      warranty: 'In Warranty',
+      _manual: true,
+    });
+    renderVerifyResults();
+    renderTable();
+  };
+
+  window.invoiceExportUndoAddition = function (caseNo) {
+    manualAdditions = manualAdditions.filter(a => a.caseNo !== caseNo);
+    renderVerifyResults();
+    renderTable();
+  };
+
+  window.invoiceExportForceInclude = function (caseNo) {
+    manualExcludes.delete(caseNo);
+    manualIncludes.add(caseNo);
+    renderVerifyResults();
+    renderTable();
+  };
+
+  window.invoiceExportUndoInclude = function (caseNo) {
+    manualIncludes.delete(caseNo);
+    renderVerifyResults();
+    renderTable();
+  };
+
+  // Re-exclude something that was manually included back (warranty mismatch row)
+  window.invoiceExportForceExclude = function (caseNo) {
+    manualIncludes.delete(caseNo);
+    manualExcludes.add(caseNo);
+    renderVerifyResults();
+    renderTable();
   };
 
   // ── Public: create Zoho Books invoice ───────────────────────
