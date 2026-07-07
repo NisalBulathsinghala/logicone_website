@@ -215,6 +215,7 @@
   border: 1px solid #cbd5e1; background: #fff; color: #64748b; flex-shrink: 0;
 }
 .lo-inv-verify-resolved-tag { font-size: 11px; font-weight: 700; color: #059669; }
+.lo-inv-verify-scope-note { font-weight: 400; color: #94a3b8; font-size: 11.5px; }
 `;
 
   // ── SheetJS loader ───────────────────────────────────────────
@@ -825,7 +826,6 @@
       await ensureXlsx();
       const buf = await file.arrayBuffer();
       const wb  = XLSX.read(buf, { type: 'array' });
-      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
 
       // Technocity's export uses these exact headers as of this format
       const CASE_COL     = 'Service Order No.(工单号)';
@@ -833,10 +833,43 @@
       const CLOSE_COL    = 'Order Close Time(完成时间)';
       const MODEL_COL    = 'Model(机器)';
 
-      const tcRows = rows.filter(r => String(r[CASE_COL] || '').trim());
+      // Check every sheet, not just the first — combine rows from any sheet
+      // that actually has the expected columns, and silently skip sheets
+      // that don't (e.g. a notes/summary tab sitting alongside the real data)
+      let tcRows = [];
+      wb.SheetNames.forEach(name => {
+        const sheetRows = XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '' });
+        const matching = sheetRows.filter(r => String(r[CASE_COL] || '').trim());
+        if (matching.length) tcRows = tcRows.concat(matching);
+      });
+
       if (!tcRows.length) {
         hint.textContent = 'Could not find expected columns in that file — is it a Technocity order export?';
         return;
+      }
+
+      // De-dupe in case the same case number appears on more than one sheet
+      const seenCases = new Set();
+      tcRows = tcRows.filter(r => {
+        const c = String(r[CASE_COL]).trim();
+        if (seenCases.has(c)) return false;
+        seenCases.add(c);
+        return true;
+      });
+
+      // Scope to whatever period is currently selected — checking a June
+      // invoice shouldn't get noise from May rows sitting in the same
+      // Technocity export. "All time" (filterMonth empty) checks everything.
+      let outOfPeriodCount = 0;
+      if (filterMonth) {
+        tcRows = tcRows.filter(r => {
+          if (!r[CLOSE_COL]) return true; // no date to judge by — don't silently drop it
+          const d = new Date(r[CLOSE_COL]);
+          if (isNaN(d.getTime())) return true;
+          const inPeriod = d.toISOString().slice(0, 7) === filterMonth;
+          if (!inPeriod) outOfPeriodCount++;
+          return inPeriod;
+        });
       }
 
       const missing = [], monthMismatch = [], warrantyMismatch = [];
@@ -875,7 +908,7 @@
         }
       });
 
-      lastVerifyResults = { missing, monthMismatch, warrantyMismatch };
+      lastVerifyResults = { missing, monthMismatch, warrantyMismatch, outOfPeriodCount };
       hint.textContent = 'Checked against ' + file.name;
       renderVerifyResults();
       renderTable();
@@ -887,11 +920,13 @@
   function renderVerifyResults() {
     const results = document.getElementById('loInvVerifyResults');
     if (!lastVerifyResults) { results.style.display = 'none'; return; }
-    const { missing, monthMismatch, warrantyMismatch } = lastVerifyResults;
+    const { missing, monthMismatch, warrantyMismatch, outOfPeriodCount } = lastVerifyResults;
     const issues = missing.length + monthMismatch.length + warrantyMismatch.length;
 
     let html = `<div class="lo-inv-verify-summary ${issues ? 'has-issues' : 'clean'}">` +
-      (issues ? `${issues} need a look` : 'Nothing to check by hand') + `</div>`;
+      (issues ? `${issues} need a look` : 'Nothing to check by hand') +
+      (outOfPeriodCount ? ` <span class="lo-inv-verify-scope-note">(${outOfPeriodCount} row${outOfPeriodCount !== 1 ? 's' : ''} outside ${escVerify(filterMonth)} ignored)</span>` : '') +
+      `</div>`;
 
     if (missing.length) {
       html += `<div class="lo-inv-verify-group"><div class="lo-inv-verify-group-title">Not in your system (${missing.length})</div>` +

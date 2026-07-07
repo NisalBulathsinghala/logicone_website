@@ -153,9 +153,18 @@ exports.handler = async function (event) {
       const key = normalisePhone(body.phone) || body.phone || body.jobId;
       if (!key) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing phone' }) };
 
-      await db.collection('sms').doc('_index')
-        .collection('conversations').doc(key)
-        .set({ unread: 0 }, { merge: true });
+      const ref  = db.collection('sms').doc('_index').collection('conversations').doc(key);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        // Nothing to mark read. This gets called every time a jobsheet's
+        // Communications tab opens, for every job, whether or not that
+        // phone number has ever actually exchanged an SMS — a blind
+        // set(merge:true) here would create an empty conversation entry
+        // out of thin air for every job with no SMS history.
+        return { statusCode: 200, body: JSON.stringify({ ok: true, skipped: true }) };
+      }
+
+      await ref.set({ unread: 0 }, { merge: true });
 
       return { statusCode: 200, body: JSON.stringify({ ok: true }) };
     }

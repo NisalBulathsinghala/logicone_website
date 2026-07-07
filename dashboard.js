@@ -760,6 +760,37 @@ function updateNewJobAccessories() {
   ).join('');
 }
 
+// Checks the already-loaded jobs list for a likely duplicate before a new
+// job is created. Serial number and case number should each be unique to
+// one physical repair case, so either matching is a strong signal. Phone +
+// model matching an already-open (not yet Collected) job is a weaker
+// signal, but still worth a heads-up — someone re-submitting the same form
+// by accident is the most common real-world case this catches.
+function checkForDuplicateJob(newJob) {
+  const serial = (newJob.serial || '').trim().toLowerCase();
+  const caseNo = (newJob.caseNo || '').trim().toLowerCase();
+  const phone  = (newJob.phone  || '').trim();
+  const model  = (newJob.model  || '').trim().toLowerCase();
+
+  if (serial) {
+    const match = jobs.find(j => (j.serial || '').trim().toLowerCase() === serial);
+    if (match) return { job: match, reason: 'same serial number' };
+  }
+  if (caseNo) {
+    const match = jobs.find(j => (j.caseNo || '').trim().toLowerCase() === caseNo);
+    if (match) return { job: match, reason: 'same case number' };
+  }
+  if (phone && model) {
+    const match = jobs.find(j =>
+      (j.phone || '').trim() === phone &&
+      (j.model || '').trim().toLowerCase() === model &&
+      j.status !== 'Collected'
+    );
+    if (match) return { job: match, reason: 'same phone number and model, already open' };
+  }
+  return null;
+}
+
 async function submitNewJob() {
   // ── Validation ──────────────────────────────────────────────
   const fields = [
@@ -817,6 +848,21 @@ async function submitNewJob() {
     status:     'Intake',
     driveFolder: '',
   };
+
+  // ── Check for a likely duplicate before creating a new job ────
+  const dup = checkForDuplicateJob(newJob);
+  if (dup) {
+    const proceed = confirm(
+      `This looks like it might already be in the system — ${dup.reason}.\n\n` +
+      `Existing job: ${dup.job.jobId} — ${dup.job.name || '—'} (currently: ${dup.job.status || '—'})\n\n` +
+      `Create a new job anyway?`
+    );
+    if (!proceed) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Job';
+      return;
+    }
+  }
 
   // ── Sync to sheet FIRST, then update UI ──────────────────────
   if (cfg.appsScriptUrl) {
@@ -1471,12 +1517,17 @@ function smsUpdateBadge(convs) {
   }
 }
 
-// Periodically poll for new inbound messages (every 10s)
-// Refreshes the inbox and kanban badges regardless of which view is active
+// Periodically poll for new inbound messages (every 30s)
+// Refreshes the inbox and kanban badges regardless of which view is active.
+// Was 10s — that meant a full, unpaginated scan of sms/_index/conversations
+// six times a minute, continuously, every minute the dashboard is open.
+// Combined with the leftover jobId-keyed docs from before the phone-key
+// migration (never cleaned up), this was almost certainly the single
+// biggest contributor to the RESOURCE_EXHAUSTED quota errors.
 setInterval(async () => {
   await smsInboxRefresh();
   smsRefreshKanbanBadges();
-}, 10000);
+}, 30000);
 
 // Immediate refresh when returning to the tab — catches replies that
 // arrived while the dashboard was backgrounded

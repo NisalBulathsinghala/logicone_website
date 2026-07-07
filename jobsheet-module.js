@@ -744,6 +744,16 @@ function jsRenderTimeline(j) {
 }
 
 function jsPopulateIntake(j) {
+  // Cancel any pending copy-button revert from a previously open job, and
+  // reset both buttons to their plain state — otherwise a checkmark left
+  // over from copying the last job's ID can appear to belong to this one.
+  Object.values(jsCopyTimeouts).forEach(clearTimeout);
+  jsCopyTimeouts = {};
+  document.querySelectorAll('.js-copy-btn').forEach(btn => {
+    btn.classList.remove('copied');
+    btn.innerHTML = JS_COPY_ICON;
+  });
+
   // Header IDs
   document.getElementById('jsDispJobId').textContent = j.jobId || '—';
   document.getElementById('jsDispCaseNo').textContent = j.caseNo || '—';
@@ -780,6 +790,10 @@ function jsInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+const JS_COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+const JS_CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>';
+let jsCopyTimeouts = {}; // elId -> timeout id, so loading a new job can cancel any pending revert
+
 async function jsCopyValue(elId, btn) {
   const el = document.getElementById(elId);
   if (!el) return;
@@ -801,10 +815,14 @@ async function jsCopyValue(elId, btn) {
   }
 
   if (btn) {
-    const original = btn.innerHTML;
+    if (jsCopyTimeouts[elId]) clearTimeout(jsCopyTimeouts[elId]);
     btn.classList.add('copied');
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>';
-    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = original; }, 1200);
+    btn.innerHTML = JS_CHECK_ICON;
+    jsCopyTimeouts[elId] = setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = JS_COPY_ICON;
+      delete jsCopyTimeouts[elId];
+    }, 1200);
   }
 }
 
