@@ -16,9 +16,9 @@ exports.handler = async function (event) {
   try { body = JSON.parse(event.body); }
   catch { return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Invalid JSON' }) }; }
 
-  const { to, body: messageBody, jobId, customerName, phone } = body;
-  if (!to || !messageBody) {
-    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing to or body' }) };
+  const { to, body: messageBody, jobId, customerName, phone, mediaUrl } = body;
+  if (!to || (!messageBody && !mediaUrl)) {
+    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing to, and need either body or mediaUrl' }) };
   }
 
   const toNorm = normalisePhone(to);
@@ -32,7 +32,8 @@ exports.handler = async function (event) {
     const params = new URLSearchParams();
     params.append('To',   toNorm);
     params.append('From', TWILIO_FROM_NUMBER);
-    params.append('Body', messageBody);
+    if (messageBody) params.append('Body', messageBody);
+    if (mediaUrl) params.append('MediaUrl', mediaUrl);
 
     const response = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
@@ -66,7 +67,8 @@ exports.handler = async function (event) {
           customerName: customerName || '',
           phone:        phone || toNorm,
           to:           toNorm,
-          msgBody:      messageBody,
+          msgBody:      messageBody || '',
+          mediaUrl:     mediaUrl || null,
           msgSid:       data.sid,
           timestamp:    new Date().toISOString(),
         }),

@@ -42,14 +42,15 @@ exports.handler = async function (event) {
 
     // ── Log inbound message ───────────────────────────────────
     if (action === 'log-inbound') {
-      const { jobId, customerName, phone, from, msgBody, msgSid, timestamp } = body;
+      const { jobId, customerName, phone, from, msgBody, mediaUrl, msgSid, timestamp } = body;
       const key = normalisePhone(phone || from);
       if (!key) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing phone' }) };
 
       const msg = {
         direction:  'in',
         from:       from || phone,
-        body:       msgBody,
+        body:       msgBody || '',
+        mediaUrl:   mediaUrl || null,
         msgSid:     msgSid || '',
         timestamp:  timestamp || new Date().toISOString(),
         jobId:      jobId || null,
@@ -71,7 +72,7 @@ exports.handler = async function (event) {
         customerName: customerName || existing.customerName || '',
         unread:       (existing.unread || 0) + 1,
         lastMessageAt:        msg.timestamp,
-        lastMessageBody:      (msgBody || '').slice(0, 100),
+        lastMessageBody:      mediaUrl ? '📷 Image' : (msgBody || '').slice(0, 100),
         lastMessageDirection: 'in',
       }, { merge: true });
 
@@ -80,14 +81,15 @@ exports.handler = async function (event) {
 
     // ── Log outbound message ──────────────────────────────────
     if (action === 'log-outbound') {
-      const { jobId, customerName, phone, to, msgBody, msgSid, timestamp } = body;
+      const { jobId, customerName, phone, to, msgBody, mediaUrl, msgSid, timestamp } = body;
       const key = normalisePhone(phone || to);
       if (!key) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing phone' }) };
 
       const msg = {
         direction: 'out',
         to:        to || phone,
-        body:      msgBody,
+        body:      msgBody || '',
+        mediaUrl:  mediaUrl || null,
         msgSid:    msgSid || '',
         timestamp: timestamp || new Date().toISOString(),
         jobId:     jobId || null,
@@ -107,7 +109,7 @@ exports.handler = async function (event) {
         customerName: customerName || existing.customerName || '',
         unread:       existing.unread || 0,
         lastMessageAt:        msg.timestamp,
-        lastMessageBody:      (msgBody || '').slice(0, 100),
+        lastMessageBody:      mediaUrl ? '📷 Image' : (msgBody || '').slice(0, 100),
         lastMessageDirection: 'out',
       }, { merge: true });
 

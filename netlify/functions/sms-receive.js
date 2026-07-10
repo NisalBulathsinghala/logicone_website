@@ -17,6 +17,7 @@ exports.handler = async function (event) {
   }
 
   const {
+    TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN,
     SHEETS_ID,
     SHEETS_API_KEY,
@@ -29,6 +30,8 @@ exports.handler = async function (event) {
   const from   = params.From       || '';
   const body   = params.Body       || '';
   const msgSid = params.MessageSid || '';
+  const numMedia   = parseInt(params.NumMedia || '0', 10);
+  const twilioMediaUrl = numMedia > 0 ? params.MediaUrl0 : null;
 
   // Validate Twilio signature
   if (TWILIO_AUTH_TOKEN && !validateTwilioSignature(event, TWILIO_AUTH_TOKEN)) {
@@ -73,7 +76,36 @@ exports.handler = async function (event) {
     }
   }
 
-  // 2. Write to Firestore
+  // 2. If this is an MMS, pull the image down from Twilio (needs Basic
+  // Auth, which only this server-side function has) and re-host it through
+  // sms-media.js so it has a plain public URL the browser can just <img
+  // src> — Twilio's own media URLs can't be loaded directly client-side.
+  let ourMediaUrl = null;
+  if (twilioMediaUrl && TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN) {
+    try {
+      const credentials = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64');
+      const mediaRes = await fetch(twilioMediaUrl, { headers: { Authorization: `Basic ${credentials}` } });
+      if (mediaRes.ok) {
+        const contentType = mediaRes.headers.get('content-type') || 'image/jpeg';
+        const buf = Buffer.from(await mediaRes.arrayBuffer());
+        const dataUrl = `data:${contentType};base64,${buf.toString('base64')}`;
+        const host = (event.headers['x-forwarded-proto'] || 'https') + '://' + (event.headers['x-forwarded-host'] || event.headers.host || '');
+        const storeRes = await fetch(host + '/.netlify/functions/sms-media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'store', dataUrl }),
+        }).then(r => r.json());
+        if (storeRes.ok) ourMediaUrl = storeRes.url;
+        else console.warn('sms-receive: media store failed:', storeRes.error);
+      } else {
+        console.warn('sms-receive: could not download media from Twilio, status', mediaRes.status);
+      }
+    } catch (e) {
+      console.warn('sms-receive: MMS media handling failed:', e.message);
+    }
+  }
+
+  // 3. Write to Firestore
   try {
     const host = (event.headers['x-forwarded-proto'] || 'https') + '://' + (event.headers['x-forwarded-host'] || event.headers.host || '');
     await fetch(host + '/.netlify/functions/firestore-sms', {
@@ -86,6 +118,7 @@ exports.handler = async function (event) {
         phone:        normPhone,
         from,
         msgBody:      body,
+        mediaUrl:     ourMediaUrl,
         msgSid,
         timestamp,
       }),
@@ -95,7 +128,7 @@ exports.handler = async function (event) {
     console.warn('sms-receive: Firestore write failed:', fe.message);
   }
 
-  // 3. Telegram notification — AWAITED. This was the actual bug: firing it
+  // 4. Telegram notification — AWAITED. This was the actual bug: firing it
   // without awaiting meant it raced the TwiML return below. Lambda can freeze
   // the execution environment the instant a response is sent, which can kill
   // an in-flight fetch before it ever resolves OR rejects — explaining why
@@ -107,7 +140,7 @@ exports.handler = async function (event) {
     const jobLine = matchedJobId
       ? `Job: ${matchedJobId}${matchedName ? ' — ' + matchedName : ''}`
       : 'No matching job found';
-    const text = `📩 New SMS Reply\nFrom: ${fromDisplay}\n${jobLine}\n\n${body}`;
+    const text = `📩 New SMS Reply\nFrom: ${fromDisplay}\n${jobLine}${ourMediaUrl ? '\n📷 Image attached' : ''}\n\n${body}`;
     try {
       const tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: 'POST',

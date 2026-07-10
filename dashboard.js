@@ -1388,8 +1388,12 @@ function smsRenderThread(msgs) {
       ? m.failed ? '<span class="sms-msg-status failed">✗ Failed</span>'
                  : '<span class="sms-msg-status sent">✓ Sent</span>'
       : '<span class="sms-msg-status received">Received</span>';
+    const imageHtml = m.mediaUrl
+      ? `<img class="sms-msg-image" src="${escHtmlSms(m.mediaUrl)}" onclick="window.open('${escHtmlSms(m.mediaUrl)}','_blank')" alt="attached image">`
+      : '';
+    const textHtml = m.body ? escHtmlSms(m.body).replace(/\n/g, '<br>') : '';
     return `<div class="sms-msg sms-msg-${m.direction || 'in'}${m.failed ? ' sms-msg-failed' : ''}">
-      <div class="sms-msg-bubble">${escHtmlSms(m.body || '').replace(/\n/g, '<br>')}</div>
+      <div class="sms-msg-bubble${m.mediaUrl ? ' has-image' : ''}">${imageHtml}${textHtml}</div>
       <div class="sms-msg-time">${smsFmtTime(m.timestamp)} ${statusLabel}</div>
     </div>`;
   }).join('');
@@ -1425,23 +1429,104 @@ function smsInsertQuickReply(index) {
   ta.focus();
 }
 
+// Resize + compress an image client-side before sending as MMS, so it
+// comfortably fits under Firestore's ~1MiB document limit (base64 adds
+// roughly a third on top of the raw bytes, so keep the source modest).
+function jsResizeImageForMms(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Could not load image'));
+      img.onload = () => {
+        const MAX_DIM = 1280;
+        let width = img.width, height = img.height;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const scale = MAX_DIM / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        let quality = 0.82;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length > 900000 && quality > 0.4) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        resolve(dataUrl);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Uploads a resized image to sms-media.js and returns its public URL
+async function jsUploadSmsMedia(dataUrl) {
+  const res = await fetch('/.netlify/functions/sms-media', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'store', dataUrl }),
+  }).then(r => r.json());
+  if (!res.ok) throw new Error(res.error || 'Image upload failed');
+  return res.url;
+}
+
+let _smsThreadAttachedImage = null; // resized data URL, or null
+
+async function smsThreadHandleImage(file) {
+  if (!file) return;
+  const preview = document.getElementById('smsThreadImagePreview');
+  preview.style.display = 'flex';
+  preview.innerHTML = '<span>Preparing image…</span>';
+  try {
+    _smsThreadAttachedImage = await jsResizeImageForMms(file);
+    preview.innerHTML = `<img src="${_smsThreadAttachedImage}"><span>Image attached</span>
+      <button class="sms-attach-preview-remove" onclick="smsRemoveThreadAttachment()" title="Remove">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>`;
+  } catch (e) {
+    preview.style.display = 'none';
+    showToast('error', 'Could not attach image: ' + e.message);
+  }
+  document.getElementById('smsThreadImageInput').value = '';
+}
+
+function smsRemoveThreadAttachment() {
+  _smsThreadAttachedImage = null;
+  const preview = document.getElementById('smsThreadImagePreview');
+  preview.style.display = 'none';
+  preview.innerHTML = '';
+}
+
 async function smsThreadSend() {
   if (!_smsActiveConv) return;
   const textarea = document.getElementById('smsComposeText');
   const text = textarea.value.trim();
-  if (!text) return;
+  const attachedImage = _smsThreadAttachedImage;
+  if (!text && !attachedImage) return;
 
   const btn = document.getElementById('smsThreadSendBtn');
   btn.disabled = true;
   textarea.disabled = true;
 
   try {
+    let mediaUrl = null;
+    if (attachedImage) {
+      btn.title = 'Uploading image…';
+      mediaUrl = await jsUploadSmsMedia(attachedImage);
+    }
+
     const res = await fetch('/.netlify/functions/sms-send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         to:           _smsActiveConv.phone,
         body:         text,
+        mediaUrl:     mediaUrl,
         jobId:        _smsActiveConv.jobId || null,
         customerName: _smsActiveConv.customerName || '',
       }),
@@ -1450,7 +1535,7 @@ async function smsThreadSend() {
 
     if (data.ok) {
       const phone = _smsActiveConv.phone;
-      const msg   = { direction: 'out', body: text, timestamp: new Date().toISOString(), msgSid: data.sid || '', read: true };
+      const msg   = { direction: 'out', body: text, mediaUrl, timestamp: new Date().toISOString(), msgSid: data.sid || '', read: true };
 
       // Add to thread cache
       if (!_smsThreads[phone]) _smsThreads[phone] = [];
@@ -1464,17 +1549,18 @@ async function smsThreadSend() {
         _smsConvs.unshift(conv);
       }
       conv.lastMessageAt        = msg.timestamp;
-      conv.lastMessageBody      = text.slice(0, 100);
+      conv.lastMessageBody      = mediaUrl ? '📷 Image' : text.slice(0, 100);
       conv.lastMessageDirection = 'out';
       smsRenderConvList(_smsConvs);
 
       textarea.value = '';
       textarea.style.height = '';
+      smsRemoveThreadAttachment();
       showToast('success', '✓ SMS sent');
     } else {
       // Show failed message bubble in thread
       const phone = _smsActiveConv.phone;
-      const failedMsg = { direction: 'out', body: text, timestamp: new Date().toISOString(), failed: true, read: true };
+      const failedMsg = { direction: 'out', body: text, mediaUrl, timestamp: new Date().toISOString(), failed: true, read: true };
       if (!_smsThreads[phone]) _smsThreads[phone] = [];
       _smsThreads[phone].push(failedMsg);
       smsRenderThread(_smsThreads[phone]);
@@ -1484,6 +1570,7 @@ async function smsThreadSend() {
     showToast('error', 'SMS error: ' + e.message);
   } finally {
     btn.disabled  = false;
+    btn.title = '';
     textarea.disabled = false;
     textarea.focus();
   }
@@ -1499,6 +1586,102 @@ function smsComposeKeydown(e) {
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
     e.preventDefault();
     smsThreadSend();
+  }
+}
+
+// ── New Message (send to any number, not just an existing conversation) ──
+let _smsNewMsgAttachedImage = null;
+
+function smsOpenComposeNew() {
+  document.getElementById('smsNewPhone').value = '';
+  document.getElementById('smsNewText').value = '';
+  document.getElementById('smsNewMsgError').style.display = 'none';
+  smsRemoveNewMsgAttachment();
+  openModal('smsNewMsgModal');
+  setTimeout(() => document.getElementById('smsNewPhone').focus(), 50);
+}
+
+async function smsNewMsgHandleImage(file) {
+  if (!file) return;
+  const preview = document.getElementById('smsNewImagePreview');
+  preview.style.display = 'flex';
+  preview.innerHTML = '<span>Preparing image…</span>';
+  try {
+    _smsNewMsgAttachedImage = await jsResizeImageForMms(file);
+    preview.innerHTML = `<img src="${_smsNewMsgAttachedImage}"><span>Image attached</span>
+      <button class="sms-attach-preview-remove" onclick="smsRemoveNewMsgAttachment()" title="Remove">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>`;
+  } catch (e) {
+    preview.style.display = 'none';
+    showToast('error', 'Could not attach image: ' + e.message);
+  }
+  document.getElementById('smsNewImageInput').value = '';
+}
+
+function smsRemoveNewMsgAttachment() {
+  _smsNewMsgAttachedImage = null;
+  const preview = document.getElementById('smsNewImagePreview');
+  if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+}
+
+async function smsSendNewMessage() {
+  const phoneInput = document.getElementById('smsNewPhone');
+  const textInput  = document.getElementById('smsNewText');
+  const errDiv     = document.getElementById('smsNewMsgError');
+  const phone = phoneInput.value.trim();
+  const text  = textInput.value.trim();
+  const attachedImage = _smsNewMsgAttachedImage;
+  errDiv.style.display = 'none';
+
+  if (!phone) {
+    errDiv.textContent = 'Enter a phone number';
+    errDiv.style.display = 'block';
+    return;
+  }
+  if (!text && !attachedImage) {
+    errDiv.textContent = 'Enter a message or attach an image';
+    errDiv.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('smsNewMsgSendBtn');
+  btn.disabled = true;
+  btn.textContent = attachedImage ? 'Uploading image…' : 'Sending…';
+
+  try {
+    let mediaUrl = null;
+    if (attachedImage) mediaUrl = await jsUploadSmsMedia(attachedImage);
+
+    btn.textContent = 'Sending…';
+    const res = await fetch('/.netlify/functions/sms-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: phone, body: text, mediaUrl }),
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      errDiv.textContent = 'Failed: ' + (data.error || 'Unknown error');
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    showToast('success', '✓ SMS sent');
+    closeModal('smsNewMsgModal');
+
+    // Refresh the inbox so the new (or existing) conversation shows up,
+    // then open it directly
+    await smsInboxRefresh();
+    const normPhone = data.to || phone;
+    const conv = _smsConvs.find(c => c.phone === normPhone);
+    if (conv) smsOpenConv(conv.phone);
+  } catch (e) {
+    errDiv.textContent = 'Error: ' + e.message;
+    errDiv.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send';
   }
 }
 
