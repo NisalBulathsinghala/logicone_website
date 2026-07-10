@@ -86,6 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.addEventListener('change', () => el.classList.remove('field-err'));
   });
 
+  njWireInputs();
+
   // Kanban scroll button visibility
   const kw = document.getElementById('kanbanWrapper');
   if (kw) {
@@ -888,6 +890,11 @@ async function submitNewJob() {
     });
 
     if (result.ok) {
+      // Fire-and-forget, same pattern as the receipt below — and it has to
+      // happen before closeModal(), which resets the form (and with it,
+      // the photo queue) via resetNewJobForm().
+      njUploadQueuedPhotos(newJob.jobId, result.data && result.data.driveFolder);
+
       // Sheet saved — now reload from sheet so card shows real data
       closeModal('newJobModal');
       showToast('success', '✓ ' + newJob.jobId + ' saved to sheet — reloading…');
@@ -1025,6 +1032,7 @@ async function callScript(data, { timeoutMs, retries } = {}) {
 
 function resetNewJobForm() {
   if (window.tcLookup) tcLookup.reset();
+  njResetPhotos();
   ['nModel','nSerial','nCase','nIssue','nName','nPhone','nEmail'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.value = ''; el.classList.remove('field-err'); }
@@ -1037,6 +1045,179 @@ function resetNewJobForm() {
   document.getElementById('nRepaired').value = 'No';
   document.querySelectorAll('#newJobModal .cb-group input').forEach(cb => cb.checked = false);
   document.getElementById('nJobError').style.display = 'none';
+}
+
+// ============================================================
+// NEW JOB — optional photo capture ("Include photos" toggle)
+// ------------------------------------------------------------
+// Photos are queued client-side (converted to JPEG immediately via
+// photo-convert.js) while the form is being filled in, then uploaded
+// straight to the new job's 01_Receiving Photos folder right after
+// addJob succeeds — same resumable Drive upload flow photo-module.js
+// uses, just without a queue-row UI since the modal is already closed
+// by the time it runs. Fire-and-forget, same pattern as the intake
+// receipt: it never blocks job creation itself.
+// ============================================================
+let njPhotoQueue = []; // [{ id, file (converted File), url (object URL for the thumb) }]
+
+function njToggleCapture() {
+  const on = document.getElementById('nIncludePhotos').checked;
+  const section = document.getElementById('nPhotoCapture');
+  if (section) section.style.display = on ? '' : 'none';
+}
+
+function njOpenCamera()  { const el = document.getElementById('njCameraInput');  if (el) el.click(); }
+function njOpenLibrary() { const el = document.getElementById('njLibraryInput'); if (el) el.click(); }
+
+function njWireInputs() {
+  const cam = document.getElementById('njCameraInput');
+  const lib = document.getElementById('njLibraryInput');
+  // Reset .value after each use so the same photo can be re-picked and so
+  // a fresh 'change' event fires every time — camera taps especially need
+  // this since they're used repeatedly, one shot per tap.
+  if (cam) cam.addEventListener('change', async () => { await njHandleFiles(cam.files); cam.value = ''; });
+  if (lib) lib.addEventListener('change', async () => { await njHandleFiles(lib.files); lib.value = ''; });
+}
+
+async function njHandleFiles(fileList) {
+  const files = [...(fileList || [])];
+  if (!files.length) return;
+
+  for (const raw of files) {
+    const converted = (typeof window.loConvertToJpeg === 'function')
+      ? await window.loConvertToJpeg(raw)
+      : raw;
+    njPhotoQueue.push({
+      id:   'p' + Date.now() + Math.random().toString(36).slice(2, 6),
+      file: converted,
+      url:  URL.createObjectURL(converted),
+    });
+  }
+  njRenderPhotoGrid();
+}
+
+function njRemovePhoto(id) {
+  const idx = njPhotoQueue.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  URL.revokeObjectURL(njPhotoQueue[idx].url);
+  njPhotoQueue.splice(idx, 1);
+  njRenderPhotoGrid();
+}
+
+function njRenderPhotoGrid() {
+  const grid = document.getElementById('njPhotoGrid');
+  const hint = document.getElementById('njPhotoHint');
+  if (grid) {
+    grid.innerHTML = njPhotoQueue.map(p => `
+      <div class="np-thumb">
+        <img src="${p.url}" alt="">
+        <button type="button" class="np-thumb-remove" onclick="njRemovePhoto('${p.id}')">✕</button>
+      </div>`).join('');
+  }
+  if (hint) {
+    hint.textContent = njPhotoQueue.length
+      ? njPhotoQueue.length + ' photo' + (njPhotoQueue.length === 1 ? '' : 's') + ' ready to upload'
+      : 'No photos added yet';
+  }
+}
+
+function njResetPhotos() {
+  njPhotoQueue.forEach(p => URL.revokeObjectURL(p.url));
+  njPhotoQueue = [];
+  const chk = document.getElementById('nIncludePhotos'); if (chk) chk.checked = false;
+  const section = document.getElementById('nPhotoCapture'); if (section) section.style.display = 'none';
+  const grid = document.getElementById('njPhotoGrid'); if (grid) grid.innerHTML = '';
+  const hint = document.getElementById('njPhotoHint'); if (hint) hint.textContent = 'No photos added yet';
+  const cam = document.getElementById('njCameraInput');  if (cam) cam.value = '';
+  const lib = document.getElementById('njLibraryInput'); if (lib) lib.value = '';
+}
+
+// Uploads whatever was queued to the freshly-created job's Receiving
+// Photos folder. Safe to call with an empty queue or a missing
+// driveFolder — both are handled as no-ops or a clear error toast rather
+// than a thrown error, since this always runs after the job itself has
+// already been saved.
+async function njUploadQueuedPhotos(jobId, driveFolder) {
+  if (!njPhotoQueue.length) return;
+  const queued = njPhotoQueue.slice(); // snapshot — resetNewJobForm() clears the live array right after this call
+
+  if (!driveFolder) {
+    showToast('error', `${queued.length} photo${queued.length === 1 ? '' : 's'} not uploaded — ${jobId}'s Drive folder wasn't ready. Add them from the Photos tab once it's set up.`);
+    queued.forEach(p => URL.revokeObjectURL(p.url));
+    return;
+  }
+
+  showToast('success', `Uploading ${queued.length} photo${queued.length === 1 ? '' : 's'} to ${jobId}…`);
+
+  try {
+    const tokenRes = await callScript({ action: 'getUploadToken', driveFolder });
+    if (!tokenRes.ok || !tokenRes.data) throw new Error(tokenRes.error || 'Could not get an upload token');
+    const token    = tokenRes.data.token;
+    const folderId = tokenRes.data.stageFolderIds && tokenRes.data.stageFolderIds['01_Receiving Photos'];
+    if (!token || !folderId) throw new Error('Receiving Photos folder not found');
+
+    let done = 0, failed = 0;
+    for (let i = 0; i < queued.length; i++) {
+      try { await njUploadOneFile(queued[i].file, folderId, token, jobId, i); done++; }
+      catch (e) { console.warn('New job photo upload failed:', e.message); failed++; }
+    }
+
+    if (failed === 0) showToast('success', `✓ ${done} photo${done === 1 ? '' : 's'} added to ${jobId}`);
+    else showToast('error', `${done} of ${queued.length} uploaded — the rest can be added from ${jobId}'s Photos tab`);
+
+  } catch (err) {
+    console.error('njUploadQueuedPhotos error:', err);
+    showToast('error', `Photo upload failed (${err.message}) — add them from ${jobId}'s Photos tab instead`);
+  } finally {
+    queued.forEach(p => URL.revokeObjectURL(p.url));
+  }
+}
+
+// Minimal resumable Drive upload — same flow as photo-module.js's
+// jsPhotoUploadFile, without the per-row queue UI (this runs after the
+// New Job modal has already closed). File names are stamped with the
+// job ID and stage code up front so they're already identifiable —
+// the "Rename Receiving Photos" sheet menu can still tidy numbering later.
+async function njUploadOneFile(file, folderId, token, jobId, index) {
+  const name = `${jobId}-RCV-${Date.now()}-${index + 1}.jpg`;
+
+  const initRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type':  'application/json',
+      'X-Upload-Content-Type':   file.type || 'image/jpeg',
+      'X-Upload-Content-Length': file.size,
+    },
+    body: JSON.stringify({ name, parents: [folderId] }),
+  });
+  if (!initRes.ok) throw new Error('Session init failed: ' + initRes.status);
+  const uploadUrl = initRes.headers.get('Location');
+  if (!uploadUrl) throw new Error('No upload URL returned');
+
+  const CHUNK = 8 * 1024 * 1024;
+  let offset = 0;
+  while (offset < file.size) {
+    const end   = Math.min(offset + CHUNK, file.size);
+    const chunk = file.slice(offset, end);
+    const res = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Range': `bytes ${offset}-${end - 1}/${file.size}`,
+        'Content-Type':  file.type || 'image/jpeg',
+      },
+      body: chunk,
+    });
+    if (res.status === 308) {
+      const rangeHeader = res.headers.get('Range');
+      offset = rangeHeader ? parseInt(rangeHeader.split('-')[1]) + 1 : end;
+    } else if (res.status === 200 || res.status === 201) {
+      return;
+    } else {
+      throw new Error('Upload chunk failed: ' + res.status);
+    }
+  }
+  if (file.size === 0) return; // zero-byte edge case, matches jsPhotoUploadFile
 }
 
 function showToast(type, msg) {

@@ -483,6 +483,34 @@ body {
 
 .cb-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
 
+.chk-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13.5px; font-weight: 500; color: var(--text-primary);
+  cursor: pointer; user-select: none;
+}
+.chk-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
+
+.np-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+.np-actions .btn { flex: 1; justify-content: center; padding: 9px; font-size: 13px; }
+
+.np-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px; margin-bottom: 8px;
+}
+.np-thumb {
+  position: relative; aspect-ratio: 1; border-radius: var(--radius-sm);
+  overflow: hidden; border: 1px solid var(--border); background: var(--bg-surface-hover);
+}
+.np-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.np-thumb-remove {
+  position: absolute; top: 3px; right: 3px; width: 18px; height: 18px;
+  border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; border: none;
+  font-size: 12px; line-height: 1; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; padding: 0;
+}
+.np-thumb-remove:hover { background: rgba(220,38,38,0.85); }
+.np-hint { font-size: 12px; color: var(--text-secondary); font-style: italic; }
+
 .modal-footer {
   padding: 16px 24px; border-top: 1px solid var(--border);
   display: flex; justify-content: flex-end; gap: 10px;

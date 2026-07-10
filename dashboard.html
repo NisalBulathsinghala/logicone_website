@@ -595,6 +595,22 @@
 
       <div class="ff"><label>Accessories</label><div class="cb-group" id="nAccessoriesGroup"></div></div>
 
+      <div class="ff">
+        <label class="chk-row"><input type="checkbox" id="nIncludePhotos" onchange="njToggleCapture()"> Include photos</label>
+      </div>
+
+      <div class="ff" id="nPhotoCapture" style="display:none;">
+        <label>Photos</label>
+        <div class="np-actions">
+          <button type="button" class="btn btn-secondary" onclick="njOpenCamera()">Take photo</button>
+          <button type="button" class="btn btn-secondary" onclick="njOpenLibrary()">Choose from library</button>
+        </div>
+        <input type="file" id="njCameraInput" accept="image/*" capture="environment" multiple style="display:none">
+        <input type="file" id="njLibraryInput" accept="image/*" multiple style="display:none">
+        <div class="np-grid" id="njPhotoGrid"></div>
+        <div class="np-hint" id="njPhotoHint">No photos added yet</div>
+      </div>
+
       <div id="nJobError" style="display:none;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:13px;color:#dc2626;"></div>
     </div>
     <div class="modal-footer">
@@ -642,6 +658,7 @@
 
 <script src="dashboard.js"></script>
 <script src="jobsheet-module.js"></script>
+  <script src="photo-convert.js"></script>
   <script src="photo-module.js"></script>
 <script src="report-module.js"></script>
 <script src="receipt-module.js"></script>

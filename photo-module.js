@@ -463,8 +463,16 @@ async function jsPhotoHandleFiles(files) {
 }
 
 // ── Resumable Drive upload ───────────────────────────────────
-async function jsPhotoUploadFile(file, folderId) {
+async function jsPhotoUploadFile(rawFile, folderId) {
   const queue = document.getElementById('jsPhotoQueue');
+
+  // Normalise to JPEG (HEIC, PNG, WEBP, whatever) before anything else,
+  // so the queue item below reflects the file actually being uploaded —
+  // and so every photo landing in Drive is already Technocity-ready.
+  // Videos pass through untouched (see photo-convert.js).
+  const file = (typeof window.loConvertToJpeg === 'function')
+    ? await window.loConvertToJpeg(rawFile)
+    : rawFile;
 
   // Create queue item UI
   const item = document.createElement('div');
