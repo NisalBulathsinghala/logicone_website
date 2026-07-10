@@ -1059,6 +1059,8 @@ function resetNewJobForm() {
 // receipt: it never blocks job creation itself.
 // ============================================================
 let njPhotoQueue = []; // [{ id, file (converted File), url (object URL for the thumb) }]
+let njCamStream   = null;
+let njCamFacing   = 'environment';
 
 function njToggleCapture() {
   const on = document.getElementById('nIncludePhotos').checked;
@@ -1066,15 +1068,102 @@ function njToggleCapture() {
   if (section) section.style.display = on ? '' : 'none';
 }
 
-function njOpenCamera()  { const el = document.getElementById('njCameraInput');  if (el) el.click(); }
+// "Take photo" opens a live camera view that stays open across shots —
+// tap the shutter once per angle instead of round-tripping to the OS
+// camera app each time. Falls back to the plain capture input (one photo
+// per tap, but works everywhere) if getUserMedia is unavailable or denied.
+async function njOpenCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    const el = document.getElementById('njCameraInput');
+    if (el) el.click();
+    return;
+  }
+  try {
+    njCamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: njCamFacing }, audio: false });
+    document.getElementById('njCamVideo').srcObject = njCamStream;
+    document.getElementById('njCamOverlay').classList.add('show');
+    njRenderCamStrip();
+  } catch (err) {
+    console.warn('Live camera unavailable, falling back to native capture:', err.message);
+    const el = document.getElementById('njCameraInput');
+    if (el) el.click();
+  }
+}
+
+async function njCameraSwitch() {
+  njCamFacing = (njCamFacing === 'environment') ? 'user' : 'environment';
+  if (njCamStream) njCamStream.getTracks().forEach(t => t.stop());
+  try {
+    njCamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: njCamFacing }, audio: false });
+    document.getElementById('njCamVideo').srcObject = njCamStream;
+  } catch (err) {
+    showToast('error', 'Could not switch camera: ' + err.message);
+  }
+}
+
+// Grabs the current video frame, converts it the same way any other
+// picked photo would be, and adds it straight to the queue — the
+// overlay itself never closes, so the next shot is a single tap away.
+async function njCameraShutter() {
+  const video = document.getElementById('njCamVideo');
+  if (!video || !video.videoWidth) return; // stream not ready yet
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+
+  const flash = document.getElementById('njCamFlash');
+  if (flash) { flash.classList.remove('flash'); void flash.offsetWidth; flash.classList.add('flash'); }
+
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+  if (!blob) return;
+
+  const rawFile = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
+  const converted = (typeof window.loConvertToJpeg === 'function')
+    ? await window.loConvertToJpeg(rawFile)
+    : rawFile;
+
+  njPhotoQueue.push({
+    id:   'p' + Date.now() + Math.random().toString(36).slice(2, 6),
+    file: converted,
+    url:  URL.createObjectURL(converted),
+  });
+  njRenderPhotoGrid();
+  njRenderCamStrip();
+}
+
+function njRenderCamStrip() {
+  const strip = document.getElementById('njCamStrip');
+  const count = document.getElementById('njCamCount');
+  if (strip) {
+    strip.innerHTML = njPhotoQueue.map(p => `
+      <div class="nj-cam-strip-item">
+        <img src="${p.url}" alt="">
+        <button type="button" class="nj-cam-strip-remove" onclick="njRemovePhoto('${p.id}')">✕</button>
+      </div>`).join('');
+    strip.scrollLeft = strip.scrollWidth;
+  }
+  if (count) count.textContent = njPhotoQueue.length;
+}
+
+function njCameraClose() {
+  if (njCamStream) {
+    njCamStream.getTracks().forEach(t => t.stop());
+    njCamStream = null;
+  }
+  const overlay = document.getElementById('njCamOverlay');
+  if (overlay) overlay.classList.remove('show');
+}
+
 function njOpenLibrary() { const el = document.getElementById('njLibraryInput'); if (el) el.click(); }
 
 function njWireInputs() {
   const cam = document.getElementById('njCameraInput');
   const lib = document.getElementById('njLibraryInput');
   // Reset .value after each use so the same photo can be re-picked and so
-  // a fresh 'change' event fires every time — camera taps especially need
-  // this since they're used repeatedly, one shot per tap.
+  // a fresh 'change' event fires every time — this input is now only the
+  // fallback path, but the same rule still applies to it.
   if (cam) cam.addEventListener('change', async () => { await njHandleFiles(cam.files); cam.value = ''; });
   if (lib) lib.addEventListener('change', async () => { await njHandleFiles(lib.files); lib.value = ''; });
 }
@@ -1094,6 +1183,7 @@ async function njHandleFiles(fileList) {
     });
   }
   njRenderPhotoGrid();
+  njRenderCamStrip();
 }
 
 function njRemovePhoto(id) {
@@ -1102,6 +1192,7 @@ function njRemovePhoto(id) {
   URL.revokeObjectURL(njPhotoQueue[idx].url);
   njPhotoQueue.splice(idx, 1);
   njRenderPhotoGrid();
+  njRenderCamStrip();
 }
 
 function njRenderPhotoGrid() {
@@ -1122,12 +1213,15 @@ function njRenderPhotoGrid() {
 }
 
 function njResetPhotos() {
+  njCameraClose();
   njPhotoQueue.forEach(p => URL.revokeObjectURL(p.url));
   njPhotoQueue = [];
   const chk = document.getElementById('nIncludePhotos'); if (chk) chk.checked = false;
   const section = document.getElementById('nPhotoCapture'); if (section) section.style.display = 'none';
   const grid = document.getElementById('njPhotoGrid'); if (grid) grid.innerHTML = '';
   const hint = document.getElementById('njPhotoHint'); if (hint) hint.textContent = 'No photos added yet';
+  const strip = document.getElementById('njCamStrip'); if (strip) strip.innerHTML = '';
+  const camCount = document.getElementById('njCamCount'); if (camCount) camCount.textContent = '0';
   const cam = document.getElementById('njCameraInput');  if (cam) cam.value = '';
   const lib = document.getElementById('njLibraryInput'); if (lib) lib.value = '';
 }
