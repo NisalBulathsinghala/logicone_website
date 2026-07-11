@@ -579,7 +579,7 @@
           </select>
         </div>
         <div class="ff"><label>Receive Method</label>
-          <select id="nReceiveMethod">
+          <select id="nReceiveMethod" onchange="njRenderSlots()">
             <option value="">— Select —</option>
             <option value="Local Drop-off">Local Drop-off</option>
             <option value="Courier">Courier</option>
@@ -601,14 +601,13 @@
 
       <div class="ff" id="nPhotoCapture" style="display:none;">
         <label>Photos</label>
-        <div class="np-actions">
-          <button type="button" class="btn btn-secondary" onclick="njOpenCamera()">Take photo</button>
-          <button type="button" class="btn btn-secondary" onclick="njOpenLibrary()">Choose from library</button>
+        <div class="np-slots" id="npSlots"></div>
+        <div class="np-custom-row">
+          <input type="text" id="npCustomLabel" class="np-custom-input" placeholder="Add a custom shot…">
+          <button type="button" class="np-custom-add" onclick="njAddCustomSlot()">+ Add</button>
         </div>
         <input type="file" id="njCameraInput" accept="image/*" capture="environment" multiple style="display:none">
         <input type="file" id="njLibraryInput" accept="image/*" multiple style="display:none">
-        <div class="np-grid" id="njPhotoGrid"></div>
-        <div class="np-hint" id="njPhotoHint">No photos added yet</div>
       </div>
 
       <div id="nJobError" style="display:none;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:13px;color:#dc2626;"></div>
@@ -616,28 +615,6 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('newJobModal')">Cancel</button>
       <button class="btn btn-primary" id="submitJobBtn" onclick="submitNewJob()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Job</button>
-    </div>
-  </div>
-</div>
-
-<!-- Live camera overlay for New Job photo capture — stays open across
-     shots so multiple photos don't each need a round trip to the OS
-     camera app. Falls back to njCameraInput (native capture) if
-     getUserMedia isn't available. -->
-<div class="nj-cam-overlay" id="njCamOverlay">
-  <div class="nj-cam-video-wrap">
-    <video id="njCamVideo" autoplay playsinline muted></video>
-    <div class="nj-cam-flash" id="njCamFlash"></div>
-    <div class="nj-cam-hint">Tap the shutter for each angle — Done when finished</div>
-  </div>
-  <div class="nj-cam-controls">
-    <div class="nj-cam-strip" id="njCamStrip"></div>
-    <div class="nj-cam-row">
-      <button type="button" class="nj-cam-switch" onclick="njCameraSwitch()" aria-label="Switch camera">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-      </button>
-      <button type="button" class="nj-cam-shutter" onclick="njCameraShutter()" aria-label="Take photo"></button>
-      <button type="button" class="nj-cam-done" onclick="njCameraClose()">Done (<span id="njCamCount">0</span>)</button>
     </div>
   </div>
 </div>

@@ -610,11 +610,15 @@ function dRenderPhotoGrid(grid, items) {
     return `<div class="d-photo-thumb" onclick="dOpenLightbox('${item.id}','${item.name.replace(/'/g,"\'")}','${item.mimeType || ''}','${item.viewUrl || ''}','${item.thumbUrl}')" title="${item.name}">
       ${isVideo && !item.thumbUrl
         ? `<div class="d-photo-vid-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg></div>`
-        : `<img src="${item.thumbUrl}" alt="${item.name}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=d-photo-vid-icon>?</div>'">`
+        : `<img src="${item.thumbUrl}" alt="${item.name}" loading="lazy" onerror="loThumbRetry(this,'${item.id}',dPhotoThumbGiveUp)">`
       }
       ${isVideo ? '<div class="d-photo-vid-badge">VIDEO</div>' : ''}
     </div>`;
   }).join('');
+}
+
+function dPhotoThumbGiveUp(img) {
+  img.parentElement.innerHTML = '<div class="d-photo-vid-icon">?</div>';
 }
 
 function dOpenLightbox(id, name, mimeType, viewUrl, thumbUrl) {
@@ -984,9 +988,15 @@ async function createZohoInvoice(job) {
 }
 
 // ── callScript ────────────────────────────────────────────────
-// Sends data to Apps Script via GET + payload param.
-// Apps Script redirects to a googleapis.com URL — we follow it
-// and parse the JSON response to know if it actually worked.
+// Sends data to Apps Script as a POST with the payload in the body —
+// NOT a GET with the payload in the query string. That was the original
+// approach, and it silently breaks for anything with a real payload
+// (e.g. saveReport's base64 PDF): URLs have practical length limits well
+// under what a base64-encoded file needs, so the request can fail before
+// it even reaches Apps Script. doPost already reads e.postData.contents
+// and forwards to the exact same doGet logic, so this needed no Apps
+// Script changes — report-module.js's fetchPhotos call already used this
+// same POST pattern, this just brings every other action in line with it.
 //
 // addJob creates a Drive folder which can take 5-15s — we use a
 // longer timeout for that action and retry once on network errors.
@@ -1000,8 +1010,13 @@ async function callScript(data, { timeoutMs, retries } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const url = cfg.appsScriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(data));
-      const r = await fetch(url, { redirect: 'follow', signal: controller.signal });
+      const r = await fetch(cfg.appsScriptUrl, {
+        method:  'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight against Apps Script
+        body:    JSON.stringify(data),
+        signal:  controller.signal,
+      });
       clearTimeout(timer);
       const text = await r.text();
       try {
@@ -1050,140 +1065,115 @@ function resetNewJobForm() {
 // ============================================================
 // NEW JOB — optional photo capture ("Include photos" toggle)
 // ------------------------------------------------------------
-// Photos are queued client-side (converted to JPEG immediately via
-// photo-convert.js) while the form is being filled in, then uploaded
-// straight to the new job's 01_Receiving Photos folder right after
-// addJob succeeds — same resumable Drive upload flow photo-module.js
-// uses, just without a queue-row UI since the modal is already closed
-// by the time it runs. Fire-and-forget, same pattern as the intake
-// receipt: it never blocks job creation itself.
+// Photos are organised into labeled shot slots rather than one flat
+// pile — the suggested list changes with Receive Method, and custom
+// slots can be added per job. Queued client-side (converted to JPEG
+// immediately via photo-convert.js) while the form is being filled in,
+// then uploaded straight to the new job's 01_Receiving Photos folder
+// right after addJob succeeds, filenames stamped with the slot label so
+// the Drive folder is self-explanatory afterward. Same resumable Drive
+// upload flow photo-module.js uses, just without a queue-row UI since
+// the modal is already closed by the time it runs. Fire-and-forget,
+// same pattern as the intake receipt: it never blocks job creation.
 // ============================================================
-let njPhotoQueue = []; // [{ id, file (converted File), url (object URL for the thumb) }]
-let njCamStream   = null;
-let njCamFacing   = 'environment';
+const NJ_PHOTO_SLOTS = {
+  'Courier': [
+    'Box', 'Box opened', 'Shipping label', 'All components',
+    'Robot underside', 'Robot serial number', 'Dock serial number',
+  ],
+  'Local Drop-off': [
+    'All components', 'Robot underside', 'Robot serial number', 'Dock serial number',
+  ],
+};
+
+let njPhotoQueue  = []; // [{ id, file (converted File), url (object URL for the thumb), label }]
+let njCustomSlots = []; // extra labels added ad hoc for this job — reset with the rest of the form
+let njActiveSlot  = null; // which label the next capture/library pick tags its result with
+
+function njEscHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function njSlugify(label) {
+  return String(label || 'photo').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'photo';
+}
+
+// The suggested list for the current Receive Method, plus any custom
+// slots, plus any label that already has photos under it — switching
+// Receive Method after taking some shots never hides photos you've
+// already taken, it only changes which *empty* slots are suggested.
+function njCurrentSlotLabels() {
+  const method = (document.getElementById('nReceiveMethod') || {}).value || '';
+  const base = NJ_PHOTO_SLOTS[method] || [];
+  const withPhotos = njPhotoQueue.map(p => p.label);
+  return [...new Set([...base, ...njCustomSlots, ...withPhotos])];
+}
 
 function njToggleCapture() {
   const on = document.getElementById('nIncludePhotos').checked;
   const section = document.getElementById('nPhotoCapture');
   if (section) section.style.display = on ? '' : 'none';
+  if (on) njRenderSlots();
 }
-
-// "Take photo" opens a live camera view that stays open across shots —
-// tap the shutter once per angle instead of round-tripping to the OS
-// camera app each time. Falls back to the plain capture input (one photo
-// per tap, but works everywhere) if getUserMedia is unavailable or denied.
-async function njOpenCamera() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    const el = document.getElementById('njCameraInput');
-    if (el) el.click();
-    return;
-  }
-  try {
-    njCamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: njCamFacing }, audio: false });
-    document.getElementById('njCamVideo').srcObject = njCamStream;
-    document.getElementById('njCamOverlay').classList.add('show');
-    njRenderCamStrip();
-  } catch (err) {
-    console.warn('Live camera unavailable, falling back to native capture:', err.message);
-    const el = document.getElementById('njCameraInput');
-    if (el) el.click();
-  }
-}
-
-async function njCameraSwitch() {
-  njCamFacing = (njCamFacing === 'environment') ? 'user' : 'environment';
-  if (njCamStream) njCamStream.getTracks().forEach(t => t.stop());
-  try {
-    njCamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: njCamFacing }, audio: false });
-    document.getElementById('njCamVideo').srcObject = njCamStream;
-  } catch (err) {
-    showToast('error', 'Could not switch camera: ' + err.message);
-  }
-}
-
-// Grabs the current video frame, converts it the same way any other
-// picked photo would be, and adds it straight to the queue — the
-// overlay itself never closes, so the next shot is a single tap away.
-async function njCameraShutter() {
-  const video = document.getElementById('njCamVideo');
-  if (!video || !video.videoWidth) return; // stream not ready yet
-
-  const canvas = document.createElement('canvas');
-  canvas.width  = video.videoWidth;
-  canvas.height = video.videoHeight;
-  canvas.getContext('2d').drawImage(video, 0, 0);
-
-  const flash = document.getElementById('njCamFlash');
-  if (flash) { flash.classList.remove('flash'); void flash.offsetWidth; flash.classList.add('flash'); }
-
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-  if (!blob) return;
-
-  const rawFile = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
-  const converted = (typeof window.loConvertToJpeg === 'function')
-    ? await window.loConvertToJpeg(rawFile)
-    : rawFile;
-
-  njPhotoQueue.push({
-    id:   'p' + Date.now() + Math.random().toString(36).slice(2, 6),
-    file: converted,
-    url:  URL.createObjectURL(converted),
-  });
-  njRenderPhotoGrid();
-  njRenderCamStrip();
-}
-
-function njRenderCamStrip() {
-  const strip = document.getElementById('njCamStrip');
-  const count = document.getElementById('njCamCount');
-  if (strip) {
-    strip.innerHTML = njPhotoQueue.map(p => `
-      <div class="nj-cam-strip-item">
-        <img src="${p.url}" alt="">
-        <button type="button" class="nj-cam-strip-remove" onclick="njRemovePhoto('${p.id}')">✕</button>
-      </div>`).join('');
-    strip.scrollLeft = strip.scrollWidth;
-  }
-  if (count) count.textContent = njPhotoQueue.length;
-}
-
-function njCameraClose() {
-  if (njCamStream) {
-    njCamStream.getTracks().forEach(t => t.stop());
-    njCamStream = null;
-  }
-  const overlay = document.getElementById('njCamOverlay');
-  if (overlay) overlay.classList.remove('show');
-}
-
-function njOpenLibrary() { const el = document.getElementById('njLibraryInput'); if (el) el.click(); }
 
 function njWireInputs() {
   const cam = document.getElementById('njCameraInput');
   const lib = document.getElementById('njLibraryInput');
+  const custom = document.getElementById('npCustomLabel');
   // Reset .value after each use so the same photo can be re-picked and so
-  // a fresh 'change' event fires every time — this input is now only the
-  // fallback path, but the same rule still applies to it.
+  // a fresh 'change' event fires every time — camera taps especially need
+  // this since a slot can take more than one shot.
   if (cam) cam.addEventListener('change', async () => { await njHandleFiles(cam.files); cam.value = ''; });
   if (lib) lib.addEventListener('change', async () => { await njHandleFiles(lib.files); lib.value = ''; });
+  if (custom) custom.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); njAddCustomSlot(); } });
+}
+
+// Native camera capture, per slot. A live in-page camera (getUserMedia)
+// was tried here instead, but on iOS Safari that pipeline is capped to a
+// lower resolution than an actual photo capture and doesn't expose focus
+// control to web pages at all — the native camera app doesn't have
+// either limitation, so it stays the primary path even though it means
+// one round trip per shot.
+function njSlotCapture(i) {
+  njActiveSlot = (window._njSlotLabels || [])[i];
+  const el = document.getElementById('njCameraInput');
+  if (el) el.click();
+}
+function njSlotLibrary(i) {
+  njActiveSlot = (window._njSlotLabels || [])[i];
+  const el = document.getElementById('njLibraryInput');
+  if (el) el.click();
+}
+
+function njAddCustomSlot() {
+  const input = document.getElementById('npCustomLabel');
+  if (!input) return;
+  const label = input.value.trim();
+  if (!label) return;
+  const exists = njCurrentSlotLabels().some(l => l.toLowerCase() === label.toLowerCase());
+  if (!exists) njCustomSlots.push(label);
+  input.value = '';
+  njRenderSlots();
 }
 
 async function njHandleFiles(fileList) {
   const files = [...(fileList || [])];
   if (!files.length) return;
+  const label = njActiveSlot || 'Other';
+  njActiveSlot = null;
 
   for (const raw of files) {
     const converted = (typeof window.loConvertToJpeg === 'function')
       ? await window.loConvertToJpeg(raw)
       : raw;
     njPhotoQueue.push({
-      id:   'p' + Date.now() + Math.random().toString(36).slice(2, 6),
-      file: converted,
-      url:  URL.createObjectURL(converted),
+      id:    'p' + Date.now() + Math.random().toString(36).slice(2, 6),
+      file:  converted,
+      url:   URL.createObjectURL(converted),
+      label,
     });
   }
-  njRenderPhotoGrid();
-  njRenderCamStrip();
+  njRenderSlots();
 }
 
 function njRemovePhoto(id) {
@@ -1191,37 +1181,53 @@ function njRemovePhoto(id) {
   if (idx === -1) return;
   URL.revokeObjectURL(njPhotoQueue[idx].url);
   njPhotoQueue.splice(idx, 1);
-  njRenderPhotoGrid();
-  njRenderCamStrip();
+  njRenderSlots();
 }
 
-function njRenderPhotoGrid() {
-  const grid = document.getElementById('njPhotoGrid');
-  const hint = document.getElementById('njPhotoHint');
-  if (grid) {
-    grid.innerHTML = njPhotoQueue.map(p => `
-      <div class="np-thumb">
-        <img src="${p.url}" alt="">
-        <button type="button" class="np-thumb-remove" onclick="njRemovePhoto('${p.id}')">✕</button>
-      </div>`).join('');
+function njRenderSlots() {
+  const wrap = document.getElementById('npSlots');
+  if (!wrap) return;
+  const labels = njCurrentSlotLabels();
+  window._njSlotLabels = labels; // index -> label lookup for njSlotCapture/njSlotLibrary
+
+  if (!labels.length) {
+    wrap.innerHTML = '<div class="np-hint">Select a receive method above for a suggested shot list, or add a custom one below.</div>';
+    return;
   }
-  if (hint) {
-    hint.textContent = njPhotoQueue.length
-      ? njPhotoQueue.length + ' photo' + (njPhotoQueue.length === 1 ? '' : 's') + ' ready to upload'
-      : 'No photos added yet';
-  }
+
+  const camIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+  const libIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
+
+  wrap.innerHTML = labels.map((label, i) => {
+    const photos = njPhotoQueue.filter(p => p.label === label);
+    const safeLabel = njEscHtml(label);
+    return `
+      <div class="np-slot ${photos.length ? 'done' : ''}">
+        <div class="np-slot-top">
+          <span class="np-slot-label">${photos.length ? '<span class="np-slot-check">✓</span>' : ''}${safeLabel}</span>
+          <div class="np-slot-btns">
+            <button type="button" class="np-slot-btn" onclick="njSlotCapture(${i})" aria-label="Take photo — ${safeLabel}">${camIcon}</button>
+            <button type="button" class="np-slot-btn" onclick="njSlotLibrary(${i})" aria-label="Choose from library — ${safeLabel}">${libIcon}</button>
+          </div>
+        </div>
+        ${photos.length ? `<div class="np-slot-thumbs">${photos.map(p => `
+          <div class="np-thumb-sm">
+            <img src="${p.url}" alt="">
+            <button type="button" class="np-thumb-sm-remove" onclick="njRemovePhoto('${p.id}')">✕</button>
+          </div>`).join('')}</div>` : ''}
+      </div>`;
+  }).join('');
 }
 
 function njResetPhotos() {
-  njCameraClose();
   njPhotoQueue.forEach(p => URL.revokeObjectURL(p.url));
-  njPhotoQueue = [];
+  njPhotoQueue  = [];
+  njCustomSlots = [];
+  njActiveSlot  = null;
   const chk = document.getElementById('nIncludePhotos'); if (chk) chk.checked = false;
   const section = document.getElementById('nPhotoCapture'); if (section) section.style.display = 'none';
-  const grid = document.getElementById('njPhotoGrid'); if (grid) grid.innerHTML = '';
-  const hint = document.getElementById('njPhotoHint'); if (hint) hint.textContent = 'No photos added yet';
-  const strip = document.getElementById('njCamStrip'); if (strip) strip.innerHTML = '';
-  const camCount = document.getElementById('njCamCount'); if (camCount) camCount.textContent = '0';
+  const wrap = document.getElementById('npSlots'); if (wrap) wrap.innerHTML = '';
+  const custom = document.getElementById('npCustomLabel'); if (custom) custom.value = '';
   const cam = document.getElementById('njCameraInput');  if (cam) cam.value = '';
   const lib = document.getElementById('njLibraryInput'); if (lib) lib.value = '';
 }
@@ -1251,8 +1257,11 @@ async function njUploadQueuedPhotos(jobId, driveFolder) {
     if (!token || !folderId) throw new Error('Receiving Photos folder not found');
 
     let done = 0, failed = 0;
+    const seqByLabel = {};
     for (let i = 0; i < queued.length; i++) {
-      try { await njUploadOneFile(queued[i].file, folderId, token, jobId, i); done++; }
+      const slug = njSlugify(queued[i].label);
+      seqByLabel[slug] = (seqByLabel[slug] || 0) + 1;
+      try { await njUploadOneFile(queued[i].file, folderId, token, jobId, slug, seqByLabel[slug]); done++; }
       catch (e) { console.warn('New job photo upload failed:', e.message); failed++; }
     }
 
@@ -1270,10 +1279,11 @@ async function njUploadQueuedPhotos(jobId, driveFolder) {
 // Minimal resumable Drive upload — same flow as photo-module.js's
 // jsPhotoUploadFile, without the per-row queue UI (this runs after the
 // New Job modal has already closed). File names are stamped with the
-// job ID and stage code up front so they're already identifiable —
-// the "Rename Receiving Photos" sheet menu can still tidy numbering later.
-async function njUploadOneFile(file, folderId, token, jobId, index) {
-  const name = `${jobId}-RCV-${Date.now()}-${index + 1}.jpg`;
+// job ID, stage code, and the slot label (e.g.
+// LO-260710-001-RCV-shipping-label-1.jpg) so the folder is
+// self-explanatory without opening every thumbnail.
+async function njUploadOneFile(file, folderId, token, jobId, slug, seq) {
+  const name = `${jobId}-RCV-${slug}-${seq}.jpg`;
 
   const initRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
     method: 'POST',
