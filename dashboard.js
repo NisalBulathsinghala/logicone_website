@@ -62,6 +62,46 @@ const SMS_TEMPLATE_META = [
   { label: 'Cannot Repair', color: '#ef4444' },
 ];
 
+// Builds the interpolated SMS_TEMPLATES array for a given job — shared by
+// the detail modal (showDetail) and the jobsheet's Communications tab
+// (jobsheet-module.js) so both render/send the exact same wording from
+// one place instead of two copies drifting apart.
+function buildSmsTemplates(j) {
+  const firstName = (j.name || '').split(' ')[0];
+  const device = `${j.brand} ${j.model}`.trim();
+
+  return [
+    {
+      label: 'Received',
+      icon: '<polyline points="20 6 9 17 4 12"/>',
+      color: '#6366f1',
+      bg: 'rgba(99,102,241,0.08)',
+      text: `Hi ${firstName},\n\nYour device has been received and registered under Job No: ${j.jobId} (Ref: ${j.caseNo || '—'}). We will begin the inspection and keep you updated.\n\nThank you!\n\nLogic One SA`
+    },
+    {
+      label: 'Parts Ordered',
+      icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+      color: '#f59e0b',
+      bg: 'rgba(245,158,11,0.08)',
+      text: `Hi ${firstName},\n\nThe required parts for your device (Job No: ${j.jobId}) have been ordered. We'll begin the repair as soon as they arrive. We'll keep you updated.\n\nThank you!\n\nLogic One SA`
+    },
+    {
+      label: 'Repair Done',
+      icon: '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+      color: '#10b981',
+      bg: 'rgba(16,185,129,0.08)',
+      text: `Hi ${firstName},\n\nGreat news! Your ${device} (Job No: ${j.jobId}) has been repaired and is ready for collection. Our workshop is open Mon, Wed, Fri 10am–5pm and Sat 10am–2pm. Please bring this message as reference.\n\nThank you for choosing Logic One SA!`
+    },
+    {
+      label: 'Cannot Repair',
+      icon: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+      color: '#ef4444',
+      bg: 'rgba(239,68,68,0.08)',
+      text: `Hi ${firstName},\n\nUnfortunately, after thorough inspection we are unable to repair your ${device} (Job No: ${j.jobId}). Please contact us to arrange collection of your device. We apologise for any inconvenience.\n\nThank you.\n\nLogic One SA`
+    },
+  ];
+}
+
 
 // ============================================================
 // INIT
@@ -457,39 +497,7 @@ function showDetail(j) {
   }
 
   // ── SMS Templates ───────────────────────────────────────────
-  const firstName = (j.name || '').split(' ')[0];
-  const device = `${j.brand} ${j.model}`.trim();
-
-  const SMS_TEMPLATES = [
-    {
-      label: 'Received',
-      icon: '<polyline points="20 6 9 17 4 12"/>',
-      color: '#6366f1',
-      bg: 'rgba(99,102,241,0.08)',
-      text: `Hi ${firstName},\n\nYour device has been received and registered under Job No: ${j.jobId} (Ref: ${j.caseNo || '—'}). We will begin the inspection and keep you updated.\n\nThank you!\n\nLogic One SA`
-    },
-    {
-      label: 'Parts Ordered',
-      icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
-      color: '#f59e0b',
-      bg: 'rgba(245,158,11,0.08)',
-      text: `Hi ${firstName},\n\nThe required parts for your device (Job No: ${j.jobId}) have been ordered. We'll begin the repair as soon as they arrive. We'll keep you updated.\n\nThank you!\n\nLogic One SA`
-    },
-    {
-      label: 'Repair Done',
-      icon: '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
-      color: '#10b981',
-      bg: 'rgba(16,185,129,0.08)',
-      text: `Hi ${firstName},\n\nGreat news! Your ${device} (Job No: ${j.jobId}) has been repaired and is ready for collection. Our workshop is open Mon, Wed, Fri 10am–5pm and Sat 10am–2pm. Please bring this message as reference.\n\nThank you for choosing Logic One SA!`
-    },
-    {
-      label: 'Cannot Repair',
-      icon: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
-      color: '#ef4444',
-      bg: 'rgba(239,68,68,0.08)',
-      text: `Hi ${firstName},\n\nUnfortunately, after thorough inspection we are unable to repair your ${device} (Job No: ${j.jobId}). Please contact us to arrange collection of your device. We apologise for any inconvenience.\n\nThank you.\n\nLogic One SA`
-    },
-  ];
+  const SMS_TEMPLATES = buildSmsTemplates(j);
 
   h += `
     <div class="sms-panel">

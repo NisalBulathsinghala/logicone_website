@@ -1599,6 +1599,7 @@ function jsEsc(s) {
 }
 
 async function jsLoadComms(job) {
+  jsRenderSmsTemplates(job);
   const box = document.getElementById('jsCommsThread');
   if (!box) return;
   if (!job || !job.phone) {
@@ -1686,6 +1687,115 @@ async function jsCommsSend() {
     btn.disabled = false;
     ta.disabled = false;
     ta.focus();
+  }
+}
+
+// ── Quick-send SMS templates ─────────────────────────────────
+// Same templates, same wording as the kanban detail modal's SMS panel
+// (both call the shared buildSmsTemplates() in dashboard.js) — this just
+// renders them right in the jobsheet's Communications tab so sending a
+// template doesn't mean leaving the jobsheet. Deliberately its own set
+// of ids (jsSms*) rather than reusing the detail modal's smsBtn{i} /
+// smsSendBtn{i} / window._smsTemplates — the two views can in principle
+// both have template cards in the DOM, and getElementById only ever
+// finds one of two same-id elements.
+function jsRenderSmsTemplates(job) {
+  const wrap = document.getElementById('jsSmsTemplatePanel');
+  if (!wrap) return;
+  if (!job || typeof buildSmsTemplates !== 'function') { wrap.innerHTML = ''; return; }
+
+  const templates = buildSmsTemplates(job);
+  window._jsSmsTemplates = templates; // index -> template lookup for jsCopySmsTemplate/jsSendSmsTemplate
+
+  const sendIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
+  const copyIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy';
+
+  wrap.innerHTML = `
+    <div class="sms-panel-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      SMS Templates
+    </div>
+    <div class="sms-grid">
+      ${templates.map((t, i) => {
+        const sentAt = (job.smsSentTemplates || {})[t.label];
+        const sentBadge = sentAt
+          ? `<span class="sms-sent-badge" title="Sent ${fmtDateTime(sentAt)}">✓ Sent ${fmtDate(sentAt)}</span>`
+          : '';
+        return `
+        <div class="sms-card" style="--sms-color:${t.color};--sms-bg:${t.bg};">
+          <div class="sms-card-top">
+            <div class="sms-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" style="color:${t.color};">${t.icon}</svg>
+              ${t.label}
+              ${sentBadge}
+            </div>
+            <div class="sms-card-actions">
+              <button class="sms-copy-btn" onclick="jsCopySmsTemplate(${i})" id="jsSmsCopyBtn${i}">${copyIcon}</button>
+              <button class="sms-send-btn" onclick="jsSendSmsTemplate(${i})" id="jsSmsSendBtn${i}">${sendIcon}</button>
+            </div>
+          </div>
+          <div class="sms-text">${jsEsc(t.text)}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function jsCopySmsTemplate(index) {
+  const template = (window._jsSmsTemplates || [])[index];
+  if (!template) return;
+  try {
+    await navigator.clipboard.writeText(template.text);
+  } catch (err) {
+    const el = document.createElement('textarea');
+    el.value = template.text;
+    el.style.position = 'fixed'; el.style.opacity = '0';
+    document.body.appendChild(el);
+    el.select();
+    try { document.execCommand('copy'); } catch (e2) { /* give up quietly */ }
+    document.body.removeChild(el);
+  }
+  const btn = document.getElementById('jsSmsCopyBtn' + index);
+  if (!btn) return;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+  setTimeout(() => { btn.innerHTML = orig; }, 2500);
+}
+
+async function jsSendSmsTemplate(index) {
+  const job = jsCurrentJob;
+  const template = (window._jsSmsTemplates || [])[index];
+  if (!job || !template) return;
+  if (!job.phone) { showToast('error', 'No phone number on this job'); return; }
+
+  const btn = document.getElementById('jsSmsSendBtn' + index);
+  const sendLabel = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
+  if (btn) { btn.disabled = true; btn.classList.add('sending'); btn.innerHTML = '⏳ Sending…'; }
+
+  try {
+    const res = await fetch('/.netlify/functions/sms-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: job.phone, body: template.text, jobId: job.jobId, customerName: job.name || '' }),
+    }).then(r => r.json());
+
+    if (res.ok) {
+      showToast('success', `✓ ${template.label} sent to ${job.name}`);
+      // Update both the canonical jobs-array record (via markSmsTemplateSent,
+      // which also persists to Firestore) and the local jsCurrentJob
+      // reference directly, in case they're not the same object — either
+      // way the panel re-render below picks up the right "Sent" badge.
+      if (typeof markSmsTemplateSent === 'function') markSmsTemplateSent(job.jobId, template.label);
+      if (!job.smsSentTemplates) job.smsSentTemplates = {};
+      job.smsSentTemplates[template.label] = new Date().toISOString();
+      if (typeof renderAll === 'function') renderAll();
+      await jsLoadComms(job); // reloads the thread + re-renders templates with the fresh Sent badge
+    } else {
+      showToast('error', 'SMS failed: ' + (res.error || 'Unknown error'));
+      if (btn) { btn.disabled = false; btn.classList.remove('sending'); btn.innerHTML = sendLabel; }
+    }
+  } catch (e) {
+    showToast('error', 'SMS error: ' + e.message);
+    if (btn) { btn.disabled = false; btn.classList.remove('sending'); btn.innerHTML = sendLabel; }
   }
 }
 
