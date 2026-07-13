@@ -772,17 +772,23 @@ function updateNewJobAccessories() {
 // model matching an already-open (not yet Collected) job is a weaker
 // signal, but still worth a heads-up — someone re-submitting the same form
 // by accident is the most common real-world case this catches.
+// "N/A", "none", etc. mean "no case number" / "no serial" — not a real
+// value to match on. Without this, every out-of-warranty job with "N/A"
+// typed into Case Number matches every OTHER job with "N/A" typed there,
+// since jobs.find() just returns whichever one happens to come first.
+const NJ_PLACEHOLDER_VALUES = new Set(['n/a', 'na', 'none', 'nil', 'unknown', '-', '--']);
+
 function checkForDuplicateJob(newJob) {
   const serial = (newJob.serial || '').trim().toLowerCase();
   const caseNo = (newJob.caseNo || '').trim().toLowerCase();
   const phone  = (newJob.phone  || '').trim();
   const model  = (newJob.model  || '').trim().toLowerCase();
 
-  if (serial) {
+  if (serial && !NJ_PLACEHOLDER_VALUES.has(serial)) {
     const match = jobs.find(j => (j.serial || '').trim().toLowerCase() === serial);
     if (match) return { job: match, reason: 'same serial number' };
   }
-  if (caseNo) {
+  if (caseNo && !NJ_PLACEHOLDER_VALUES.has(caseNo)) {
     const match = jobs.find(j => (j.caseNo || '').trim().toLowerCase() === caseNo);
     if (match) return { job: match, reason: 'same case number' };
   }
@@ -1077,13 +1083,23 @@ function resetNewJobForm() {
 // same pattern as the intake receipt: it never blocks job creation.
 // ============================================================
 const NJ_PHOTO_SLOTS = {
-  'Courier': [
-    'Box', 'Box opened', 'Shipping label', 'All components',
-    'Robot underside', 'Robot serial number', 'Dock serial number',
-  ],
-  'Local Drop-off': [
-    'All components', 'Robot underside', 'Robot serial number', 'Dock serial number',
-  ],
+  'Robot Vacuum': {
+    'Courier': [
+      'Box', 'Shipping label', 'Box open', 'All components',
+      'Robot underside', 'Robot serial number', 'Dock serial number',
+    ],
+    'Local Drop-off': [
+      'All components', 'Robot underside', 'Robot serial number', 'Dock serial number',
+    ],
+  },
+  'Scooter': {
+    'Courier': [
+      'Box', 'Shipping label', 'Box open', 'All components', 'Scooter serial number',
+    ],
+    'Local Drop-off': [
+      'All components', 'Scooter serial number',
+    ],
+  },
 };
 
 let njPhotoQueue  = []; // [{ id, file (converted File), url (object URL for the thumb), label }]
@@ -1098,13 +1114,14 @@ function njSlugify(label) {
   return String(label || 'photo').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'photo';
 }
 
-// The suggested list for the current Receive Method, plus any custom
-// slots, plus any label that already has photos under it — switching
-// Receive Method after taking some shots never hides photos you've
-// already taken, it only changes which *empty* slots are suggested.
+// The suggested list for the current Device Type + Receive Method, plus
+// any custom slots, plus any label that already has photos under it —
+// switching either field after taking some shots never hides photos
+// you've already taken, it only changes which *empty* slots are shown.
 function njCurrentSlotLabels() {
+  const type   = (document.getElementById('nType') || {}).value || 'Robot Vacuum';
   const method = (document.getElementById('nReceiveMethod') || {}).value || '';
-  const base = NJ_PHOTO_SLOTS[method] || [];
+  const base = (NJ_PHOTO_SLOTS[type] && NJ_PHOTO_SLOTS[type][method]) || [];
   const withPhotos = njPhotoQueue.map(p => p.label);
   return [...new Set([...base, ...njCustomSlots, ...withPhotos])];
 }

@@ -552,7 +552,7 @@
     <div class="modal-body">
 
       <div class="fr3">
-        <div class="ff"><label>Device Type</label><select id="nType" onchange="updateNewJobAccessories()"><option value="Robot Vacuum">Robot Vacuum</option><option value="Scooter">Scooter</option></select></div>
+        <div class="ff"><label>Device Type</label><select id="nType" onchange="updateNewJobAccessories(); njRenderSlots();"><option value="Robot Vacuum">Robot Vacuum</option><option value="Scooter">Scooter</option></select></div>
         <div class="ff"><label>Brand <span class="req">*</span></label><select id="nBrand"><option value="">Select…</option><option value="Roborock">Roborock</option><option value="Segway">Segway</option></select></div>
         <div class="ff"><label>Model <span class="req">*</span></label><input type="text" id="nModel" placeholder="e.g. S8 MaxV Ultra"></div>
       </div>
