@@ -170,10 +170,7 @@
 }
 .lor-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
 .lor-table .num { text-align: right; font-variant-numeric: tabular-nums; }
-.lor-table tfoot td { border-bottom: 0; font-weight: 600; }
-.lor-table tfoot tr.total td {
-  border-top: 2px solid #0f172a; font-size: 15px; padding-top: 12px; color: #003d80;
-}
+
 .lor-signatures {
   display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 28px;
 }
@@ -368,38 +365,19 @@
     }
     const rows = parts.map(p => {
       const qty = Number(p.qty ?? p.quantity ?? 1);
-      const price = Number(p.price ?? p.unitPrice ?? 0);
       return `
         <tr>
           <td>${esc(p.name || p.partName || p.part || '—')}</td>
           <td>${esc(p.partNo || p.partNumber || p.sku || '')}</td>
           <td class="num">${qty}</td>
-          <td class="num">${fmtMoney(price)}</td>
-          <td class="num">${fmtMoney(qty * price)}</td>
         </tr>`;
     }).join('');
     return `
       <table class="lor-table">
         <thead><tr>
-          <th>Part / Description</th><th>Part No.</th>
-          <th class="num">Qty</th><th class="num">Unit</th><th class="num">Total</th>
+          <th>Part / Description</th><th>Part No.</th><th class="num">Qty</th>
         </tr></thead>
         <tbody>${rows}</tbody>
-      </table>`;
-  };
-
-  const renderTotals = (d) => {
-    const hasMoney = Number(d.total) || Number(d.subtotal) || Number(d.partsTotal) || Number(d.postage);
-    if (!hasMoney) return '';
-    return `
-      <table class="lor-table" style="margin-top:12px;">
-        <tbody>
-          <tr><td>Parts subtotal</td><td class="num">${fmtMoney(d.partsTotal)}</td></tr>
-          <tr><td>Postage</td><td class="num">${fmtMoney(d.postage)}</td></tr>
-          <tr><td>Discount</td><td class="num">${(Number(d.discount)||0) > 0 ? '−' : ''}${fmtMoney(d.discount)}</td></tr>
-          <tr><td>Subtotal</td><td class="num">${fmtMoney(d.subtotal)}</td></tr>
-        </tbody>
-        <tfoot><tr class="total"><td>Total (AUD)</td><td class="num">${fmtMoney(d.total)}</td></tr></tfoot>
       </table>`;
   };
 
@@ -473,9 +451,8 @@
       </section>` : ''}
 
       <section class="lor-section">
-        <div class="lor-section-title">Parts &amp; Charges</div>
+        <div class="lor-section-title">Parts Used</div>
         ${renderPartsTable(d.parts)}
-        ${renderTotals(d)}
       </section>
 
       <div class="lor-signatures">
@@ -832,14 +809,14 @@
       y += blockH + 3;
     };
 
-    // Draw a parts table. Columns: Part / No / Qty / Unit / Total
+    // Draw a parts table. Columns: Part / No / Qty (no pricing —
+    // costing was intentionally removed from this report; see
+    // renderPartsTable in the HTML preview for the matching version).
     const drawPartsTable = (parts) => {
       const cols = [
-        { key: 'name',  title: 'Part / Description', w: 78,  align: 'left'  },
-        { key: 'partNo',title: 'Part No.',           w: 38,  align: 'left'  },
-        { key: 'qty',   title: 'Qty',                w: 14,  align: 'right' },
-        { key: 'unit',  title: 'Unit',               w: 22,  align: 'right' },
-        { key: 'total', title: 'Total',              w: 28,  align: 'right' },
+        { key: 'name',   title: 'Part / Description', w: 110, align: 'left'  },
+        { key: 'partNo', title: 'Part No.',            w: 50,  align: 'left'  },
+        { key: 'qty',    title: 'Qty',                 w: 20,  align: 'right' },
       ];
       // Verify total = CONTENT_W (180mm)
       const xOf = (idx) => {
@@ -873,8 +850,6 @@
       setText(C.ink, 10, 'normal');
       parts.forEach(p => {
         const qty = Number(p.qty ?? p.quantity ?? 1);
-        const price = Number(p.price ?? p.unitPrice ?? 0);
-        const total = qty * price;
         const name = String(p.name || p.partName || p.part || '—');
         const partNo = String(p.partNo || p.partNumber || p.sku || '');
 
@@ -894,43 +869,12 @@
         });
         pdf.text(partNo, xOf(1) + 1, y + 4);
         pdf.text(String(qty), xOf(2) + cols[2].w - 1, y + 4, { align: 'right' });
-        pdf.text(fmtMoney(price), xOf(3) + cols[3].w - 1, y + 4, { align: 'right' });
-        pdf.text(fmtMoney(total), xOf(4) + cols[4].w - 1, y + 4, { align: 'right' });
 
         // Row separator
         setDraw(C.rule, 0.2);
         pdf.line(MARGIN, y + rowH, MARGIN + CONTENT_W, y + rowH);
         y += rowH;
       });
-    };
-
-    // Draw the totals block (only if any monetary values present)
-    const drawTotals = (d) => {
-      const hasMoney = Number(d.total) || Number(d.subtotal) || Number(d.partsTotal) || Number(d.postage);
-      if (!hasMoney) return;
-      y += 3;
-      const labelX = MARGIN + CONTENT_W - 60;
-      const valueX = MARGIN + CONTENT_W;
-      const rows = [
-        ['Parts subtotal', fmtMoney(d.partsTotal)],
-        ['Postage',        fmtMoney(d.postage)],
-        ['Discount',       (Number(d.discount) || 0) > 0 ? '−' + fmtMoney(d.discount) : fmtMoney(d.discount)],
-        ['Subtotal',       fmtMoney(d.subtotal)],
-      ];
-      setText(C.ink, 10, 'normal');
-      rows.forEach(([lab, val]) => {
-        pdf.text(lab, labelX, y + 4);
-        pdf.text(val, valueX, y + 4, { align: 'right' });
-        y += 6;
-      });
-      // Total — heavy rule above + bigger blue text
-      setDraw(C.ink, 0.5);
-      pdf.line(labelX, y, valueX, y);
-      y += 5;
-      setText(C.accentDeep, 12, 'bold');
-      pdf.text('Total (AUD)', labelX, y);
-      pdf.text(fmtMoney(d.total), valueX, y, { align: 'right' });
-      y += 4;
     };
 
     // ── Render the report ─────────────────────────────────────
@@ -1043,14 +987,13 @@
       drawProseBlock(data.finalRemark);
     }
 
-    // Parts & Charges — estimate height needed and page-break if won't fit
+    // Parts Used — estimate height needed and page-break if won't fit
     const partsCount = (data.parts && data.parts.length) ? data.parts.length : 0;
-    const estPartsH = 10 + partsCount * 8 + 30 + 40; // header + rows + totals + sig
+    const estPartsH = 10 + partsCount * 8 + 20; // header + rows + buffer
     if (y + estPartsH > PAGE_H - MARGIN) { pdf.addPage(); y = MARGIN; }
-    drawSectionTitle('Parts & Charges');
+    drawSectionTitle('Parts Used');
     drawPartsTable(data.parts);
-    drawTotals(data);
-    y += 12; // space between totals and signature
+    y += 8; // space before signature block
 
     // Signature block — new page if not enough room (need ~35mm)
     if (y + 35 > PAGE_H - MARGIN - 10) { pdf.addPage(); y = MARGIN; }
