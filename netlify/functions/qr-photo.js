@@ -93,10 +93,18 @@ exports.handler = async function (event) {
       }
       const r = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
+        redirect: 'follow',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'getUploadToken', driveFolder }),
       });
-      const asJson = JSON.parse(await r.text());
+      const rawText = await r.text();
+      let asJson;
+      try {
+        asJson = JSON.parse(rawText);
+      } catch {
+        console.error('qr-photo: Apps Script returned non-JSON:', rawText.slice(0, 200));
+        return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'Apps Script returned an unexpected response' }) };
+      }
       if (asJson.result !== 'ok') {
         return { statusCode: 200, body: JSON.stringify({ ok: false, error: asJson.msg || 'Apps Script error' }) };
       }
