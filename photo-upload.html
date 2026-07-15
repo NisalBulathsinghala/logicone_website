@@ -219,12 +219,12 @@
     document.getElementById(id).classList.add('show');
   }
 
-  function toast(msg, type) {
+  function toast(msg, type, duration) {
     const el = document.getElementById('toast');
     el.textContent = msg;
     el.className = 'toast show' + (type ? ' ' + type : '');
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => el.classList.remove('show'), 3200);
+    toast._t = setTimeout(() => el.classList.remove('show'), duration || 3200);
   }
 
   async function verify() {
@@ -317,7 +317,7 @@
     // back does.
     const res = await verify();
     if (!res.ok) {
-      toast(res.error || 'Could not refresh upload access — try reopening the link.', 'error');
+      toast(res.error || 'Could not refresh upload access — try reopening the link.', 'error', 15000);
       btn.disabled = false;
       return;
     }
@@ -326,12 +326,13 @@
 
     const items = queue.slice();
     let done = 0, failed = 0;
+    let lastError = '';
     const seqByStage = {};
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const folderId = freshFolderIds[item.stage];
-      if (!folderId) { failed++; continue; }
+      if (!folderId) { failed++; lastError = 'No folder id for "' + item.stage + '"'; continue; }
       seqByStage[item.stageCode] = (seqByStage[item.stageCode] || 0) + 1;
       const name = `${JOB_ID}-${item.stageCode}-${seqByStage[item.stageCode]}-${Date.now()}.jpg`;
       try {
@@ -339,6 +340,7 @@
         done++;
       } catch (err) {
         console.warn('Upload failed:', err.message);
+        lastError = err.message;
         failed++;
       }
     }
@@ -349,7 +351,7 @@
     btn.disabled = false;
 
     if (failed === 0) toast(`✓ ${done} photo${done === 1 ? '' : 's'} uploaded`, 'success');
-    else toast(`${done} uploaded, ${failed} failed — try those again`, 'error');
+    else toast(`${done} uploaded, ${failed} failed — ${lastError}`, 'error', 15000);
   }
 
   init();
