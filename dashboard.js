@@ -702,6 +702,21 @@ function reprintReceipt(id) {
 // ============================================================
 // MOVE JOB
 // ============================================================
+// Once a job reaches its terminal status there's no legitimate reason for
+// its "scan to upload from phone" link to keep working — Shipping photos
+// are typically the last ones taken, and those happen before Collected,
+// not after. Fire-and-forget: this never blocks a status update, and
+// mint() will happily generate a fresh token later if the job is ever
+// reopened (e.g. the same device comes back for a follow-up issue).
+function maybeClearQrToken(jobId, newStatus) {
+  if (newStatus !== 'Collected') return;
+  fetch('/.netlify/functions/qr-photo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'clear', jobId }),
+  }).catch(e => console.warn('qr-photo clear failed (non-fatal):', e.message));
+}
+
 async function moveJob(id, newStatus) {
   const j = jobs.find(x => x.jobId === id);
   if (!j || j.status === newStatus) return;
@@ -743,6 +758,8 @@ async function moveJob(id, newStatus) {
         timestamps: { ...j.statusTimestamps, _status: newStatus },
       }),
     }).catch(e => console.warn('Firestore status write failed (non-fatal):', e.message));
+
+    maybeClearQrToken(id, newStatus);
   }
 }
 

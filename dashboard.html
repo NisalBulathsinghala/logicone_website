@@ -456,7 +456,13 @@
         <!-- Status Timeline -->
         <!-- Photos & Videos -->
         <div class="js-card" id="jsPhotosCard" style="margin-bottom:14px;display:none;">
-          <div class="js-card-title" style="margin-bottom:16px;">Photos &amp; Videos</div>
+          <div class="js-card-title" style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <span>Photos &amp; Videos</span>
+            <button type="button" class="js-qr-btn" onclick="jsShowQrModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="14" y2="21"/><line x1="21" y1="14" x2="21" y2="21"/><line x1="14" y1="17.5" x2="21" y2="17.5"/></svg>
+              Scan to upload from phone
+            </button>
+          </div>
           <div class="js-photo-tabs" id="jsPhotoTabs">
             <button class="js-photo-tab active" data-stage="Intake"     data-folder="01_Receiving Photos">Receiving</button>
             <button class="js-photo-tab"         data-stage="In Repair" data-folder="02_Inspection Photos">Inspection</button>
@@ -472,6 +478,16 @@
           <div class="js-photo-queue" id="jsPhotoQueue" style="display:none;"></div>
           <div class="js-photo-grid" id="jsPhotoGrid">
             <div class="js-photo-empty" id="jsPhotoEmpty">No files in this stage yet</div>
+          </div>
+        </div>
+
+        <div class="js-qr-overlay" id="jsQrOverlay" onclick="if(event.target===this) jsCloseQrModal()">
+          <div class="js-qr-modal">
+            <div class="js-qr-modal-title">Scan to upload from phone</div>
+            <div id="jsQrCodeBox"></div>
+            <div class="js-qr-modal-hint">Opens a page to add Inspection, Testing, or Shipping photos for this job straight from your phone — no login needed. Safe to leave scanned/bookmarked and reuse across visits. Clears itself automatically once the job is marked Collected.</div>
+            <button type="button" class="btn btn-secondary" onclick="jsCloseQrModal()" style="width:100%;margin-top:14px;">Close</button>
+            <button type="button" class="js-qr-revoke" onclick="jsRevokeQrToken()">Revoke this link now</button>
           </div>
         </div>
 
@@ -656,6 +672,7 @@
   <span id="toastMsg"></span>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="dashboard.js"></script>
 <script src="jobsheet-module.js"></script>
   <script src="photo-convert.js"></script>

@@ -1090,6 +1090,8 @@ async function jsSetStatus(el) {
       jobId: jsCurrentJob.jobId,
       timestamps: jsCurrentJob.statusTimestamps
     });
+
+    if (typeof maybeClearQrToken === 'function') maybeClearQrToken(jsCurrentJob.jobId, newStatus);
   }
 }
 
@@ -1286,8 +1288,12 @@ function jsLoadFromData(data) {
     if (sheetStatus && sheetStatus !== effectiveStatus && cfg && cfg.appsScriptUrl) {
       callScript({ action: 'updateStatus', jobId: jsCurrentJob.jobId, status: effectiveStatus })
         .then(res => {
-          if (res && res.ok) console.log(`jobsheet: corrected stale Sheet status for ${jsCurrentJob.jobId}: "${sheetStatus}" → "${effectiveStatus}"`);
-          else console.warn('jobsheet: Sheet status auto-correction failed:', res);
+          if (res && res.ok) {
+            console.log(`jobsheet: corrected stale Sheet status for ${jsCurrentJob.jobId}: "${sheetStatus}" → "${effectiveStatus}"`);
+            if (typeof maybeClearQrToken === 'function') maybeClearQrToken(jsCurrentJob.jobId, effectiveStatus);
+          } else {
+            console.warn('jobsheet: Sheet status auto-correction failed:', res);
+          }
         })
         .catch(e => console.warn('jobsheet: Sheet status auto-correction error:', e));
     }
@@ -1839,4 +1845,61 @@ function jsToggleSent(template, btnId) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'mark-sms-sent', jobId: j.jobId, template, sentAt: newSentAt })
   }).catch(e => console.warn('mark-sms-sent error:', e));
+}
+
+// ── Scan-to-upload QR (Photos card) ─────────────────────────
+// Mints (or reuses) a stable per-job token via qr-photo.js and renders it
+// as a QR code pointing at photo-upload.html — a public, unauthenticated
+// page scoped to just this job's Inspection/Testing/Shipping folders.
+// The token itself never touches this page's markup as plain "trust me",
+// it's verified server-side every time the phone side calls in.
+async function jsShowQrModal() {
+  const job = jsCurrentJob;
+  const overlay = document.getElementById('jsQrOverlay');
+  const box = document.getElementById('jsQrCodeBox');
+  if (!job || !job.driveFolder) { showToast('error', 'Open a job with a Drive folder first'); return; }
+  if (!overlay || !box) return;
+
+  overlay.classList.add('show');
+  box.innerHTML = '<div style="padding:40px 0;color:#94a3b8;font-size:13px;">Generating…</div>';
+
+  try {
+    const res = await fetch('/.netlify/functions/qr-photo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mint', jobId: job.jobId }),
+    }).then(r => r.json());
+
+    if (!res.ok) throw new Error(res.error || 'Could not create link');
+    if (typeof QRCode === 'undefined') throw new Error('QR library did not load');
+
+    const url = `${location.origin}/photo-upload.html?job=${encodeURIComponent(job.jobId)}&t=${encodeURIComponent(res.token)}`;
+    box.innerHTML = '';
+    new QRCode(box, { text: url, width: 200, height: 200, colorDark: '#1a1a2e', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } catch (err) {
+    box.innerHTML = `<div style="padding:16px 8px;color:#dc2626;font-size:13px;">${err.message}</div>`;
+  }
+}
+
+function jsCloseQrModal() {
+  const overlay = document.getElementById('jsQrOverlay');
+  if (overlay) overlay.classList.remove('show');
+}
+
+async function jsRevokeQrToken() {
+  const job = jsCurrentJob;
+  if (!job) return;
+  if (!confirm(`Revoke the upload link for ${job.jobId}? The current QR code will stop working — you can generate a new one anytime by reopening this panel.`)) return;
+
+  try {
+    await fetch('/.netlify/functions/qr-photo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'clear', jobId: job.jobId }),
+    });
+    if (typeof showToast === 'function') showToast('success', 'Upload link revoked');
+    jsCloseQrModal();
+  } catch (err) {
+    if (typeof showToast === 'function') showToast('error', 'Could not revoke link: ' + err.message);
+  }
 }
