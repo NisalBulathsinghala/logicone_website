@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b1628">
+<meta name="robots" content="noindex, nofollow">
+<title>Logic One SA — Photo Upload</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #00b4d8;
+    --accent-deep: #0077b6;
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --border: #e2e5ec;
+    --text: #1a1a2e;
+    --text-soft: #5a6078;
+    --text-mute: #9ca3b0;
+    --radius: 14px;
+    --radius-sm: 9px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .topbar {
+    background: #0b1628; color: #fff;
+    padding: 14px 18px calc(14px + env(safe-area-inset-top)) 18px;
+    padding-top: max(14px, env(safe-area-inset-top));
+    display: flex; align-items: center; gap: 10px;
+  }
+  .topbar-logo {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, #00b4d8, #0077b6);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 11px; color: #fff;
+    flex-shrink: 0;
+  }
+  .topbar-title { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; }
+  .topbar-title span { color: #00b4d8; }
+
+  .wrap { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+  /* ── States ─────────────────────────────────────────── */
+  .state { display: none; }
+  .state.show { display: block; }
+
+  .center-card {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 32px 24px; text-align: center; margin-top: 40px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  }
+  .spinner {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    margin: 0 auto 16px; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .center-card p { color: var(--text-soft); font-size: 14px; }
+  .center-card .err-icon { font-size: 32px; margin-bottom: 10px; }
+  .center-card h2 { font-size: 16px; margin-bottom: 8px; }
+
+  /* ── Job header ─────────────────────────────────────── */
+  .job-card {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 16px 18px; margin-bottom: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  }
+  .job-id { font-size: 11px; font-weight: 700; color: var(--accent-deep); letter-spacing: 0.5px; text-transform: uppercase; }
+  .job-name { font-size: 17px; font-weight: 700; margin-top: 2px; }
+  .job-device { font-size: 13px; color: var(--text-soft); margin-top: 1px; }
+
+  /* ── Stage tabs ─────────────────────────────────────── */
+  .stage-tabs {
+    display: flex; gap: 6px; margin-bottom: 14px;
+    background: var(--surface); padding: 5px; border-radius: var(--radius);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  }
+  .stage-tab {
+    flex: 1; border: none; background: transparent; color: var(--text-soft);
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+    padding: 10px 4px; border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .stage-tab.active { background: var(--accent); color: #fff; }
+
+  /* ── Capture ────────────────────────────────────────── */
+  .capture-card {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  }
+  .capture-actions { display: flex; gap: 10px; margin-bottom: 14px; }
+  .capture-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 16px 8px; border-radius: var(--radius-sm);
+    border: 1.5px dashed var(--border); background: var(--bg);
+    color: var(--text-soft); font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600;
+    cursor: pointer;
+  }
+  .capture-btn:active { background: rgba(0,180,216,0.08); border-color: var(--accent); color: var(--accent-deep); }
+  .capture-btn svg { width: 22px; height: 22px; }
+
+  .photo-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+    gap: 8px; margin-bottom: 4px;
+  }
+  .photo-thumb { position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-thumb-remove {
+    position: absolute; top: 3px; right: 3px; width: 20px; height: 20px;
+    border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; border: none;
+    font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .queue-hint { font-size: 12.5px; color: var(--text-mute); font-style: italic; padding: 4px 2px; }
+
+  .upload-btn {
+    width: 100%; padding: 14px; border: none; border-radius: var(--radius-sm);
+    background: var(--accent); color: #fff; font-family: 'Inter', sans-serif;
+    font-size: 14.5px; font-weight: 700; cursor: pointer; margin-top: 10px;
+  }
+  .upload-btn:disabled { opacity: 0.5; }
+  .upload-btn.hide { display: none; }
+
+  .toast {
+    position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+    background: #1a1a2e; color: #fff; padding: 12px 16px; border-radius: 10px;
+    font-size: 13.5px; font-weight: 500; text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    transform: translateY(80px); opacity: 0; transition: transform 0.25s ease, opacity 0.25s ease;
+    z-index: 100; pointer-events: none;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { background: #7f1d1d; }
+  .toast.success { background: #065f46; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">L1</div>
+  <div class="topbar-title">LOGIC <span>ONE</span> SA</div>
+</div>
+
+<div class="wrap">
+
+  <div class="state show" id="stateLoading">
+    <div class="center-card">
+      <div class="spinner"></div>
+      <p>Loading job…</p>
+    </div>
+  </div>
+
+  <div class="state" id="stateError">
+    <div class="center-card">
+      <div class="err-icon">⚠️</div>
+      <h2>This link isn't working</h2>
+      <p id="errorMsg">Invalid or expired link. Ask for a fresh QR code from the job sheet.</p>
+    </div>
+  </div>
+
+  <div class="state" id="stateMain">
+    <div class="job-card">
+      <div class="job-id" id="jobIdLabel">—</div>
+      <div class="job-name" id="jobNameLabel">—</div>
+      <div class="job-device" id="jobDeviceLabel">—</div>
+    </div>
+
+    <div class="stage-tabs" id="stageTabs">
+      <button class="stage-tab active" data-stage="02_Inspection Photos" data-code="INS">Inspection</button>
+      <button class="stage-tab" data-stage="03_Testing Photos" data-code="TST">Testing</button>
+      <button class="stage-tab" data-stage="04_Shipping Photos" data-code="SHP">Shipping</button>
+    </div>
+
+    <div class="capture-card">
+      <div class="capture-actions">
+        <button type="button" class="capture-btn" onclick="document.getElementById('camInput').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Take Photo
+        </button>
+        <button type="button" class="capture-btn" onclick="document.getElementById('libInput').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          Choose from Library
+        </button>
+        <input type="file" id="camInput" accept="image/*" capture="environment" multiple style="display:none">
+        <input type="file" id="libInput" accept="image/*" multiple style="display:none">
+      </div>
+
+      <div class="photo-grid" id="photoGrid"></div>
+      <div class="queue-hint" id="queueHint">No photos added yet</div>
+
+      <button type="button" class="upload-btn hide" id="uploadBtn" onclick="uploadQueue()">Upload photos</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="photo-convert.js"></script>
+<script>
+  const params = new URLSearchParams(location.search);
+  const JOB_ID = params.get('job') || '';
+  const TOKEN  = params.get('t') || '';
+
+  let stageFolderIds = null;
+  let currentStage = '02_Inspection Photos';
+  let queue = []; // [{ id, file, url, stageCode }]
+
+  function showState(id) {
+    document.querySelectorAll('.state').forEach(el => el.classList.remove('show'));
+    document.getElementById(id).classList.add('show');
+  }
+
+  function toast(msg, type) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.remove('show'), 3200);
+  }
+
+  async function verify() {
+    const res = await fetch('/.netlify/functions/qr-photo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', jobId: JOB_ID, token: TOKEN }),
+    }).then(r => r.json()).catch(() => ({ ok: false, error: 'Network error' }));
+    return res;
+  }
+
+  async function init() {
+    if (!JOB_ID || !TOKEN) {
+      document.getElementById('errorMsg').textContent = 'This link is missing information. Ask for a fresh QR code from the job sheet.';
+      showState('stateError');
+      return;
+    }
+    const res = await verify();
+    if (!res.ok) {
+      document.getElementById('errorMsg').textContent = res.error || 'Invalid or expired link.';
+      showState('stateError');
+      return;
+    }
+    stageFolderIds = res.data.stageFolderIds || {};
+    document.getElementById('jobIdLabel').textContent = res.job.jobId || JOB_ID;
+    document.getElementById('jobNameLabel').textContent = res.job.name || '—';
+    document.getElementById('jobDeviceLabel').textContent = [res.job.brand, res.job.model].filter(Boolean).join(' ') || '—';
+    showState('stateMain');
+  }
+
+  document.getElementById('stageTabs').addEventListener('click', e => {
+    const btn = e.target.closest('.stage-tab');
+    if (!btn) return;
+    document.querySelectorAll('.stage-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    currentStage = btn.dataset.stage;
+  });
+
+  async function handleFiles(fileList) {
+    const files = [...(fileList || [])];
+    if (!files.length) return;
+    const tab = document.querySelector('.stage-tab.active');
+    const stageCode = tab ? tab.dataset.code : 'INS';
+    const stage = tab ? tab.dataset.stage : currentStage;
+
+    for (const raw of files) {
+      const converted = (typeof window.loConvertToJpeg === 'function') ? await window.loConvertToJpeg(raw) : raw;
+      queue.push({
+        id: 'p' + Date.now() + Math.random().toString(36).slice(2, 6),
+        file: converted,
+        url: URL.createObjectURL(converted),
+        stage, stageCode,
+      });
+    }
+    renderQueue();
+  }
+
+  function removeFromQueue(id) {
+    const idx = queue.findIndex(q => q.id === id);
+    if (idx === -1) return;
+    URL.revokeObjectURL(queue[idx].url);
+    queue.splice(idx, 1);
+    renderQueue();
+  }
+
+  function renderQueue() {
+    const grid = document.getElementById('photoGrid');
+    const hint = document.getElementById('queueHint');
+    const btn  = document.getElementById('uploadBtn');
+    grid.innerHTML = queue.map(q => `
+      <div class="photo-thumb">
+        <img src="${q.url}" alt="">
+        <button type="button" class="photo-thumb-remove" onclick="removeFromQueue('${q.id}')">✕</button>
+      </div>`).join('');
+    hint.textContent = queue.length ? `${queue.length} photo${queue.length === 1 ? '' : 's'} ready` : 'No photos added yet';
+    btn.classList.toggle('hide', queue.length === 0);
+  }
+
+  document.getElementById('camInput').addEventListener('change', async function () { await handleFiles(this.files); this.value = ''; });
+  document.getElementById('libInput').addEventListener('change', async function () { await handleFiles(this.files); this.value = ''; });
+
+  async function uploadQueue() {
+    if (!queue.length) return;
+    const btn = document.getElementById('uploadBtn');
+    btn.disabled = true;
+
+    // Re-verify right before uploading so a stale Drive token (the page
+    // may have been sitting open a while) never causes a failed upload —
+    // the job token itself doesn't expire, only the Drive token it hands
+    // back does.
+    const res = await verify();
+    if (!res.ok) {
+      toast(res.error || 'Could not refresh upload access — try reopening the link.', 'error');
+      btn.disabled = false;
+      return;
+    }
+    const freshFolderIds = res.data.stageFolderIds || {};
+    const freshToken = res.data.token;
+
+    const items = queue.slice();
+    let done = 0, failed = 0;
+    const seqByStage = {};
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const folderId = freshFolderIds[item.stage];
+      if (!folderId) { failed++; continue; }
+      seqByStage[item.stageCode] = (seqByStage[item.stageCode] || 0) + 1;
+      const name = `${JOB_ID}-${item.stageCode}-${seqByStage[item.stageCode]}-${Date.now()}.jpg`;
+      try {
+        await window.loUploadToFolder(item.file, folderId, freshToken, name);
+        done++;
+      } catch (err) {
+        console.warn('Upload failed:', err.message);
+        failed++;
+      }
+    }
+
+    queue.forEach(q => URL.revokeObjectURL(q.url));
+    queue = [];
+    renderQueue();
+    btn.disabled = false;
+
+    if (failed === 0) toast(`✓ ${done} photo${done === 1 ? '' : 's'} uploaded`, 'success');
+    else toast(`${done} uploaded, ${failed} failed — try those again`, 'error');
+  }
+
+  init();
+</script>
+</body>
+</html>
