@@ -99,3 +99,69 @@ window.loConvertToJpeg = async function (file, opts) {
     if (objectUrl) URL.revokeObjectURL(objectUrl);
   }
 };
+
+// Shared thumbnail-retry helper, wired to an <img>'s onerror.
+// A file that was JUST uploaded often doesn't have a Drive-generated
+// thumbnail yet — the first request can 404 or fail for a few seconds
+// after upload, even though the file itself is there. Retries twice with
+// backoff (cache-busted, so a failed response doesn't get served again)
+// before finally calling onGiveUp so the caller can show its own
+// placeholder instead of a permanently broken image icon.
+window.loThumbRetry = function (img, fileId, onGiveUp) {
+  const retry = parseInt(img.dataset.loRetry || '0', 10);
+  if (retry >= 2) {
+    img.onerror = null;
+    if (typeof onGiveUp === 'function') onGiveUp(img);
+    return;
+  }
+  img.dataset.loRetry = String(retry + 1);
+  const delay = retry === 0 ? 2500 : 4500;
+  setTimeout(() => {
+    img.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w400&r=${Date.now()}`;
+  }, delay);
+};
+
+// Shared resumable Drive upload — same flow used by photo-module.js and
+// the New Job modal, lifted here so new capture surfaces (like the QR
+// upload page) don't need a fourth copy of this logic. Takes an already-
+// converted File, a Drive folder id, a short-lived OAuth token, and the
+// filename to save it as.
+window.loUploadToFolder = async function (file, folderId, token, name) {
+  const initRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type':  'application/json',
+      'X-Upload-Content-Type':   file.type || 'image/jpeg',
+      'X-Upload-Content-Length': file.size,
+    },
+    body: JSON.stringify({ name, parents: [folderId] }),
+  });
+  if (!initRes.ok) throw new Error('Session init failed: ' + initRes.status);
+  const uploadUrl = initRes.headers.get('Location');
+  if (!uploadUrl) throw new Error('No upload URL returned');
+
+  const CHUNK = 8 * 1024 * 1024;
+  let offset = 0;
+  while (offset < file.size) {
+    const end   = Math.min(offset + CHUNK, file.size);
+    const chunk = file.slice(offset, end);
+    const res = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Range': `bytes ${offset}-${end - 1}/${file.size}`,
+        'Content-Type':  file.type || 'image/jpeg',
+      },
+      body: chunk,
+    });
+    if (res.status === 308) {
+      const rangeHeader = res.headers.get('Range');
+      offset = rangeHeader ? parseInt(rangeHeader.split('-')[1]) + 1 : end;
+    } else if (res.status === 200 || res.status === 201) {
+      return;
+    } else {
+      throw new Error('Upload chunk failed: ' + res.status);
+    }
+  }
+  if (file.size === 0) return;
+};
