@@ -126,43 +126,77 @@ window.loThumbRetry = function (img, fileId, onGiveUp) {
 // upload page) don't need a fourth copy of this logic. Takes an already-
 // converted File, a Drive folder id, a short-lived OAuth token, and the
 // filename to save it as.
-window.loUploadToFolder = async function (file, folderId, token, name, onProgress) {
-  const initRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + token,
-      'Content-Type':  'application/json',
-      'X-Upload-Content-Type':   file.type || 'image/jpeg',
-      'X-Upload-Content-Length': file.size,
-    },
-    body: JSON.stringify({ name, parents: [folderId] }),
+// XHR, not fetch — WebKit (the engine behind every iOS browser, Chrome
+// included, since Apple requires it) has a known history of unreliable
+// fetch() behaviour when streaming a large Blob/File body, surfacing as
+// a generic "Load failed" with no further detail. XHR uses a different,
+// more battle-tested code path for exactly this kind of upload.
+function xhrSend(method, url, headers, body, onChunkProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
+    Object.keys(headers || {}).forEach(k => xhr.setRequestHeader(k, headers[k]));
+    if (onChunkProgress && xhr.upload) {
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onChunkProgress(e.loaded); };
+    }
+    xhr.onload  = () => resolve(xhr);
+    xhr.onerror = () => reject(new Error('Load failed — check your connection and try again'));
+    xhr.ontimeout = () => reject(new Error('Upload timed out — try again'));
+    xhr.send(body || null);
   });
-  if (!initRes.ok) throw new Error('Session init failed: ' + initRes.status);
-  const uploadUrl = initRes.headers.get('Location');
+}
+
+window.loUploadToFolder = async function (file, folderId, token, name, onProgress) {
+  const initXhr = await xhrSend('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type':  'application/json',
+    'X-Upload-Content-Type':   file.type || 'image/jpeg',
+    'X-Upload-Content-Length': String(file.size),
+  }, JSON.stringify({ name, parents: [folderId] }));
+
+  if (initXhr.status < 200 || initXhr.status >= 300) throw new Error('Session init failed: ' + initXhr.status);
+  const uploadUrl = initXhr.getResponseHeader('Location');
   if (!uploadUrl) throw new Error('No upload URL returned');
 
-  const CHUNK = 8 * 1024 * 1024;
+  // Smaller than before (was 8MB) — less memory pressure per request,
+  // which is the other half of the same WebKit large-body issue.
+  const CHUNK = 5 * 1024 * 1024;
   let offset = 0;
+
   while (offset < file.size) {
     const end   = Math.min(offset + CHUNK, file.size);
     const chunk = file.slice(offset, end);
-    const res = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Range': `bytes ${offset}-${end - 1}/${file.size}`,
-        'Content-Type':  file.type || 'image/jpeg',
-      },
-      body: chunk,
-    });
-    if (res.status === 308) {
-      const rangeHeader = res.headers.get('Range');
+
+    // Up to 2 retries per chunk (3 attempts total) before giving up —
+    // "Load failed" is frequently transient on a shaky mobile connection,
+    // and retrying just this one chunk is far cheaper than restarting
+    // the whole file.
+    let xhr, attempt = 0;
+    while (true) {
+      try {
+        xhr = await xhrSend('PUT', uploadUrl, {
+          'Content-Range': `bytes ${offset}-${end - 1}/${file.size}`,
+          'Content-Type':  file.type || 'image/jpeg',
+        }, chunk, sent => {
+          if (typeof onProgress === 'function') onProgress(offset + sent, file.size);
+        });
+        break;
+      } catch (err) {
+        attempt++;
+        if (attempt > 2) throw err;
+        await new Promise(r => setTimeout(r, 800 * attempt));
+      }
+    }
+
+    if (xhr.status === 308) {
+      const rangeHeader = xhr.getResponseHeader('Range');
       offset = rangeHeader ? parseInt(rangeHeader.split('-')[1]) + 1 : end;
       if (typeof onProgress === 'function') onProgress(offset, file.size);
-    } else if (res.status === 200 || res.status === 201) {
+    } else if (xhr.status === 200 || xhr.status === 201) {
       if (typeof onProgress === 'function') onProgress(file.size, file.size);
       return;
     } else {
-      throw new Error('Upload chunk failed: ' + res.status);
+      throw new Error('Upload chunk failed: ' + xhr.status);
     }
   }
   if (file.size === 0) return;
