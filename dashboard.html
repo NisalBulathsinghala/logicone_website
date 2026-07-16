@@ -252,6 +252,7 @@
             <div class="js-f"><label>Model</label><input type="text" id="jsFModel" readonly></div>
             <div class="js-f"><label>Serial Number</label><input type="text" id="jsFSerial" readonly></div>
             <div class="js-f"><label>Warranty Status</label><input type="text" id="jsFWarranty" readonly></div>
+            <div class="js-f"><label>Receive Method</label><input type="text" id="jsFReceiveMethod" readonly></div>
             <div class="js-f"><label>Reported Issue</label><input type="text" id="jsFIssue" readonly></div>
           </div>
         </div>
@@ -403,9 +404,13 @@
         <!-- Remarks -->
         <div class="js-card" id="jsSecRemarks">
           <div class="js-card-title">Remarks</div>
-          <div class="js-fg js-fg3">
-            <div class="js-f"><label>Customer Remark</label><textarea id="jsFCustRemark" placeholder="Customer's reported issue or notes…"></textarea></div>
-            <div class="js-f"><label>Final Remark</label><textarea id="jsFinalRemark" placeholder="Outcome, resolution, follow-up…"></textarea></div>
+          <div class="js-f" style="margin-bottom:14px;">
+            <label>Customer Remark</label>
+            <textarea id="jsFCustRemark" placeholder="Customer's reported issue or notes…" style="min-height:150px;"></textarea>
+          </div>
+          <div class="js-f">
+            <label>Final Remark</label>
+            <textarea id="jsFinalRemark" placeholder="Outcome, resolution, follow-up…"></textarea>
           </div>
         </div>
 

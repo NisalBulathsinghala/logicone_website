@@ -772,6 +772,7 @@ function jsPopulateIntake(j) {
   document.getElementById('jsFModel').value = j.model || '';
   document.getElementById('jsFSerial').value = j.serial || '';
   document.getElementById('jsFWarranty').value = j.warranty || '';
+  document.getElementById('jsFReceiveMethod').value = j.receiveMethod || '';
   document.getElementById('jsFIssue').value = j.issue || '';
 
   // Sticky summary bar
@@ -779,7 +780,7 @@ function jsPopulateIntake(j) {
   const subEl  = document.getElementById('jsSummarySub');
   const avEl   = document.getElementById('jsSummaryAvatar');
   if (nameEl) nameEl.textContent = j.name || 'Unnamed customer';
-  if (subEl)  subEl.textContent  = [j.phone, [j.brand, j.model].filter(Boolean).join(' ')].filter(Boolean).join(' \u00b7 ') || '—';
+  if (subEl)  subEl.textContent  = [j.serial, [j.brand, j.model].filter(Boolean).join(' ')].filter(Boolean).join(' \u00b7 ') || '—';
   if (avEl)   avEl.textContent   = jsInitials(j.name);
 }
 

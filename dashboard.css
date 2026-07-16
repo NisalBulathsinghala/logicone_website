@@ -654,6 +654,28 @@ body {
   color: var(--text-primary);
   white-space: pre-line;
 }
+
+/* Jobsheet Communications tab only — compact 2x2 grid instead of the
+   detail modal's single stacked column. Scoped to #jsSmsTemplatePanel
+   so the kanban detail modal's SMS panel (same .sms-* classes) is
+   untouched. */
+#jsSmsTemplatePanel .sms-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+#jsSmsTemplatePanel .sms-card { padding: 9px 10px; }
+#jsSmsTemplatePanel .sms-card-top { flex-wrap: wrap; gap: 4px; margin-bottom: 5px; }
+#jsSmsTemplatePanel .sms-label { font-size: 10.5px; gap: 4px; }
+#jsSmsTemplatePanel .sms-label svg { width: 11px; height: 11px; }
+#jsSmsTemplatePanel .sms-text {
+  font-size: 11px; line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+#jsSmsTemplatePanel .sms-copy-btn,
+#jsSmsTemplatePanel .sms-send-btn {
+  padding: 3px 8px; font-size: 10.5px; gap: 4px;
+}
+#jsSmsTemplatePanel .sms-sent-badge { font-size: 9px; padding: 1px 5px; margin-left: 4px; }
 .loading-overlay {
   display: none; position: absolute; inset: 0;
   background: rgba(255,255,255,0.85); z-index: 50;
