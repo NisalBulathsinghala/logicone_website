@@ -112,8 +112,14 @@
     display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
     gap: 8px; margin-bottom: 4px;
   }
-  .photo-thumb { position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
-  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-thumb { position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); background: #000; }
+  .photo-thumb img, .photo-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-thumb-vid-badge {
+    position: absolute; bottom: 3px; left: 3px; background: rgba(0,0,0,0.65); color: #fff;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.4px; padding: 2px 5px; border-radius: 4px;
+    display: flex; align-items: center; gap: 2px; pointer-events: none;
+  }
+  .photo-thumb-vid-badge svg { width: 9px; height: 9px; }
   .photo-thumb-remove {
     position: absolute; top: 3px; right: 3px; width: 20px; height: 20px;
     border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; border: none;
@@ -183,18 +189,18 @@
       <div class="capture-actions">
         <button type="button" class="capture-btn" onclick="document.getElementById('camInput').click()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          Take Photo
+          Camera
         </button>
         <button type="button" class="capture-btn" onclick="document.getElementById('libInput').click()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
           Choose from Library
         </button>
-        <input type="file" id="camInput" accept="image/*" capture="environment" multiple style="display:none">
-        <input type="file" id="libInput" accept="image/*" multiple style="display:none">
+        <input type="file" id="camInput" accept="image/*,video/*" capture="environment" multiple style="display:none">
+        <input type="file" id="libInput" accept="image/*,video/*" multiple style="display:none">
       </div>
 
       <div class="photo-grid" id="photoGrid"></div>
-      <div class="queue-hint" id="queueHint">No photos added yet</div>
+      <div class="queue-hint" id="queueHint">No files added yet</div>
 
       <button type="button" class="upload-btn hide" id="uploadBtn" onclick="uploadQueue()">Upload photos</button>
     </div>
@@ -294,17 +300,33 @@
     const grid = document.getElementById('photoGrid');
     const hint = document.getElementById('queueHint');
     const btn  = document.getElementById('uploadBtn');
-    grid.innerHTML = queue.map(q => `
+    const vidBadge = '<span class="photo-thumb-vid-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>VIDEO</span>';
+    grid.innerHTML = queue.map(q => {
+      const isVideo = (q.file.type || '').startsWith('video/');
+      return `
       <div class="photo-thumb">
-        <img src="${q.url}" alt="">
+        ${isVideo ? `<video src="${q.url}" muted playsinline></video>${vidBadge}` : `<img src="${q.url}" alt="">`}
         <button type="button" class="photo-thumb-remove" onclick="removeFromQueue('${q.id}')">✕</button>
-      </div>`).join('');
-    hint.textContent = queue.length ? `${queue.length} photo${queue.length === 1 ? '' : 's'} ready` : 'No photos added yet';
+      </div>`;
+    }).join('');
+    hint.textContent = queue.length ? `${queue.length} file${queue.length === 1 ? '' : 's'} ready` : 'No files added yet';
     btn.classList.toggle('hide', queue.length === 0);
   }
 
   document.getElementById('camInput').addEventListener('change', async function () { await handleFiles(this.files); this.value = ''; });
   document.getElementById('libInput').addEventListener('change', async function () { await handleFiles(this.files); this.value = ''; });
+
+  function extFor(file) {
+    if ((file.type || '').startsWith('video/')) {
+      // loConvertToJpeg leaves videos untouched, so keep whatever
+      // extension the phone actually gave it (iPhones: .mov, most
+      // Android: .mp4) rather than guessing from the mime type alone.
+      const m = /\.([a-z0-9]+)$/i.exec(file.name || '');
+      if (m) return m[1].toLowerCase();
+      return file.type === 'video/quicktime' ? 'mov' : 'mp4';
+    }
+    return 'jpg'; // photos always come out of loConvertToJpeg as JPEG
+  }
 
   async function uploadQueue() {
     if (!queue.length) return;
@@ -334,7 +356,7 @@
       const folderId = freshFolderIds[item.stage];
       if (!folderId) { failed++; lastError = 'No folder id for "' + item.stage + '"'; continue; }
       seqByStage[item.stageCode] = (seqByStage[item.stageCode] || 0) + 1;
-      const name = `${JOB_ID}-${item.stageCode}-${seqByStage[item.stageCode]}-${Date.now()}.jpg`;
+      const name = `${JOB_ID}-${item.stageCode}-${seqByStage[item.stageCode]}-${Date.now()}.${extFor(item.file)}`;
       try {
         await window.loUploadToFolder(item.file, folderId, freshToken, name);
         done++;
@@ -350,7 +372,7 @@
     renderQueue();
     btn.disabled = false;
 
-    if (failed === 0) toast(`✓ ${done} photo${done === 1 ? '' : 's'} uploaded`, 'success');
+    if (failed === 0) toast(`✓ ${done} file${done === 1 ? '' : 's'} uploaded`, 'success');
     else toast(`${done} uploaded, ${failed} failed — ${lastError}`, 'error', 15000);
   }
 
