@@ -165,9 +165,9 @@
     font-size: 13.5px; font-weight: 500; text-align: center;
     box-shadow: 0 8px 24px rgba(0,0,0,0.25);
     transform: translateY(80px); opacity: 0; transition: transform 0.25s ease, opacity 0.25s ease;
-    z-index: 100; pointer-events: none;
+    z-index: 100; pointer-events: none; cursor: pointer;
   }
-  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.show { pointer-events: auto; transform: translateY(0); opacity: 1; }
   .toast.error { background: #7f1d1d; }
   .toast.success { background: #065f46; }
 </style>
@@ -237,7 +237,7 @@
 
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" onclick="this.classList.remove('show')"></div>
 
 <script src="photo-convert.js?v=3"></script>
 <script>
@@ -256,10 +256,10 @@
 
   function toast(msg, type, duration) {
     const el = document.getElementById('toast');
-    el.textContent = msg;
+    el.textContent = msg + (duration === 0 ? '  (tap to dismiss)' : '');
     el.className = 'toast show' + (type ? ' ' + type : '');
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => el.classList.remove('show'), duration || 3200);
+    if (duration !== 0) toast._t = setTimeout(() => el.classList.remove('show'), duration || 3200);
   }
 
   async function verify() {
@@ -336,7 +336,7 @@
       const stateClass = q.status === 'uploading' ? 'thumb-uploading' : q.status === 'error' ? 'thumb-error' : '';
       return `
       <div class="photo-thumb ${stateClass}" data-qid="${q.id}">
-        ${isVideo ? `<video src="${q.url}" muted playsinline></video>${vidBadge}` : `<img src="${q.url}" alt="">`}
+        ${isVideo ? `<video src="${q.url}" muted playsinline preload="metadata"></video>${vidBadge}` : `<img src="${q.url}" alt="">`}
         ${q.status === 'uploading' ? `<div class="thumb-spinner"></div>` : ''}
         ${q.status === 'error' ? `<div class="thumb-error-badge">!</div>` : ''}
         ${q.status !== 'uploading' ? `<button type="button" class="photo-thumb-remove" onclick="removeFromQueue('${q.id}')">✕</button>` : ''}
@@ -344,6 +344,16 @@
     }).join('');
     hint.textContent = queue.length ? `${queue.length} file${queue.length === 1 ? '' : 's'} ready` : 'No files added yet';
     btn.classList.toggle('hide', queue.length === 0);
+
+    // iOS Safari often leaves a <video> element solid black until it's
+    // actually played or seeked, even with preload="metadata" — nudging
+    // currentTime forward a touch forces a real frame to paint as a
+    // static preview.
+    grid.querySelectorAll('video').forEach(v => {
+      v.addEventListener('loadedmetadata', () => {
+        try { v.currentTime = Math.min(0.1, (v.duration || 1) / 2); } catch (e) {}
+      }, { once: true });
+    });
   }
 
   document.getElementById('camInput').addEventListener('change', async function () { await handleFiles(this.files); this.value = ''; });
@@ -373,7 +383,7 @@
     // back does.
     const res = await verify();
     if (!res.ok) {
-      toast(res.error || 'Could not refresh upload access — try reopening the link.', 'error', 15000);
+      toast(res.error || 'Could not refresh upload access — try reopening the link.', 'error', 0);
       btn.disabled = false;
       btn.textContent = 'Upload photos';
       return;
@@ -446,7 +456,7 @@
     btn.textContent = 'Upload photos';
 
     if (failCount === 0) toast(`✓ ${doneCount} file${doneCount === 1 ? '' : 's'} uploaded`, 'success');
-    else toast(`${doneCount} uploaded, ${failCount} failed — ${lastError}`, 'error', 15000);
+    else toast(`${doneCount} uploaded, ${failCount} failed — ${lastError}`, 'error', 0);
   }
 
   init();
