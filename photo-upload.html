@@ -127,6 +127,30 @@
   }
   .queue-hint { font-size: 12.5px; color: var(--text-mute); font-style: italic; padding: 4px 2px; }
 
+  .upload-progress { margin: 4px 2px 10px; display: none; }
+  .upload-progress.show { display: block; }
+  .upload-progress-label { font-size: 12.5px; color: var(--text-soft); margin-bottom: 6px; font-weight: 600; }
+  .upload-progress-track { height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .upload-progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s ease; }
+
+  .photo-thumb.thumb-uploading { opacity: 0.55; }
+  .photo-thumb.thumb-error { outline: 2px solid #dc2626; outline-offset: -2px; }
+  .thumb-spinner {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.25);
+  }
+  .thumb-spinner::after {
+    content: ''; width: 20px; height: 20px; border-radius: 50%;
+    border: 2.5px solid rgba(255,255,255,0.4); border-top-color: #fff;
+    animation: thumbSpin 0.7s linear infinite;
+  }
+  @keyframes thumbSpin { to { transform: rotate(360deg); } }
+  .thumb-error-badge {
+    position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+    background: #dc2626; color: #fff; font-size: 11px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+
   .upload-btn {
     width: 100%; padding: 14px; border: none; border-radius: var(--radius-sm);
     background: var(--accent); color: #fff; font-family: 'Inter', sans-serif;
@@ -202,6 +226,11 @@
       <div class="photo-grid" id="photoGrid"></div>
       <div class="queue-hint" id="queueHint">No files added yet</div>
 
+      <div class="upload-progress" id="uploadProgress">
+        <div class="upload-progress-label" id="uploadProgressLabel">Uploading…</div>
+        <div class="upload-progress-track"><div class="upload-progress-fill" id="uploadProgressFill"></div></div>
+      </div>
+
       <button type="button" class="upload-btn hide" id="uploadBtn" onclick="uploadQueue()">Upload photos</button>
     </div>
   </div>
@@ -210,7 +239,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="photo-convert.js?v=2"></script>
+<script src="photo-convert.js?v=3"></script>
 <script>
   const params = new URLSearchParams(location.search);
   const JOB_ID = params.get('job') || '';
@@ -283,6 +312,7 @@
         file: converted,
         url: URL.createObjectURL(converted),
         stage, stageCode,
+        status: 'pending',
       });
     }
     renderQueue();
@@ -303,10 +333,13 @@
     const vidBadge = '<span class="photo-thumb-vid-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>VIDEO</span>';
     grid.innerHTML = queue.map(q => {
       const isVideo = (q.file.type || '').startsWith('video/');
+      const stateClass = q.status === 'uploading' ? 'thumb-uploading' : q.status === 'error' ? 'thumb-error' : '';
       return `
-      <div class="photo-thumb">
+      <div class="photo-thumb ${stateClass}" data-qid="${q.id}">
         ${isVideo ? `<video src="${q.url}" muted playsinline></video>${vidBadge}` : `<img src="${q.url}" alt="">`}
-        <button type="button" class="photo-thumb-remove" onclick="removeFromQueue('${q.id}')">✕</button>
+        ${q.status === 'uploading' ? `<div class="thumb-spinner"></div>` : ''}
+        ${q.status === 'error' ? `<div class="thumb-error-badge">!</div>` : ''}
+        ${q.status !== 'uploading' ? `<button type="button" class="photo-thumb-remove" onclick="removeFromQueue('${q.id}')">✕</button>` : ''}
       </div>`;
     }).join('');
     hint.textContent = queue.length ? `${queue.length} file${queue.length === 1 ? '' : 's'} ready` : 'No files added yet';
@@ -332,6 +365,7 @@
     if (!queue.length) return;
     const btn = document.getElementById('uploadBtn');
     btn.disabled = true;
+    btn.textContent = 'Uploading…';
 
     // Re-verify right before uploading so a stale Drive token (the page
     // may have been sitting open a while) never causes a failed upload —
@@ -341,39 +375,78 @@
     if (!res.ok) {
       toast(res.error || 'Could not refresh upload access — try reopening the link.', 'error', 15000);
       btn.disabled = false;
+      btn.textContent = 'Upload photos';
       return;
     }
     const freshFolderIds = res.data.stageFolderIds || {};
     const freshToken = res.data.token;
 
-    const items = queue.slice();
-    let done = 0, failed = 0;
-    let lastError = '';
+    const progressBox = document.getElementById('uploadProgress');
+    const progressLabel = document.getElementById('uploadProgressLabel');
+    const progressFill = document.getElementById('uploadProgressFill');
+    progressBox.classList.add('show');
+    progressFill.style.width = '0%';
+
+    // Byte-weighted rather than a simple file count — a single video can
+    // dwarf several photos put together, so "file 3 of 4" alone would
+    // jump straight to "nearly done" right before the slowest part starts.
+    const totalBytes = queue.reduce((sum, q) => sum + q.file.size, 0);
+    let bytesFromFinishedFiles = 0;
+    const totalCount = queue.length;
+    let doneCount = 0, failCount = 0, lastError = '';
     const seqByStage = {};
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
+    // Snapshot which items to attempt this pass — queue itself shrinks as
+    // items succeed, so we track by id rather than by index.
+    const idsToProcess = queue.map(q => q.id);
+
+    for (let i = 0; i < idsToProcess.length; i++) {
+      const item = queue.find(q => q.id === idsToProcess[i]);
+      if (!item) continue; // already removed
+
+      item.status = 'uploading';
+      renderQueue();
+      progressLabel.textContent = `Uploading ${doneCount + failCount + 1} of ${totalCount}…`;
+
       const folderId = freshFolderIds[item.stage];
-      if (!folderId) { failed++; lastError = 'No folder id for "' + item.stage + '"'; continue; }
+      if (!folderId) {
+        item.status = 'error';
+        lastError = 'No folder id for "' + item.stage + '"';
+        failCount++;
+        renderQueue();
+        continue;
+      }
+
       seqByStage[item.stageCode] = (seqByStage[item.stageCode] || 0) + 1;
       const name = `${JOB_ID}-${item.stageCode}-${seqByStage[item.stageCode]}-${Date.now()}.${extFor(item.file)}`;
+
       try {
-        await window.loUploadToFolder(item.file, folderId, freshToken, name);
-        done++;
+        await window.loUploadToFolder(item.file, folderId, freshToken, name, (sent, size) => {
+          const overallBytes = bytesFromFinishedFiles + sent;
+          const pct = totalBytes ? Math.round((overallBytes / totalBytes) * 100) : 0;
+          progressFill.style.width = pct + '%';
+        });
+        bytesFromFinishedFiles += item.file.size;
+        doneCount++;
+        queue = queue.filter(q => q.id !== item.id);
+        URL.revokeObjectURL(item.url);
+        renderQueue();
       } catch (err) {
         console.warn('Upload failed:', err.message);
         lastError = err.message;
-        failed++;
+        item.status = 'error';
+        bytesFromFinishedFiles += item.file.size; // keep the bar moving forward even past a failure
+        failCount++;
+        renderQueue();
       }
     }
 
-    queue.forEach(q => URL.revokeObjectURL(q.url));
-    queue = [];
-    renderQueue();
+    progressBox.classList.remove('show');
     btn.disabled = false;
+    btn.textContent = 'Upload photos';
 
-    if (failed === 0) toast(`✓ ${done} file${done === 1 ? '' : 's'} uploaded`, 'success');
-    else toast(`${done} uploaded, ${failed} failed — ${lastError}`, 'error', 15000);
+    if (failCount === 0) toast(`✓ ${doneCount} file${doneCount === 1 ? '' : 's'} uploaded`, 'success');
+    else toast(`${doneCount} uploaded, ${failCount} failed — ${lastError}`, 'error', 15000);
   }
 
   init();

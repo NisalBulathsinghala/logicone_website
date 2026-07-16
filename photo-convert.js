@@ -126,7 +126,7 @@ window.loThumbRetry = function (img, fileId, onGiveUp) {
 // upload page) don't need a fourth copy of this logic. Takes an already-
 // converted File, a Drive folder id, a short-lived OAuth token, and the
 // filename to save it as.
-window.loUploadToFolder = async function (file, folderId, token, name) {
+window.loUploadToFolder = async function (file, folderId, token, name, onProgress) {
   const initRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
     method: 'POST',
     headers: {
@@ -157,7 +157,9 @@ window.loUploadToFolder = async function (file, folderId, token, name) {
     if (res.status === 308) {
       const rangeHeader = res.headers.get('Range');
       offset = rangeHeader ? parseInt(rangeHeader.split('-')[1]) + 1 : end;
+      if (typeof onProgress === 'function') onProgress(offset, file.size);
     } else if (res.status === 200 || res.status === 201) {
+      if (typeof onProgress === 'function') onProgress(file.size, file.size);
       return;
     } else {
       throw new Error('Upload chunk failed: ' + res.status);
