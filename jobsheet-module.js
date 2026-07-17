@@ -1922,9 +1922,9 @@ async function jsRevokeQrToken() {
     if (typeof showToast === 'function') showToast('error', 'Could not revoke link: ' + err.message);
   }
 }
-// ── AI note cleanup (Gemini) ─────────────────────────────────
+// ── AI note cleanup (Grok) ───────────────────────────────────
 // Small "✨ Improve" button injected next to each of the 4 stage-note
-// textareas. Calls /.netlify/functions/improve-notes (Gemini free tier)
+// textareas. Calls /.netlify/functions/improve-notes (xAI Grok)
 // and swaps the textarea's content in place. The pre-improve text is
 // cached so jsUndoImproveNote() can put it back — nothing here saves to
 // the job on its own, the jobsheet still saves the normal way.
@@ -1990,6 +1990,9 @@ async function jsImproveStageNote(fieldId, label) {
         note,
         deviceType: jsCurrentJob?.deviceType || '',
         brand: jsCurrentJob?.brand || '',
+        model: jsCurrentJob?.model || '',
+        repairStage: label,
+        repairLevel: document.getElementById('jsFRepairLevel')?.value || '',
       }),
     }).then(r => r.json());
 
