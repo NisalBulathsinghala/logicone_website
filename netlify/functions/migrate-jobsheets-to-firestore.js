@@ -26,9 +26,11 @@
 
 const { db } = require('./firebase');
 
-const BATCH_SIZE = 15;
+const BATCH_SIZE = 10;
+const TIME_BUDGET_MS = 7000; // leave margin under Netlify's ~10s default function timeout
 
 exports.handler = async function (event) {
+  const started = Date.now();
   const params = event.queryStringParameters || {};
   const dryRun = params.confirm !== 'yes';
   const { APPS_SCRIPT_URL } = process.env;
@@ -43,15 +45,18 @@ exports.handler = async function (event) {
       .map(d => ({ id: d.id, driveFolder: d.data().driveFolder }))
       .filter(j => j.driveFolder);
 
-    // Skip anything Firestore already has real parts/order data for —
-    // either already migrated, or genuinely never had any parts needed.
-    const needsCheck = [];
-    for (const j of allJobs) {
+    // Parallel, not sequential — this is a plain Firestore read with no
+    // Apps Script involved, so it comfortably handles this many
+    // concurrent reads. Checking 100+ jobs one at a time in a loop here
+    // was the actual cause of the 502: it could run past Netlify's
+    // function timeout before the real migration work even started.
+    const checked = await Promise.all(allJobs.map(async (j) => {
       const snap = await db.collection('jobs').doc(j.id).collection('jobsheet').doc('current').get();
       const d = snap.exists ? snap.data() : {};
       const hasPartsData = (d.parts && d.parts.length) || (d.orderNums && d.orderNums.length);
-      if (!hasPartsData) needsCheck.push(j);
-    }
+      return hasPartsData ? null : j;
+    }));
+    const needsCheck = checked.filter(Boolean);
 
     const toProcess = needsCheck.slice(0, BATCH_SIZE);
 
@@ -71,7 +76,16 @@ exports.handler = async function (event) {
     let migrated = 0, noFile = 0, failed = 0;
     const details = [];
 
+    // Sequential, not parallel — this one goes through Apps Script per
+    // job, and Apps Script's concurrent execution limit is real. The
+    // time budget below is the actual guard against a slow run timing
+    // out mid-batch: it stops early and reports what's left rather than
+    // risking another 502, and picks back up cleanly on the next call.
     for (const j of toProcess) {
+      if (Date.now() - started > TIME_BUDGET_MS) {
+        details.push('Stopped early — running close to the time budget. Re-run to continue.');
+        break;
+      }
       try {
         const r = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
