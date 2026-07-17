@@ -1999,7 +1999,8 @@ async function jsImproveStageNote(fieldId, label) {
       if (typeof showToast === 'function') showToast('success', `${label} note improved`);
       jsShowUndoButton(fieldId, btn);
     } else {
-      if (typeof showToast === 'function') showToast('error', 'Improve failed: ' + (res.error || 'Unknown error'));
+      const reason = res.error || 'Unknown error';
+      if (typeof showToast === 'function') showToast('error', 'Improve failed: ' + reason + (res.detail ? ' — ' + res.detail : ''));
     }
   } catch (err) {
     if (typeof showToast === 'function') showToast('error', 'Improve error: ' + err.message);

@@ -70,11 +70,13 @@ exports.handler = async function (event) {
           systemInstruction: { parts: [{ text: INSTRUCTIONS }] },
           generationConfig: {
             maxOutputTokens: 500,
-            // "low" is Google's own guidance for editing-style tasks — keeps
-            // latency/cost down without disabling reasoning outright. This
-            // corner of the API is newer than the rest; if it ever 400s,
-            // delete the thinkingConfig line and it'll use the model default.
-            thinkingConfig: { thinkingLevel: 'low' },
+            // Deliberately not setting thinkingConfig/thinkingLevel here —
+            // that corner of the API is newer and less consistently
+            // documented, and was the most likely reason a request would
+            // fail outright. This costs a bit more per call (model uses its
+            // own default thinking level) but is the safer starting point.
+            // Once this is confirmed working, thinkingConfig: { thinkingLevel: 'low' }
+            // can be reintroduced as a cost tweak.
           },
         }),
       }
@@ -83,7 +85,17 @@ exports.handler = async function (event) {
     if (!response.ok) {
       const errText = await response.text();
       console.error('Gemini error:', response.status, errText);
-      return { statusCode: 502, body: JSON.stringify({ ok: false, error: 'Gemini request failed', detail: errText }) };
+      // Gemini error bodies are normally JSON: { error: { code, message, status } }.
+      // Surface that real message so failures are readable straight from the
+      // toast in the browser, without needing to open Netlify function logs.
+      let reason = errText;
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed?.error?.message) reason = `${parsed.error.status || response.status}: ${parsed.error.message}`;
+      } catch (parseErr) {
+        // errText wasn't JSON — fall back to the raw text as-is
+      }
+      return { statusCode: 502, body: JSON.stringify({ ok: false, error: reason }) };
     }
 
     const data = await response.json();
