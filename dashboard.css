@@ -244,6 +244,16 @@ body {
   background: var(--bg-surface-hover);
 }
 
+/* .jobs-table td defaults to nowrap, which is fine for short columns
+   but overflows badly for anything with real content — used on the
+   Parts / Order Numbers cells in the Awaiting Parts table. */
+.t-wrap-cell {
+  white-space: normal !important;
+  word-break: break-word;
+  line-height: 1.6;
+}
+.t-wrap-cell > div { padding: 1px 0; }
+
 .stat-icon {
   width: 42px; height: 42px; border-radius: var(--radius-sm);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;

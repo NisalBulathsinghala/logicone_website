@@ -501,10 +501,10 @@ async function kRenderAwaitingPartsTable(list) {
     const orders = (pd.orderNums || []).filter(Boolean);
 
     const partsText = parts.length
-      ? parts.map(p => `${p.name || p.partno || 'Unnamed part'}${p.qty ? ' ×' + p.qty : ''}`).join(', ')
+      ? parts.map(p => `<div>${p.name || p.partno || 'Unnamed part'}${p.qty ? ' ×' + p.qty : ''}</div>`).join('')
       : '<span style="color:var(--text-secondary);font-style:italic;">None listed</span>';
     const ordersText = orders.length
-      ? orders.join(', ')
+      ? orders.map(o => `<div>${o}</div>`).join('')
       : '<span style="color:var(--text-secondary);font-style:italic;">—</span>';
 
     const tr = document.createElement('tr');
@@ -515,8 +515,8 @@ async function kRenderAwaitingPartsTable(list) {
       <td>${j.name || '—'}</td>
       <td>${j.brand || '—'}</td>
       <td style="font-weight:600;">${j.model || '—'}</td>
-      <td style="font-size:12.5px;max-width:260px;">${partsText}</td>
-      <td style="font-size:12.5px;font-family:'SF Mono','Fira Code',monospace;">${ordersText}</td>
+      <td class="t-wrap-cell" style="font-size:12.5px;max-width:280px;">${partsText}</td>
+      <td class="t-wrap-cell" style="font-size:12.5px;font-family:'SF Mono','Fira Code',monospace;max-width:160px;">${ordersText}</td>
       <td>${getTotalDays(j)}<span style="font-size:11px;color:var(--text-secondary);">d</span></td>`;
     tbody.appendChild(tr);
   });
