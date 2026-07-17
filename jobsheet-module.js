@@ -246,6 +246,7 @@
 }
 .js-stage-note-block {
   display: flex; flex-direction: column; gap: 7px;
+  position: relative; /* anchor for .js-improve-floating fallback */
 }
 .js-stage-note-header {
   display: flex; align-items: center; gap: 8px;
@@ -263,6 +264,21 @@
   transition: border-color 0.15s;
 }
 .js-stage-textarea:focus { outline: none; border-color: var(--accent); }
+.js-improve-note-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; line-height: 1; white-space: nowrap;
+  padding: 4px 9px; border-radius: 20px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-surface);
+  color: var(--text-secondary); transition: all 0.15s; margin-left: auto;
+}
+.js-improve-note-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.js-improve-note-btn:disabled { opacity: 0.55; cursor: default; }
+.js-improve-note-btn.js-improve-floating { position: absolute; top: 0; right: 0; margin-left: 0; }
+.js-undo-note-btn {
+  font-size: 11px; color: var(--text-secondary); text-decoration: underline;
+  cursor: pointer; background: none; border: none; padding: 0; margin-left: 8px;
+}
+.js-undo-note-btn:hover { color: var(--accent); }
 
 @media (max-width: 900px) {
   .js-fg3 { grid-template-columns: 1fr 1fr; }
@@ -1205,6 +1221,8 @@ function jsCollectData() {
 }
 
 function jsLoadFromData(data) {
+  if (typeof jsClearNoteImproveState === 'function') jsClearNoteImproveState(); // stale undo state would otherwise point at the wrong job
+
   // Always set all editable fields — use '' fallback so even empty values restore correctly
   document.getElementById('jsFFTech').value = data.tech || '';
   document.getElementById('jsFDate').value  = data.date || '';
@@ -1904,3 +1922,121 @@ async function jsRevokeQrToken() {
     if (typeof showToast === 'function') showToast('error', 'Could not revoke link: ' + err.message);
   }
 }
+// ── AI note cleanup (Gemini) ─────────────────────────────────
+// Small "✨ Improve" button injected next to each of the 4 stage-note
+// textareas. Calls /.netlify/functions/improve-notes (Gemini free tier)
+// and swaps the textarea's content in place. The pre-improve text is
+// cached so jsUndoImproveNote() can put it back — nothing here saves to
+// the job on its own, the jobsheet still saves the normal way.
+//
+// Buttons are injected once on DOMContentLoaded since the stage-note
+// textareas are static fields that get repopulated per job rather than
+// rebuilt, so a one-time injection is enough for the life of the page.
+
+const JS_STAGE_NOTE_FIELDS = [
+  { id: 'jsFInspectionNote', label: 'Inspection' },
+  { id: 'jsFRepairingNote',  label: 'Repairing'  },
+  { id: 'jsFTestingNote',    label: 'Testing'    },
+  { id: 'jsFQcNote',         label: 'QC'         },
+];
+
+let _jsNoteUndoCache = {};
+
+function jsInitImproveNoteButtons() {
+  JS_STAGE_NOTE_FIELDS.forEach(({ id, label }) => {
+    const textarea = document.getElementById(id);
+    if (!textarea || document.getElementById('jsImproveBtn_' + id)) return; // field missing, or already injected
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'jsImproveBtn_' + id;
+    btn.className = 'js-improve-note-btn';
+    btn.title = 'Clean up this note with AI';
+    btn.innerHTML = '✨ Improve';
+    btn.onclick = () => jsImproveStageNote(id, label);
+
+    // Prefer sitting inline in the existing header row next to the label;
+    // fall back to a floating corner button if that structure isn't there.
+    const header = textarea.previousElementSibling;
+    if (header && header.classList.contains('js-stage-note-header')) {
+      header.appendChild(btn);
+    } else {
+      btn.classList.add('js-improve-floating');
+      const block = textarea.closest('.js-stage-note-block');
+      (block || textarea.parentElement).appendChild(btn);
+    }
+  });
+}
+
+async function jsImproveStageNote(fieldId, label) {
+  const textarea = document.getElementById(fieldId);
+  const btn = document.getElementById('jsImproveBtn_' + fieldId);
+  if (!textarea) return;
+
+  const note = textarea.value.trim();
+  if (!note) {
+    if (typeof showToast === 'function') showToast('error', 'Nothing to improve yet');
+    return;
+  }
+
+  const origLabel = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳'; }
+
+  try {
+    const res = await fetch('/.netlify/functions/improve-notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        note,
+        deviceType: jsCurrentJob?.deviceType || '',
+        brand: jsCurrentJob?.brand || '',
+      }),
+    }).then(r => r.json());
+
+    if (res.ok && res.improved) {
+      _jsNoteUndoCache[fieldId] = note; // cache pre-improve text for undo
+      textarea.value = res.improved;
+      if (typeof showToast === 'function') showToast('success', `${label} note improved`);
+      jsShowUndoButton(fieldId, btn);
+    } else {
+      if (typeof showToast === 'function') showToast('error', 'Improve failed: ' + (res.error || 'Unknown error'));
+    }
+  } catch (err) {
+    if (typeof showToast === 'function') showToast('error', 'Improve error: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = origLabel || '✨ Improve'; }
+  }
+}
+
+function jsShowUndoButton(fieldId, improveBtn) {
+  if (!improveBtn || document.getElementById('jsUndoBtn_' + fieldId)) return;
+  const undoBtn = document.createElement('button');
+  undoBtn.type = 'button';
+  undoBtn.id = 'jsUndoBtn_' + fieldId;
+  undoBtn.className = 'js-undo-note-btn';
+  undoBtn.textContent = '↺ Undo';
+  undoBtn.onclick = () => jsUndoImproveNote(fieldId);
+  improveBtn.insertAdjacentElement('afterend', undoBtn);
+}
+
+function jsUndoImproveNote(fieldId) {
+  const textarea = document.getElementById(fieldId);
+  const undoBtn = document.getElementById('jsUndoBtn_' + fieldId);
+  if (textarea && fieldId in _jsNoteUndoCache) {
+    textarea.value = _jsNoteUndoCache[fieldId];
+    delete _jsNoteUndoCache[fieldId];
+  }
+  if (undoBtn) undoBtn.remove();
+}
+
+// Called from jsLoadFromData so switching jobs doesn't leave an undo
+// button around that would restore the previous job's note text.
+function jsClearNoteImproveState() {
+  JS_STAGE_NOTE_FIELDS.forEach(({ id }) => {
+    const undoBtn = document.getElementById('jsUndoBtn_' + id);
+    if (undoBtn) undoBtn.remove();
+  });
+  _jsNoteUndoCache = {};
+}
+
+document.addEventListener('DOMContentLoaded', jsInitImproveNoteButtons);
