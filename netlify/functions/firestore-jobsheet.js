@@ -66,6 +66,29 @@ exports.handler = async function (event) {
       return { statusCode: 200, body: JSON.stringify({ ok: true, data: result }) };
     }
 
+    // ── Batch-read parts + order numbers for a set of jobs ─────────
+    // Powers the kanban "Awaiting Parts" tile table — one call for every
+    // job in that status instead of one request per job. Missing/unread
+    // jobsheets are just skipped rather than failing the whole batch.
+    if (action === 'load-parts-batch') {
+      const jobIds = Array.isArray(body.jobIds) ? body.jobIds.filter(Boolean) : [];
+      if (!jobIds.length) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing jobIds' }) };
+
+      const result = {};
+      await Promise.all(jobIds.map(async (id) => {
+        try {
+          const snap = await db.collection('jobs').doc(id).collection('jobsheet').doc('current').get();
+          if (snap.exists) {
+            const d = snap.data();
+            result[id] = { parts: d.parts || [], orderNums: d.orderNums || [] };
+          }
+        } catch (e) {
+          console.warn(`load-parts-batch: skipped ${id}:`, e.message);
+        }
+      }));
+      return { statusCode: 200, body: JSON.stringify({ ok: true, data: result }) };
+    }
+
     // Every action below operates on one job and needs a jobId
     const { jobId } = body;
     if (!jobId) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing jobId' }) };

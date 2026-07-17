@@ -402,6 +402,127 @@ function renderStats() {
 }
 
 // ============================================================
+// KANBAN TILE FILTER — click a stat tile to swap the columns for a
+// table of just that status. "Awaiting Parts" gets extra columns
+// (parts + order numbers), pulled in a single batched Firestore read
+// rather than one request per job.
+// ============================================================
+function kFilterByStatus(status) {
+  document.getElementById('statsRow').classList.add('filter-mode');
+  document.querySelector('.kanban-scroll-wrap').style.display = 'none';
+  document.getElementById('kanbanFilterTableWrap').style.display = '';
+
+  const list = jobs.filter(j => j.status === status);
+  const subEl = document.getElementById('statBackSub');
+  if (subEl) subEl.textContent = `${list.length} job${list.length === 1 ? '' : 's'} — ${status}`;
+
+  if (status === 'Awaiting Parts') kRenderAwaitingPartsTable(list);
+  else kRenderSimpleJobTable(list);
+}
+
+function kShowKanban() {
+  document.getElementById('statsRow').classList.remove('filter-mode');
+  document.querySelector('.kanban-scroll-wrap').style.display = '';
+  document.getElementById('kanbanFilterTableWrap').style.display = 'none';
+}
+
+function kRenderSimpleJobTable(list) {
+  const thead = document.getElementById('kanbanFilterThead');
+  const tbody = document.getElementById('kanbanFilterBody');
+  thead.innerHTML = `<tr><th>Job ID</th><th>Brand</th><th>Model</th><th>Type</th><th>Customer</th><th>Case No.</th><th>Warranty</th><th>Status</th><th>Date In</th><th>Total Days</th><th>Folder</th></tr>`;
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-secondary);">No jobs in this status</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  list.forEach(j => {
+    const bt = j.brand === 'Roborock' ? 't-roborock' : j.brand === 'Segway' ? 't-segway' : 't-other';
+    const sc = SC[j.status] || { bg: '#f1f5f9', c: '#475569' };
+    const wtVal = j.warranty || '—';
+    const wtStyle = j.warranty === 'In Warranty'
+      ? 'background:rgba(16,185,129,0.1);color:#059669;'
+      : j.warranty === 'Out of Warranty'
+      ? 'background:rgba(239,68,68,0.1);color:#dc2626;'
+      : '';
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.onclick = () => showDetail(j);
+    tr.innerHTML = `
+      <td><span class="t-job-id">${j.jobId || '—'}</span></td>
+      <td><span class="card-brand-tag ${bt}" style="font-size:10.5px;">${j.brand || '—'}</span></td>
+      <td style="font-weight:600;">${j.model || '—'}</td>
+      <td style="font-size:12.5px;">${j.deviceType || '—'}</td>
+      <td>${j.name || '—'}</td>
+      <td><span class="t-case">${j.caseNo || '—'}</span></td>
+      <td><span class="t-status" style="${wtStyle}font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;">${wtVal}</span></td>
+      <td><span class="t-status" style="background:${sc.bg};color:${sc.c};">${j.status || '—'}</span></td>
+      <td style="font-size:12.5px;color:var(--text-secondary);">${fmtDate(j.ts)}</td>
+      <td>${getTotalDays(j)}<span style="font-size:11px;color:var(--text-secondary);">d</span></td>
+      <td>${j.driveFolder && !String(j.driveFolder).startsWith('ERROR') ? `<a href="${j.driveFolder}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);font-size:12px;">Open</a>` : '—'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function kRenderAwaitingPartsTable(list) {
+  const thead = document.getElementById('kanbanFilterThead');
+  const tbody = document.getElementById('kanbanFilterBody');
+  thead.innerHTML = `<tr><th>Job ID</th><th>Customer</th><th>Brand</th><th>Model</th><th>Parts</th><th>Order Numbers</th><th>Days Waiting</th></tr>`;
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-secondary);">No jobs awaiting parts</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-secondary);">Loading parts info…</td></tr>`;
+
+  let partsData = {};
+  try {
+    const res = await fetch('/.netlify/functions/firestore-jobsheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load-parts-batch', jobIds: list.map(j => j.jobId) }),
+    }).then(r => r.json());
+    if (res.ok) partsData = res.data || {};
+    else console.warn('load-parts-batch failed:', res.error);
+  } catch (e) {
+    console.warn('load-parts-batch error:', e.message);
+  }
+
+  // Bail out quietly if the tile was clicked again (or Back was hit)
+  // while this fetch was still in flight — don't stomp on newer content.
+  if (document.getElementById('kanbanFilterTableWrap').style.display === 'none') return;
+
+  tbody.innerHTML = '';
+  list.forEach(j => {
+    const pd = partsData[j.jobId] || { parts: [], orderNums: [] };
+    const parts = (pd.parts || []).filter(p => p && (p.name || p.partno));
+    const orders = (pd.orderNums || []).filter(Boolean);
+
+    const partsText = parts.length
+      ? parts.map(p => `${p.name || p.partno || 'Unnamed part'}${p.qty ? ' ×' + p.qty : ''}`).join(', ')
+      : '<span style="color:var(--text-secondary);font-style:italic;">None listed</span>';
+    const ordersText = orders.length
+      ? orders.join(', ')
+      : '<span style="color:var(--text-secondary);font-style:italic;">—</span>';
+
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.onclick = () => showDetail(j);
+    tr.innerHTML = `
+      <td><span class="t-job-id">${j.jobId || '—'}</span></td>
+      <td>${j.name || '—'}</td>
+      <td>${j.brand || '—'}</td>
+      <td style="font-weight:600;">${j.model || '—'}</td>
+      <td style="font-size:12.5px;max-width:260px;">${partsText}</td>
+      <td style="font-size:12.5px;font-family:'SF Mono','Fira Code',monospace;">${ordersText}</td>
+      <td>${getTotalDays(j)}<span style="font-size:11px;color:var(--text-secondary);">d</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ============================================================
 // TABLE
 // ============================================================
 function renderTable() {

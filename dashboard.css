@@ -231,10 +231,18 @@ body {
   background: var(--bg-surface); border: 1px solid var(--border);
   border-radius: var(--radius-md); padding: 16px 18px;
   display: flex; align-items: center; gap: 14px;
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
 }
 
-.stat-card:hover { box-shadow: var(--shadow-md); }
+.stat-card:hover { box-shadow: var(--shadow-md); border-color: var(--accent); }
+
+#statBack { display: none; }
+.stats-row.filter-mode .stat-card { display: none; }
+.stats-row.filter-mode #statBack {
+  display: flex; grid-column: 1 / -1; justify-content: center;
+  background: var(--bg-surface-hover);
+}
 
 .stat-icon {
   width: 42px; height: 42px; border-radius: var(--radius-sm);

@@ -86,13 +86,20 @@
   <!-- KANBAN -->
   <div class="view active" id="view-kanban" style="position:relative;">
     <div class="loading-overlay" id="kanbanLoading"><div class="spinner"></div><div class="loading-text">Syncing with Google Sheets…</div></div>
-    <div class="stats-row">
-      <div class="stat-card"><div class="stat-icon si-intake"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><div class="stat-info"><h3 id="sI">0</h3><p>New Intake</p></div></div>
-      <div class="stat-card"><div class="stat-icon si-diagnosis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div class="stat-info"><h3 id="sD">0</h3><p>In Diagnosis</p></div></div>
-      <div class="stat-card"><div class="stat-icon si-active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div><div class="stat-info"><h3 id="sA">0</h3><p>In Repair</p></div></div>
-      <div class="stat-card"><div class="stat-icon si-waiting"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-info"><h3 id="sW">0</h3><p>Awaiting Parts</p></div></div>
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card" onclick="kFilterByStatus('Intake')"><div class="stat-icon si-intake"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><div class="stat-info"><h3 id="sI">0</h3><p>New Intake</p></div></div>
+      <div class="stat-card" onclick="kFilterByStatus('Diagnosis')"><div class="stat-icon si-diagnosis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div class="stat-info"><h3 id="sD">0</h3><p>In Diagnosis</p></div></div>
+      <div class="stat-card" onclick="kFilterByStatus('Awaiting Parts')"><div class="stat-icon si-waiting"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-info"><h3 id="sW">0</h3><p>Awaiting Parts</p></div></div>
+      <div class="stat-card" onclick="kFilterByStatus('In Repair')"><div class="stat-icon si-active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div><div class="stat-info"><h3 id="sA">0</h3><p>In Repair</p></div></div>
       <div class="stat-card"><div class="stat-icon si-done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="stat-info"><h3 id="sC">0</h3><p>Completed</p></div></div>
       <div class="stat-card"><div class="stat-icon si-total"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><div class="stat-info"><h3 id="sT">0</h3><p>Total Active</p></div></div>
+      <div class="stat-card" id="statBack" onclick="kShowKanban()"><div class="stat-icon si-total"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></div><div class="stat-info"><h3 style="font-size:16px;">Back to Kanban Board</h3><p id="statBackSub">—</p></div></div>
+    </div>
+    <div class="table-wrapper" id="kanbanFilterTableWrap" style="display:none;">
+      <table class="jobs-table" id="kanbanFilterTable">
+        <thead id="kanbanFilterThead"></thead>
+        <tbody id="kanbanFilterBody"></tbody>
+      </table>
     </div>
     <div class="kanban-scroll-wrap">
       <button class="kanban-scroll-btn kanban-scroll-left" id="kScrollLeft" onclick="kScroll(-1)" title="Scroll left">
