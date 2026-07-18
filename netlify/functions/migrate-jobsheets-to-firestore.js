@@ -48,13 +48,19 @@ exports.handler = async function (event) {
     // Parallel, not sequential — this is a plain Firestore read with no
     // Apps Script involved, so it comfortably handles this many
     // concurrent reads. Checking 100+ jobs one at a time in a loop here
-    // was the actual cause of the 502: it could run past Netlify's
-    // function timeout before the real migration work even started.
+    // was the actual cause of the earlier 502: it could run past
+    // Netlify's function timeout before the real migration work even
+    // started.
+    //
+    // "Needs migration" = the Firestore jobsheet doc doesn't exist at
+    // all yet. NOT "has empty parts" — a job that genuinely needs zero
+    // parts still gets a doc written (with empty arrays) the moment it's
+    // checked, and checking for non-empty parts here would mean that
+    // doc looks unmigrated forever, endlessly eating the batch on every
+    // run without the remaining count ever actually shrinking.
     const checked = await Promise.all(allJobs.map(async (j) => {
       const snap = await db.collection('jobs').doc(j.id).collection('jobsheet').doc('current').get();
-      const d = snap.exists ? snap.data() : {};
-      const hasPartsData = (d.parts && d.parts.length) || (d.orderNums && d.orderNums.length);
-      return hasPartsData ? null : j;
+      return snap.exists ? null : j;
     }));
     const needsCheck = checked.filter(Boolean);
 
