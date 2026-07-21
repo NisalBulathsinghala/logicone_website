@@ -867,6 +867,56 @@ body {
   font-style: italic; padding: 12px 0;
 }
 
+/* ===== DETAIL MODAL — Stage Notes / Parts Ordered ===== */
+.d-extra-section {
+  margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px;
+}
+.d-extra-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-secondary); margin-bottom: 12px;
+}
+.d-stage-note { margin-bottom: 12px; }
+.d-stage-note:last-child { margin-bottom: 0; }
+.d-stage-note-label {
+  font-size: 10.5px; font-weight: 700; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;
+}
+.d-stage-note-text { font-size: 13px; line-height: 1.55; color: var(--text-primary); white-space: pre-line; }
+
+.d-parts-list { margin-bottom: 10px; }
+.d-parts-row {
+  display: flex; justify-content: space-between; padding: 6px 0;
+  border-bottom: 1px solid var(--border-light); font-size: 13px;
+}
+.d-parts-row:last-child { border-bottom: none; }
+.d-parts-qty { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.d-order-nums {
+  font-size: 12.5px; color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.d-order-nums strong { font-family: 'Inter', sans-serif; color: var(--text-primary); }
+
+/* Detail modal SMS panel only — compact 2x2, click a card to expand it
+   for the full text. Scoped to #dSmsTemplatePanel so the jobsheet's own
+   compact-but-always-collapsed version (#jsSmsTemplatePanel) is untouched. */
+#dSmsTemplatePanel .sms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#dSmsTemplatePanel .sms-card { padding: 9px 10px; cursor: pointer; }
+#dSmsTemplatePanel .sms-card-top { flex-wrap: wrap; gap: 4px; }
+#dSmsTemplatePanel .sms-card-actions { display: flex; align-items: center; gap: 6px; }
+#dSmsTemplatePanel .sms-label { font-size: 10.5px; gap: 4px; }
+#dSmsTemplatePanel .sms-label svg { width: 11px; height: 11px; }
+#dSmsTemplatePanel .sms-copy-btn { padding: 3px 8px; font-size: 10.5px; gap: 4px; }
+#dSmsTemplatePanel .sms-sent-badge { font-size: 9px; padding: 1px 5px; margin-left: 4px; }
+#dSmsTemplatePanel .sms-expand-icon { color: var(--text-secondary); transition: transform 0.15s ease; flex-shrink: 0; }
+#dSmsTemplatePanel .sms-text {
+  display: none; margin-top: 8px; font-size: 12px; cursor: text;
+}
+#dSmsTemplatePanel .sms-card.expanded {
+  grid-column: 1 / -1;
+}
+#dSmsTemplatePanel .sms-card.expanded .sms-text { display: block; }
+#dSmsTemplatePanel .sms-card.expanded .sms-expand-icon { transform: rotate(180deg); }
+
 /* ===== SMS INBOX VIEW ===== */
 .sms-inbox-view {
   display: flex;

@@ -557,6 +557,72 @@ function renderTable() {
 // ============================================================
 // DETAIL
 // ============================================================
+// Fetches the fuller jobsheet record (stage notes, parts, order numbers)
+// that isn't part of the lightweight Sheet-synced job object, and fills
+// in the two sections showDetail() left as loading placeholders. Bails
+// quietly if a different job's modal is open by the time this resolves.
+async function dLoadJobsheetExtras(j) {
+  const notesBody = document.getElementById('dStageNotesBody');
+  const partsBody = document.getElementById('dPartsBody');
+  if (!notesBody && !partsBody) return;
+
+  try {
+    const res = await fetch('/.netlify/functions/firestore-jobsheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load', jobId: j.jobId }),
+    }).then(r => r.json());
+
+    const titleEl = document.getElementById('dTitle');
+    if (!titleEl || titleEl.textContent !== (j.jobId || 'Job Details')) return; // stale — a different job is open now
+
+    const data = (res.ok && res.data) ? res.data : {};
+
+    if (notesBody) {
+      const stages = [
+        ['Inspection', data.inspectionNote],
+        ['Repairing',  data.repairingNote],
+        ['Testing',    data.testingNote],
+        ['QC',         data.qcNote],
+      ].filter(([, v]) => v && String(v).trim());
+
+      notesBody.innerHTML = stages.length
+        ? stages.map(([label, val]) => `
+            <div class="d-stage-note">
+              <div class="d-stage-note-label">${label}</div>
+              <div class="d-stage-note-text">${val}</div>
+            </div>`).join('')
+        : '<div class="d-photo-empty">No stage notes recorded yet</div>';
+    }
+
+    if (partsBody) {
+      const parts  = (data.parts || []).filter(p => p && (p.name || p.partno));
+      const orders = (data.orderNums || []).filter(Boolean);
+
+      if (!parts.length && !orders.length) {
+        partsBody.innerHTML = '<div class="d-photo-empty">No parts recorded yet</div>';
+      } else {
+        let html = '';
+        if (parts.length) {
+          html += '<div class="d-parts-list">' + parts.map(p => `
+            <div class="d-parts-row">
+              <span>${p.name || p.partno || 'Unnamed part'}</span>
+              <span class="d-parts-qty">×${p.qty || 1}</span>
+            </div>`).join('') + '</div>';
+        }
+        if (orders.length) {
+          html += `<div class="d-order-nums"><strong>Order #:</strong> ${orders.join(', ')}</div>`;
+        }
+        partsBody.innerHTML = html;
+      }
+    }
+  } catch (err) {
+    console.warn('dLoadJobsheetExtras failed:', err.message);
+    if (notesBody) notesBody.innerHTML = '<div class="d-photo-empty">Could not load</div>';
+    if (partsBody) partsBody.innerHTML = '<div class="d-photo-empty">Could not load</div>';
+  }
+}
+
 function showDetail(j) {
   // Clear photo cache on every open so stale photos from previous job don't show
   Object.keys(_dPhotoCache).forEach(k => delete _dPhotoCache[k]);
@@ -617,11 +683,23 @@ function showDetail(j) {
     </div>`;
   }
 
+  // ── Stage Notes ──────────────────────────────────────────────
+  h += `<div class="d-extra-section" id="dStageNotesSection">
+    <div class="d-extra-title">Stage Notes</div>
+    <div id="dStageNotesBody"><div class="d-photo-loading"><div class="d-photo-spinner"></div><span>Loading…</span></div></div>
+  </div>`;
+
+  // ── Parts Ordered ────────────────────────────────────────────
+  h += `<div class="d-extra-section" id="dPartsSection">
+    <div class="d-extra-title">Parts Ordered</div>
+    <div id="dPartsBody"><div class="d-photo-loading"><div class="d-photo-spinner"></div><span>Loading…</span></div></div>
+  </div>`;
+
   // ── SMS Templates ───────────────────────────────────────────
   const SMS_TEMPLATES = buildSmsTemplates(j);
 
   h += `
-    <div class="sms-panel">
+    <div class="sms-panel" id="dSmsTemplatePanel">
       <div class="sms-panel-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
         SMS Templates
@@ -634,17 +712,20 @@ function showDetail(j) {
       ? `<span class="sms-sent-badge" title="Sent ${fmtDateTime(sentAt)}">✓ Sent ${fmtDate(sentAt)}</span>`
       : '';
     h += `
-        <div class="sms-card" style="--sms-color:${t.color};--sms-bg:${t.bg};">
+        <div class="sms-card" style="--sms-color:${t.color};--sms-bg:${t.bg};" onclick="this.classList.toggle('expanded')">
           <div class="sms-card-top">
             <div class="sms-label">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" style="color:${t.color};">${t.icon}</svg>
               ${t.label}
               ${sentBadge}
             </div>
-            <button class="sms-copy-btn" onclick="copySms(${i}, '${j.jobId}')" id="smsBtn${i}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-              Copy
-            </button>
+            <div class="sms-card-actions">
+              <button class="sms-copy-btn" onclick="event.stopPropagation();copySms(${i}, '${j.jobId}')" id="smsBtn${i}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                Copy
+              </button>
+              <svg class="sms-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
           </div>
           <div class="sms-text" id="smsText${i}">${t.text}</div>
         </div>`;
@@ -658,6 +739,7 @@ function showDetail(j) {
 
   // Store templates for copy function
   window._smsTemplates = SMS_TEMPLATES;
+  dLoadJobsheetExtras(j);
 
   // Footer — just close button now; all actions moved to top action bar
   document.getElementById('dFoot').innerHTML = `<button class="btn btn-secondary" onclick="closeModal('detailModal')">Close</button>`;
