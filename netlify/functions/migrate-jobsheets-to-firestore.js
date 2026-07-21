@@ -72,7 +72,8 @@ exports.handler = async function (event) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ok: false,
-          message: 'Dry run — add ?confirm=yes to actually migrate. Pulls each job\'s Drive jobsheet JSON and copies it into Firestore, but only for jobs where Firestore has no parts/order number data yet.',
+          _scriptVersion: 'v2-exists-check — if you can see this field, the updated code is live',
+          message: 'Dry run — add ?confirm=yes to actually migrate. Pulls each job\'s Drive jobsheet JSON and copies it into Firestore, but only for jobs whose Firestore jobsheet doc doesn\'t exist yet.',
           remainingToCheck: needsCheck.length,
           wouldProcessThisRun: toProcess.map(j => j.id),
         }, null, 2),
@@ -125,6 +126,7 @@ exports.handler = async function (event) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ok: true,
+        _scriptVersion: 'v2-exists-check — if you can see this field, the updated code is live',
         migrated, noFile, failed,
         remainingAfterThisRun: remaining,
         note: remaining > 0 ? 'More jobs still to check — hit this URL again to continue.' : 'All caught up.',
