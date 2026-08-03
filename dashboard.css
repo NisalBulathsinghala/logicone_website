@@ -1088,6 +1088,7 @@ body {
   display: block; cursor: pointer; object-fit: cover;
 }
 .sms-msg-bubble.has-image { padding: 4px; background: transparent !important; border: none !important; }
+.sms-msg-out .sms-msg-bubble.has-image { color: var(--text-primary); }
 
 .sms-thread-compose {
   display: flex; align-items: flex-end; gap: 10px;

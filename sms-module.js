@@ -149,7 +149,7 @@
       sendBtn.className = 'sms-send-btn';
       sendBtn.id = `smsSendBtn${i}`;
       sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send`;
-      sendBtn.onclick = () => smsSend(i, job);
+      sendBtn.onclick = (e) => { e.stopPropagation(); smsSend(i, job); };
       top.appendChild(sendBtn);
     });
 
