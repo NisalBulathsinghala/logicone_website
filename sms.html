@@ -265,6 +265,13 @@ html, body {
   color: #dc2626 !important;
 }
 
+.msg-image {
+  max-width: 240px; max-height: 240px; border-radius: 14px;
+  display: block; cursor: pointer; object-fit: cover;
+}
+.msg-bubble.has-image { padding: 4px; background: transparent !important; border: none !important; }
+.msg-out .msg-bubble.has-image { color: var(--text); }
+
 .msg-time {
   font-size: 11px; color: var(--text2);
   margin-top: 4px; padding: 0 4px;
@@ -729,8 +736,12 @@ function renderThread(msgs) {
         ? '<span class="msg-status failed">✗ Failed</span>'
         : '<span class="msg-status sent">✓ Sent</span>'
       : '<span class="msg-status received">Received</span>';
+    const imageHtml = m.mediaUrl
+      ? `<img class="msg-image" src="${esc(m.mediaUrl)}" onclick="window.open('${esc(m.mediaUrl)}','_blank')" alt="attached image">`
+      : '';
+    const textHtml = m.body ? esc(m.body).replace(/\n/g, '<br>') : '';
     return `<div class="msg msg-${dir}${m.failed ? ' msg-failed' : ''}">
-      <div class="msg-bubble">${esc(m.body || '').replace(/\n/g, '<br>')}</div>
+      <div class="msg-bubble${m.mediaUrl ? ' has-image' : ''}">${imageHtml}${textHtml}</div>
       <div class="msg-time">${fmtTime(m.timestamp)} ${statusLabel}</div>
     </div>`;
   }).join('');
