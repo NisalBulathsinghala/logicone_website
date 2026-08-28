@@ -20,19 +20,40 @@
   'use strict';
 
   // ── QR Code configuration ──────────────────────────────────────────────────
-  // BASE_URL: the public URL of your deployed site (no trailing slash).
-  // TOKEN_SECRET: MUST match the value in job-status.html exactly.
-  // The QR code encodes: BASE_URL/job-status.html?id=JOBID&t=TOKEN
+  // The QR on the receipt/labels now points at the photo-upload page
+  // (photo-upload.html?job=JOBID&t=TOKEN, token minted via qr-photo.js —
+  // same mechanism jsShowQrModal() in jobsheet-module.js already uses, just
+  // called automatically here instead of needing a manual dashboard step).
+  //
+  // generateStatusToken/QR_TOKEN_SECRET below are the OLD job-status.html
+  // link scheme. Left in place (and still exposed on window) in case
+  // anything else still generates status-check links from a jobId — nothing
+  // in this file calls it anymore, so if nothing else does either, it's
+  // safe to remove.
   const QR_BASE_URL    = 'https://logicone.com.au';          // ← update if different
   const QR_TOKEN_SECRET = 'lo-status-2026';                  // ← change both files together
 
-  // ── Generate a short token for a job ID ────────────────────────────────────
+  // ── Generate a short token for a job ID (OLD job-status.html scheme) ───────
   async function generateStatusToken(jobId) {
     const buf = await crypto.subtle.digest(
       'SHA-256',
       new TextEncoder().encode(QR_TOKEN_SECRET + ':' + jobId)
     );
     return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0, 16);
+  }
+
+  // ── Mint (or reuse) a photo-upload link for a job ──────────────────────────
+  // Same call jsShowQrModal() makes — qr-photo.js reuses the existing token
+  // if one's already been minted for this job, so calling this here on every
+  // print doesn't churn the link; it stays stable for the job's lifetime.
+  async function getPhotoUploadUrl(jobId) {
+    const res = await fetch('/.netlify/functions/qr-photo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mint', jobId }),
+    }).then(r => r.json());
+    if (!res.ok) throw new Error(res.error || 'Could not create upload link');
+    return `${location.origin}/photo-upload.html?job=${encodeURIComponent(jobId)}&t=${encodeURIComponent(res.token)}`;
   }
 
   // ── Lazy-load QR code library (idempotent) ─────────────────────────────────
@@ -145,7 +166,7 @@
   }
 
   // ── Build the A5 vector PDF ────────────────────────────────────────────────
-  async function buildReceiptPdf(job, statusUrl) {
+  async function buildReceiptPdf(job, qrUrl) {
     await ensureJsPDF();
     const { jsPDF } = window.jspdf;
 
@@ -234,8 +255,8 @@
 
     // Pre-generate QR so we know if it's available before laying out the header
     let qrDataUrl = null;
-    if (statusUrl) {
-      try { qrDataUrl = await generateQRDataUrl(statusUrl); } catch(e) {
+    if (qrUrl) {
+      try { qrDataUrl = await generateQRDataUrl(qrUrl); } catch(e) {
         console.warn('receipt: QR generation failed in header:', e.message);
       }
     }
@@ -474,20 +495,20 @@
       return;
     }
 
-    // Generate status URL with token — skipped for customer copies
-    let statusUrl = null;
+    // QR points at the photo-upload page — skipped for customer copies,
+    // same as the old status QR always was.
+    let qrUrl = null;
     if (!customerCopy) {
       try {
-        const token = await generateStatusToken(job.jobId);
-        statusUrl = `${QR_BASE_URL}/job-status.html?id=${encodeURIComponent(job.jobId)}&t=${token}`;
+        qrUrl = await getPhotoUploadUrl(job.jobId);
       } catch(e) {
-        console.warn('receipt: token generation failed, QR will be skipped:', e.message);
+        console.warn('receipt: upload link mint failed, QR will be skipped:', e.message);
       }
     }
 
     let pdf;
     try {
-      pdf = await buildReceiptPdf(job, statusUrl);
+      pdf = await buildReceiptPdf(job, qrUrl);
     } catch (e) {
       console.error('receipt build failed:', e);
       if (typeof showToast === 'function') showToast('error', 'Receipt build failed: ' + e.message);
@@ -547,16 +568,15 @@
   window.receiptDownload = async function (job, customerCopy) {
     if (!job || !job.jobId) return;
     try {
-      let statusUrl = null;
+      let qrUrl = null;
       if (!customerCopy) {
         try {
-          const token = await generateStatusToken(job.jobId);
-          statusUrl = `${QR_BASE_URL}/job-status.html?id=${encodeURIComponent(job.jobId)}&t=${token}`;
+          qrUrl = await getPhotoUploadUrl(job.jobId);
         } catch(e) {
-          console.warn('receipt: token generation failed, QR skipped:', e.message);
+          console.warn('receipt: upload link mint failed, QR skipped:', e.message);
         }
       }
-      const pdf = await buildReceiptPdf(job, statusUrl);
+      const pdf = await buildReceiptPdf(job, qrUrl);
       const suffix = customerCopy ? '-Customer' : '-Workshop';
       pdf.save(`Intake-Receipt-${job.jobId}${suffix}.pdf`);
     } catch (e) {
@@ -564,5 +584,13 @@
       if (typeof showToast === 'function') showToast('error', 'Download failed: ' + e.message);
     }
   };
+
+  // ── Exposed for reuse by label-module.js ────────────────────────────────
+  // Same QR renderer, same photo-upload mint call — so the QR on a printed
+  // label and the QR on the receipt always resolve to the exact same
+  // upload link for that job. Nothing here changes receipt behaviour.
+  window.loGenerateStatusToken = generateStatusToken; // old scheme, kept for compatibility
+  window.loGenerateQRDataUrl   = generateQRDataUrl;
+  window.loGetPhotoUploadUrl   = getPhotoUploadUrl;
 
 })();
