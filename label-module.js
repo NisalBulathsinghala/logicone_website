@@ -17,9 +17,10 @@
    code works around. True zero-click printing (no dialog at all)
    would need a small local helper program instead.
 
-   Reuses receipt-module.js's QR mint/renderer (window.loGetPhotoUploadUrl
-   / window.loGenerateQRDataUrl) so the QR on a label and the QR on the
-   receipt resolve to the exact same photo-upload link for that job.
+   Reuses receipt-module.js's QR token/renderer (window.loGenerateStatusToken
+   / window.loGenerateQRDataUrl) so the QR on a label and the QR on
+   the receipt resolve to the exact same job-status link — which now
+   also has its own "Upload Photos" tab, so the same QR reaches both.
    receipt-module.js must be loaded first — see dashboard.html.
 
    Not saved to Drive — a one-off workshop artifact, not a
@@ -45,6 +46,8 @@
                          // just how much of the roll each label uses
   const PAD     = 3;    // mm, inner padding
   const QR_SIZE = 22;   // mm
+
+  const STATUS_BASE_URL = 'https://logicone.com.au'; // keep in sync with receipt-module.js
 
   const C = {
     ink:     [15, 23, 42],
@@ -72,17 +75,18 @@
   }
 
   // QR is a nice-to-have, not load-bearing. If receipt-module.js hasn't
-  // loaded (script order issue) or the mint call fails for any reason,
-  // labels still print fine as text-only — same fallback spirit as the
-  // receipt's own logo-load handling.
+  // loaded (script order issue) or token/QR generation fails for any
+  // reason, labels still print fine as text-only — same fallback spirit
+  // as the receipt's own logo-load handling.
   async function tryGetQR(jobId) {
     try {
-      if (typeof window.loGetPhotoUploadUrl !== 'function' ||
-          typeof window.loGenerateQRDataUrl !== 'function') {
+      if (typeof window.loGenerateStatusToken !== 'function' ||
+          typeof window.loGenerateQRDataUrl   !== 'function') {
         console.warn('label: receipt-module.js QR helpers not found — printing text-only');
         return null;
       }
-      const url = await window.loGetPhotoUploadUrl(jobId);
+      const token = await window.loGenerateStatusToken(jobId);
+      const url   = `${STATUS_BASE_URL}/job-status.html?id=${encodeURIComponent(jobId)}&t=${token}`;
       return await window.loGenerateQRDataUrl(url);
     } catch (e) {
       console.warn('label: QR unavailable, printing text-only —', e.message);

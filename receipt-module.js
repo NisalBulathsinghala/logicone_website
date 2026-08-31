@@ -20,40 +20,23 @@
   'use strict';
 
   // ── QR Code configuration ──────────────────────────────────────────────────
-  // The QR on the receipt/labels now points at the photo-upload page
-  // (photo-upload.html?job=JOBID&t=TOKEN, token minted via qr-photo.js —
-  // same mechanism jsShowQrModal() in jobsheet-module.js already uses, just
-  // called automatically here instead of needing a manual dashboard step).
-  //
-  // generateStatusToken/QR_TOKEN_SECRET below are the OLD job-status.html
-  // link scheme. Left in place (and still exposed on window) in case
-  // anything else still generates status-check links from a jobId — nothing
-  // in this file calls it anymore, so if nothing else does either, it's
-  // safe to remove.
+  // The QR on the receipt/labels points at the status page
+  // (job-status.html?id=JOBID&t=TOKEN). That page now has its own
+  // "Upload Photos" tab (mints its own separate qr-photo.js token,
+  // independent of this one) — so the same QR reaches both status info
+  // and photo upload, one tap apart, instead of the QR having to choose.
+  // BASE_URL: the public URL of your deployed site (no trailing slash).
+  // TOKEN_SECRET: MUST match the value in job-status.html exactly.
   const QR_BASE_URL    = 'https://logicone.com.au';          // ← update if different
   const QR_TOKEN_SECRET = 'lo-status-2026';                  // ← change both files together
 
-  // ── Generate a short token for a job ID (OLD job-status.html scheme) ───────
+  // ── Generate a short token for a job ID ────────────────────────────────────
   async function generateStatusToken(jobId) {
     const buf = await crypto.subtle.digest(
       'SHA-256',
       new TextEncoder().encode(QR_TOKEN_SECRET + ':' + jobId)
     );
     return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0, 16);
-  }
-
-  // ── Mint (or reuse) a photo-upload link for a job ──────────────────────────
-  // Same call jsShowQrModal() makes — qr-photo.js reuses the existing token
-  // if one's already been minted for this job, so calling this here on every
-  // print doesn't churn the link; it stays stable for the job's lifetime.
-  async function getPhotoUploadUrl(jobId) {
-    const res = await fetch('/.netlify/functions/qr-photo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'mint', jobId }),
-    }).then(r => r.json());
-    if (!res.ok) throw new Error(res.error || 'Could not create upload link');
-    return `${location.origin}/photo-upload.html?job=${encodeURIComponent(jobId)}&t=${encodeURIComponent(res.token)}`;
   }
 
   // ── Lazy-load QR code library (idempotent) ─────────────────────────────────
@@ -495,14 +478,14 @@
       return;
     }
 
-    // QR points at the photo-upload page — skipped for customer copies,
-    // same as the old status QR always was.
+    // QR points at the status page — skipped for customer copies.
     let qrUrl = null;
     if (!customerCopy) {
       try {
-        qrUrl = await getPhotoUploadUrl(job.jobId);
+        const token = await generateStatusToken(job.jobId);
+        qrUrl = `${QR_BASE_URL}/job-status.html?id=${encodeURIComponent(job.jobId)}&t=${token}`;
       } catch(e) {
-        console.warn('receipt: upload link mint failed, QR will be skipped:', e.message);
+        console.warn('receipt: token generation failed, QR will be skipped:', e.message);
       }
     }
 
@@ -571,9 +554,10 @@
       let qrUrl = null;
       if (!customerCopy) {
         try {
-          qrUrl = await getPhotoUploadUrl(job.jobId);
+          const token = await generateStatusToken(job.jobId);
+          qrUrl = `${QR_BASE_URL}/job-status.html?id=${encodeURIComponent(job.jobId)}&t=${token}`;
         } catch(e) {
-          console.warn('receipt: upload link mint failed, QR skipped:', e.message);
+          console.warn('receipt: token generation failed, QR skipped:', e.message);
         }
       }
       const pdf = await buildReceiptPdf(job, qrUrl);
@@ -586,11 +570,10 @@
   };
 
   // ── Exposed for reuse by label-module.js ────────────────────────────────
-  // Same QR renderer, same photo-upload mint call — so the QR on a printed
-  // label and the QR on the receipt always resolve to the exact same
-  // upload link for that job. Nothing here changes receipt behaviour.
-  window.loGenerateStatusToken = generateStatusToken; // old scheme, kept for compatibility
+  // Same token algorithm, same secret, same QR renderer — so the QR on a
+  // printed label and the QR on the receipt always resolve to the exact
+  // same job-status link. Nothing here changes receipt behaviour.
+  window.loGenerateStatusToken = generateStatusToken;
   window.loGenerateQRDataUrl   = generateQRDataUrl;
-  window.loGetPhotoUploadUrl   = getPhotoUploadUrl;
 
 })();

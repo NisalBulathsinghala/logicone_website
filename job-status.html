@@ -104,6 +104,24 @@ body::before {
 .state-title { font-size: 16px; font-weight: 700; text-align: center; margin-bottom: 8px; }
 .state-sub { font-size: 13px; color: #64748b; text-align: center; line-height: 1.6; }
 
+/* ── Tabs ── */
+.tab-row {
+  display: flex; gap: 6px;
+  background: #f1f5f9; border-radius: 12px; padding: 4px;
+  margin-bottom: 20px;
+}
+.tab-btn {
+  flex: 1; text-align: center;
+  padding: 9px 10px; border: none; border-radius: 9px;
+  background: transparent; color: #64748b;
+  font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.tab-btn.active { background: #fff; color: #00b4d8; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.tab-btn:disabled { opacity: 0.6; cursor: default; }
+.tab-btn svg { flex-shrink: 0; }
+
 /* ── Job header ── */
 .job-header {
   display: flex;
@@ -361,6 +379,17 @@ body::before {
 
     <!-- Job result state -->
     <div id="stateResult" style="display:none;">
+
+      <div class="tab-row">
+        <button class="tab-btn active" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Status
+        </button>
+        <button class="tab-btn" type="button" id="uploadTabBtn" onclick="goToPhotoUpload()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload Photos
+        </button>
+      </div>
 
       <div class="job-header">
         <div>
@@ -734,6 +763,38 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// UPLOAD PHOTOS TAB — mints (or reuses) the same photo-upload token
+// receipt-module.js / label-module.js / jsShowQrModal() all use, then
+// hands off to photo-upload.html. Doesn't touch this page's own status
+// token at all — separate scheme, separate call.
+// ─────────────────────────────────────────────────────────────────
+async function goToPhotoUpload() {
+  const { id: jobId } = getParams();
+  const btn = document.getElementById('uploadTabBtn');
+  if (!jobId || !btn) return;
+
+  btn.disabled = true;
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = 'Loading…';
+
+  try {
+    const res = await fetch('/.netlify/functions/qr-photo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mint', jobId }),
+    }).then(r => r.json());
+
+    if (!res.ok || !res.token) throw new Error(res.error || 'Could not get upload link');
+
+    window.location.href = `/photo-upload.html?job=${encodeURIComponent(jobId)}&t=${encodeURIComponent(res.token)}`;
+  } catch (e) {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    alert('Could not open photo upload: ' + e.message);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
