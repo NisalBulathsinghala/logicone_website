@@ -67,8 +67,6 @@ exports.handler = async function (event) {
         invoiceNo:    body.invoiceNo || '',
         item:         body.item || '',
         itemRaw:      body.itemRaw || '',
-        qty:          body.qty ?? null,
-        unitPrice:    body.unitPrice ?? null,
         cost:         body.cost ?? null,
         trackingCode: body.trackingCode || '',
         invoiceDate:  body.invoiceDate || '',
@@ -85,9 +83,25 @@ exports.handler = async function (event) {
 
       let orders;
       if (idx >= 0) {
-        // Re-processed the same order — keep received status, refresh the rest
+        // Same order, second document (Tax Invoice + Delivery Order slip
+        // both reference the same orderRef, with different fields
+        // populated — a Delivery Order has no pricing, a Tax Invoice
+        // sometimes has no tracking yet). Merge field-by-field, only
+        // overwriting with a new value when the incoming one is actually
+        // non-empty, so a leaner document processing second doesn't
+        // blank out what a richer one already captured. Always keep
+        // received status and re-stamp addedAt to the latest process time.
+        const prev = existing[idx];
+        const merged = { ...prev };
+        Object.keys(entry).forEach(k => {
+          if (k === 'received' || k === 'receivedAt') return;
+          const v = entry[k];
+          const isEmpty = v === '' || v === null || v === undefined;
+          if (!isEmpty) merged[k] = v;
+        });
+        merged.addedAt = entry.addedAt;
         orders = [...existing];
-        orders[idx] = { ...entry, received: existing[idx].received, receivedAt: existing[idx].receivedAt };
+        orders[idx] = merged;
       } else {
         orders = [...existing, entry];
       }
