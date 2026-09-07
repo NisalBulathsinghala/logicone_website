@@ -602,12 +602,29 @@ async function fsJobsheet(action, payload) {
   }
 }
 
+async function fsPartsOrders(action, payload) {
+  try {
+    const res = await fetch('/.netlify/functions/parts-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ action }, payload))
+    });
+    return await res.json();
+  } catch (e) {
+    console.warn('parts-orders ' + action + ' error:', e);
+    return { ok: false, error: e.message };
+  }
+}
+
 async function jsOpenJob(jobId) {
   const j = jobs.find(x => x.jobId === jobId);
   if (!j) return;
   jsCurrentJob = j;
   jsParts = [];
   jsOrderNums = [];
+  jsCin7Orders = [];
+  const cin7Card = document.getElementById('jsSecCin7Orders');
+  if (cin7Card) cin7Card.style.display = 'none';
   window._jsRepairLevelCostOverride = null;
 
   // Load costs.json from Drive (non-blocking — updates hints/costs when ready)
@@ -714,6 +731,10 @@ async function jsOpenJob(jobId) {
     jsResetEditableFields(j);
     jsSetSaveIndicator(false);
   }
+
+  // Non-blocking — auto-filed Cin7 parts orders, separate Firestore doc,
+  // shouldn't hold up the rest of the job sheet loading.
+  jsLoadCin7Orders(jobId);
 }
 
 
@@ -930,6 +951,7 @@ function jsUpdateScooterChecklist(deviceType) {
 
 // Order numbers management
 let jsOrderNums = [];
+let jsCin7Orders = [];
 
 function jsRenderOrderNums() {
   const list = document.getElementById('jsOrderNumsList');
@@ -959,6 +981,68 @@ function jsAddOrderNum() {
 function jsRemoveOrderNum(i) {
   jsOrderNums.splice(i, 1);
   jsRenderOrderNums();
+}
+
+// ── Cin7 parts orders — auto-filed from Gmail via Apps Script ─────────
+// Read-only except for the Received toggle. Separate Firestore doc
+// (jobs/{jobId}/jobsheet/partsOrders) from the manual Order Numbers
+// list above — this one is written by the Apps Script processor, not
+// by this form's Save button.
+async function jsLoadCin7Orders(jobId) {
+  if (!jobId || !jsCurrentJob || jsCurrentJob.jobId !== jobId) return;
+  const res = await fsPartsOrders('load', { jobId });
+  if (!jsCurrentJob || jsCurrentJob.jobId !== jobId) return; // job switched mid-fetch
+  jsCin7Orders = (res.ok && Array.isArray(res.data)) ? res.data : [];
+  jsRenderCin7Orders();
+}
+
+function jsRenderCin7Orders() {
+  const card = document.getElementById('jsSecCin7Orders');
+  const list = document.getElementById('jsCin7OrdersList');
+  if (!card || !list) return;
+
+  if (!jsCin7Orders.length) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+
+  const esc = s => String(s || '').replace(/"/g, '&quot;');
+
+  list.innerHTML = jsCin7Orders.map(o => {
+    const trackUrl = o.trackingCode
+      ? `https://auspost.com.au/mypost/track/#/details/${encodeURIComponent(o.trackingCode)}`
+      : '';
+    return `
+      <div class="js-order-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:10px 12px;border:1px solid var(--border-light);border-radius:var(--radius-sm);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <span style="font-weight:600;font-size:13px;">${esc(o.item) || esc(o.itemRaw) || 'Item not parsed'}</span>
+          ${o.cost ? `<span style="font-size:13px;color:var(--text-secondary);">$${Number(o.cost).toFixed(2)}</span>` : ''}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:11.5px;color:var(--text-secondary);">
+          <span>Order ${esc(o.orderRef) || '—'}</span>
+          ${o.invoiceNo ? `<span>Inv ${esc(o.invoiceNo)}</span>` : ''}
+          ${o.driveFileUrl ? `<a href="${esc(o.driveFileUrl)}" target="_blank" style="color:var(--accent);">Invoice PDF</a>` : ''}
+          ${trackUrl ? `<a href="${trackUrl}" target="_blank" style="color:var(--accent);">Track: ${esc(o.trackingCode)}</a>` : ''}
+        </div>
+        ${o.needsReview ? `<div style="font-size:11px;color:#d97706;">\u26a0\ufe0f Some fields may not have parsed cleanly — check against the invoice PDF</div>` : ''}
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+          <input type="checkbox" ${o.received ? 'checked' : ''} onchange="jsToggleCin7Received('${esc(o.orderRef)}', this.checked)">
+          Received${o.receivedAt ? ` — ${new Date(o.receivedAt).toLocaleDateString('en-AU')}` : ''}
+        </label>
+      </div>`;
+  }).join('');
+}
+
+async function jsToggleCin7Received(orderRef, received) {
+  if (!jsCurrentJob) return;
+  const jobId = jsCurrentJob.jobId;
+  const res = await fsPartsOrders('mark-received', { jobId, orderRef, received });
+  if (!res.ok) {
+    console.warn('mark-received failed:', res.error);
+    if (typeof showToast === 'function') showToast('error', 'Could not update received status');
+  }
+  jsLoadCin7Orders(jobId);
 }
 
 // Repair level hint text

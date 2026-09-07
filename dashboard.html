@@ -394,6 +394,15 @@
           </div>
         </div>
 
+        <!-- Parts Orders — auto-filed from Cin7 invoice emails -->
+        <div class="js-card" id="jsSecCin7Orders" style="display:none;">
+          <div class="js-card-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <span>Parts Orders (Cin7)</span>
+            <button class="js-add-part-btn" style="margin:0;" onclick="jsLoadCin7Orders(jsCurrentJob && jsCurrentJob.jobId)">Refresh</button>
+          </div>
+          <div id="jsCin7OrdersList" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+
         <!-- Cost -->
         <div class="js-card" id="jsSecCost">
           <div class="js-card-title">Cost Summary</div>
