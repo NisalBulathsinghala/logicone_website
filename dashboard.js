@@ -114,6 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // unread counts without requiring a visit to the SMS tab first
   smsInboxRefresh().then(() => smsRefreshKanbanBadges());
 
+  // Preload inventory nav badge (low stock + pending receiving) without
+  // requiring a visit to the Inventory tab first
+  if (typeof invPreloadBadge === 'function') invPreloadBadge();
+
   // Restore sidebar collapsed state
   if (localStorage.getItem('sidebarCollapsed') === 'true') {
     document.getElementById('sidebar').classList.add('collapsed');
@@ -1705,14 +1709,15 @@ function switchView(v) {
   document.getElementById('view-' + v).classList.add('active');
   const navEl = document.querySelector(`[data-view="${v}"]`);
   if (navEl) navEl.classList.add('active');
-  const titles = { kanban:'KANBAN BOARD', list:'ALL JOBS', jobsheet:'JOB SHEETS', sms:'SMS INBOX' };
+  const titles = { kanban:'KANBAN BOARD', list:'ALL JOBS', jobsheet:'JOB SHEETS', sms:'SMS INBOX', inventory:'INVENTORY' };
   document.getElementById('viewTitle').textContent = titles[v] || '';
-  // Show/hide search bar (not relevant on job sheet or sms)
+  // Show/hide search bar (not relevant on job sheet, sms, or inventory — each has its own)
   const searchBar = document.querySelector('.search-bar');
-  if (searchBar) searchBar.style.display = (v === 'jobsheet' || v === 'sms') ? 'none' : '';
+  if (searchBar) searchBar.style.display = (v === 'jobsheet' || v === 'sms' || v === 'inventory') ? 'none' : '';
   if (v === 'jobsheet') jsRenderJobList();
   if (v === 'kanban') setTimeout(kUpdateScrollBtns, 50);
   if (v === 'sms') smsInboxInit();
+  if (v === 'inventory' && typeof invModuleInit === 'function') invModuleInit();
   // Show/hide scroll arrow
   const arrow = document.getElementById('jsScrollArrow');
   if (arrow) arrow.classList.toggle('visible', v === 'jobsheet');

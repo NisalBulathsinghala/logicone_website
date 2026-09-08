@@ -623,6 +623,9 @@ async function jsOpenJob(jobId) {
   jsParts = [];
   jsOrderNums = [];
   jsCin7Orders = [];
+  // Kick off inventory load if it hasn't already happened (badge preload
+  // usually beats us here) — non-blocking, parts table links in once ready
+  if (typeof invLoaded !== 'undefined' && !invLoaded && typeof invLoadItems === 'function') invLoadItems();
   const cin7Card = document.getElementById('jsSecCin7Orders');
   if (cin7Card) cin7Card.style.display = 'none';
   window._jsRepairLevelCostOverride = null;
@@ -1023,13 +1026,17 @@ function jsRenderCin7Orders() {
           <span>Order ${esc(o.orderRef) || '—'}</span>
           ${o.invoiceNo ? `<span>Inv ${esc(o.invoiceNo)}</span>` : ''}
           ${o.driveFileUrl ? `<a href="${esc(o.driveFileUrl)}" target="_blank" style="color:var(--accent);">Invoice PDF</a>` : ''}
-          ${trackUrl ? `<a href="${trackUrl}" target="_blank" style="color:var(--accent);">Track: ${esc(o.trackingCode)}</a>` : ''}
+          ${trackUrl ? `<a href="${trackUrl}" target="_blank" style="color:var(--accent);">Track: ${esc(o.trackingCode)} (carrier status — not confirmed)</a>` : ''}
         </div>
         ${o.needsReview ? `<div style="font-size:11px;color:#d97706;">\u26a0\ufe0f Some fields may not have parsed cleanly — check against the invoice PDF</div>` : ''}
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-          <input type="checkbox" ${o.received ? 'checked' : ''} onchange="jsToggleCin7Received('${esc(o.orderRef)}', this.checked)">
-          Received${o.receivedAt ? ` — ${new Date(o.receivedAt).toLocaleDateString('en-AU')}` : ''}
-        </label>
+        ${o.flagged ? `<div style="font-size:11.5px;color:#b91c1c;background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.2);border-radius:6px;padding:6px 8px;">\u26a0 Flagged: ${esc(o.flagNote) || 'Marked as an issue'} — <span style="cursor:pointer;text-decoration:underline;" onclick="jsClearCin7Flag('${esc(o.orderRef)}')">clear</span></div>` : ''}
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" ${o.received ? 'checked' : ''} onchange="jsToggleCin7Received('${esc(o.orderRef)}', this.checked)">
+            Received${o.receivedAt ? ` — ${new Date(o.receivedAt).toLocaleDateString('en-AU')}` : ''}
+          </label>
+          ${!o.received && !o.flagged ? `<span style="font-size:11.5px;color:#b45309;cursor:pointer;text-decoration:underline;" onclick="jsFlagCin7Order('${esc(o.orderRef)}')">\u26a0 Flag an issue</span>` : ''}
+        </div>
       </div>`;
   }).join('');
 }
@@ -1037,10 +1044,37 @@ function jsRenderCin7Orders() {
 async function jsToggleCin7Received(orderRef, received) {
   if (!jsCurrentJob) return;
   const jobId = jsCurrentJob.jobId;
-  const res = await fsPartsOrders('mark-received', { jobId, orderRef, received });
+  // Ticking Received here always clears any prior flag — this is the
+  // "confirmed, all good" path.
+  const res = await fsPartsOrders('mark-received', { jobId, orderRef, received, flagged: false, flagNote: '' });
   if (!res.ok) {
     console.warn('mark-received failed:', res.error);
     if (typeof showToast === 'function') showToast('error', 'Could not update received status');
+  }
+  jsLoadCin7Orders(jobId);
+}
+
+async function jsFlagCin7Order(orderRef) {
+  if (!jsCurrentJob) return;
+  const note = prompt('What\'s wrong with this order? (e.g. "tracking says delivered but box was empty", "wrong part received")');
+  if (note === null) return;
+  const jobId = jsCurrentJob.jobId;
+  const res = await fsPartsOrders('mark-received', { jobId, orderRef, received: false, flagged: true, flagNote: note.trim() || 'Marked as an issue' });
+  if (!res.ok) {
+    if (typeof showToast === 'function') showToast('error', 'Could not flag: ' + res.error);
+    return;
+  }
+  if (typeof showToast === 'function') showToast('success', 'Flagged for follow-up');
+  jsLoadCin7Orders(jobId);
+}
+
+async function jsClearCin7Flag(orderRef) {
+  if (!jsCurrentJob) return;
+  const jobId = jsCurrentJob.jobId;
+  const res = await fsPartsOrders('mark-received', { jobId, orderRef, received: false, flagged: false, flagNote: '' });
+  if (!res.ok) {
+    if (typeof showToast === 'function') showToast('error', 'Could not clear flag: ' + res.error);
+    return;
   }
   jsLoadCin7Orders(jobId);
 }
@@ -1197,18 +1231,126 @@ async function jsSetStatus(el) {
 }
 
 function jsAddPart() {
-  jsParts.push({ partno:'', loc:'', name:'', qty:1, price:'' });
+  jsParts.push({ partno:'', loc:'', name:'', qty:1, price:'', inventoryId:null, deducted:false });
   jsRenderParts();
 }
 
+// Returns stock left over from the invoice/dashboard's cached inventory
+// list (window.invItems), plus what jsParts itself is currently holding
+// against that item so a second row for the same part doesn't look like
+// there's more stock available than there really is.
+function jsPartAvailableStock(inventoryId, excludeIndex) {
+  const items = (typeof invItems !== 'undefined') ? invItems : (window.invItems || []);
+  const item = items.find(x => x.id === inventoryId);
+  if (!item) return null;
+  let qty = parseFloat(item.qty) || 0;
+  jsParts.forEach((p, i) => {
+    if (i === excludeIndex) return;
+    if (p.inventoryId === inventoryId && !p.deducted) qty -= (parseFloat(p.qty) || 0);
+  });
+  return qty;
+}
+
+function jsPartStockBadgeHTML(p, i) {
+  if (!p.inventoryId) return '';
+  const left = jsPartAvailableStock(p.inventoryId, i);
+  if (left === null) return '';
+  const color = left < 0 ? '#dc2626' : (left === 0 ? '#d97706' : 'var(--text-secondary)');
+  return `<span class="js-part-stock" id="jsPartStock${i}" style="display:block;font-size:10.5px;color:${color};margin-top:2px;">${p.deducted ? 'deducted from stock' : left + ' available'}</span>`;
+}
+
+// Re-renders just the per-row stock badges (not the inputs, so typing
+// isn't interrupted) — called after inventory loads/changes.
+function jsRefreshPartsStockBadges() {
+  jsParts.forEach((p, i) => {
+    const el = document.getElementById('jsPartStock' + i);
+    if (!p.inventoryId) { if (el) el.remove(); return; }
+    const left = jsPartAvailableStock(p.inventoryId, i);
+    if (left === null) { if (el) el.remove(); return; }
+    const color = left < 0 ? '#dc2626' : (left === 0 ? '#d97706' : 'var(--text-secondary)');
+    const html = `${p.deducted ? 'deducted from stock' : left + ' available'}`;
+    if (el) {
+      el.style.color = color;
+      el.textContent = html;
+    }
+  });
+}
+
+// Called on every keystroke in a part's name field. If the text exactly
+// matches an inventory item (by name, or "name (sku)"), links this row
+// to that item — auto-filling the part # and price if they're empty —
+// so Save can deduct stock later. If a previously-linked row is edited
+// away from a match, any deduction already taken for it is reversed
+// immediately so stock isn't left short for a part that's no longer used.
+function jsPartsNameChanged(i, val) {
+  const p = jsParts[i];
+  if (!p) return;
+  p.name = val;
+  const lookup = (typeof invLookupMap !== 'undefined') ? invLookupMap : (window.invLookupMap || {});
+  const match = lookup[val.trim().toLowerCase()];
+  if (match) {
+    p.inventoryId = match.id;
+    if (!p.partno) p.partno = match.sku || p.partno;
+    if (p.price === '' || p.price == null) p.price = (match.cost != null ? match.cost : p.price);
+  } else if (p.inventoryId) {
+    if (p.deducted) {
+      const qty = parseFloat(p.qty) || 0;
+      if (qty > 0 && typeof fsInventory === 'function') {
+        fsInventory('adjust', { itemId: p.inventoryId, delta: qty, reason: 'Part unlinked on job sheet — returning stock', jobId: jsCurrentJob && jsCurrentJob.jobId });
+      }
+    }
+    p.inventoryId = null;
+    p.deducted = false;
+  }
+  jsRefreshPartsStockBadges();
+}
+
+// Called on every keystroke in a part's qty field. If this row was
+// already deducted from stock, the old deduction is reversed so the
+// next Save deducts the freshly-typed quantity instead of stacking on
+// top of the old one.
+function jsPartsQtyChanged(i, val) {
+  const p = jsParts[i];
+  if (!p) return;
+  const oldQty = parseFloat(p.qty) || 0;
+  p.qty = val;
+  if (p.deducted && p.inventoryId && typeof fsInventory === 'function') {
+    if (oldQty > 0) {
+      fsInventory('adjust', { itemId: p.inventoryId, delta: oldQty, reason: 'Qty edited on job sheet — reversing prior deduction', jobId: jsCurrentJob && jsCurrentJob.jobId });
+    }
+    p.deducted = false;
+  }
+  jsCalcCost();
+  jsRefreshPartsStockBadges();
+}
+
 function jsRemovePart(i) {
+  const p = jsParts[i];
+  if (p && p.deducted && p.inventoryId && typeof fsInventory === 'function') {
+    const qty = parseFloat(p.qty) || 0;
+    if (qty > 0) fsInventory('adjust', { itemId: p.inventoryId, delta: qty, reason: 'Part removed from job sheet — returning stock', jobId: jsCurrentJob && jsCurrentJob.jobId });
+  }
   jsParts.splice(i, 1);
   jsRenderParts();
   jsCalcCost();
 }
 
+// <datalist> isn't valid inside a <tbody> — keep it as a standalone
+// element (created once, refreshed whenever the parts table renders).
+function jsEnsureInvDatalist() {
+  let dl = document.getElementById('jsInvDatalist');
+  if (!dl) {
+    dl = document.createElement('datalist');
+    dl.id = 'jsInvDatalist';
+    document.body.appendChild(dl);
+  }
+  const items = (typeof invItems !== 'undefined') ? invItems : (window.invItems || []);
+  dl.innerHTML = items.map(it => `<option value="${(it.sku ? `${it.name} (${it.sku})` : it.name).replace(/"/g,'&quot;')}">`).join('');
+}
+
 function jsRenderParts() {
   const body = document.getElementById('jsPartsBody');
+  jsEnsureInvDatalist();
   if (!jsParts.length) {
     body.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:14px;color:var(--text-secondary);font-size:12px;">No parts added</td></tr>`;
     return;
@@ -1219,8 +1361,11 @@ function jsRenderParts() {
       <td style="width:30px;text-align:center;color:var(--text-secondary);font-size:12px;">${i+1}</td>
       <td><input type="text" value="${(p.partno||'').replace(/"/g,'&quot;')}" oninput="jsParts[${i}].partno=this.value" placeholder="Part #" style="width:120px"></td>
       <td><input type="text" value="${(p.loc||'').replace(/"/g,'&quot;')}" oninput="jsParts[${i}].loc=this.value" placeholder="Location" style="width:100px"></td>
-      <td><input type="text" value="${(p.name||'').replace(/"/g,'&quot;')}" oninput="jsParts[${i}].name=this.value" placeholder="Part name" style="width:100%"></td>
-      <td><input type="text" inputmode="decimal" value="${p.qty}" oninput="jsParts[${i}].qty=this.value;jsCalcCost()" style="width:55px;text-align:center;"></td>
+      <td>
+        <input type="text" list="jsInvDatalist" value="${(p.name||'').replace(/"/g,'&quot;')}" oninput="jsPartsNameChanged(${i}, this.value)" placeholder="Part name (matches inventory link)" style="width:100%">
+        ${jsPartStockBadgeHTML(p, i)}
+      </td>
+      <td><input type="text" inputmode="decimal" value="${p.qty}" oninput="jsPartsQtyChanged(${i}, this.value)" style="width:55px;text-align:center;"></td>
       <td><input type="text" inputmode="decimal" value="${p.price}" oninput="jsParts[${i}].price=this.value;jsCalcCost()" placeholder="0.00" style="width:88px;text-align:right;"></td>
       <td class="js-line-total" style="text-align:right;font-weight:500;padding-right:10px;">$${line}</td>
       <td><button class="js-parts-del" onclick="jsRemovePart(${i})">×</button></td>
@@ -1455,7 +1600,28 @@ function jsSaveOverlayHide() {
   if (overlay) overlay.classList.remove('show');
 }
 
+// Deducts stock for any parts-table row that's linked to an inventory
+// item and hasn't been deducted yet. Runs before jsCollectData() snapshots
+// jsParts, so the resulting saved data carries the up-to-date `deducted`
+// flag and a re-save never double-deducts the same line.
+async function jsDeductInventoryForParts(parts, jobId) {
+  if (typeof fsInventory !== 'function') return;
+  for (const p of parts) {
+    if (!p.inventoryId || p.deducted) continue;
+    const qty = parseFloat(p.qty) || 0;
+    if (qty <= 0) continue;
+    const res = await fsInventory('adjust', { itemId: p.inventoryId, delta: -qty, reason: 'Used on job', jobId });
+    if (res && res.ok) {
+      p.deducted = true;
+    } else {
+      console.warn('Inventory deduct failed for', p.name, res && res.error);
+    }
+  }
+  if (typeof invLoadItems === 'function') invLoadItems(); // refresh cached stock levels/badges
+}
+
 async function jsSaveSheet() {
+  await jsDeductInventoryForParts(jsParts, jsCurrentJob ? jsCurrentJob.jobId : '');
   const data = jsCollectData();
   const btn = document.getElementById('jsSaveBtn');
   btn.disabled = true;

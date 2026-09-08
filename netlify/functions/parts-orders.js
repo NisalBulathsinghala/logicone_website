@@ -112,8 +112,14 @@ exports.handler = async function (event) {
     }
 
     // ── Toggle received status on one order ───────────────────────
+    // Also carries an optional flagged/flagNote pair so a discrepancy
+    // (tracking says delivered but the box was empty, wrong part, etc.)
+    // can be recorded without marking the order as received. Fields are
+    // only touched when explicitly present in the request, so plain
+    // received-toggle callers (the job sheet checkbox) don't clobber
+    // an existing flag by omission.
     if (action === 'mark-received') {
-      const { orderRef, received } = body;
+      const { orderRef, received, flagged, flagNote } = body;
       if (!orderRef) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing orderRef' }) };
 
       const snap = await ref.get();
@@ -127,6 +133,8 @@ exports.handler = async function (event) {
         ...orders[idx],
         received: !!received,
         receivedAt: received ? new Date().toISOString() : null,
+        flagged: flagged !== undefined ? !!flagged : (orders[idx].flagged || false),
+        flagNote: flagNote !== undefined ? (flagNote || '') : (orders[idx].flagNote || ''),
       };
 
       await ref.set({ orders, _updatedAt: new Date().toISOString() }, { merge: true });

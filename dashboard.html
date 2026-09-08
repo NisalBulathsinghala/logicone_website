@@ -47,6 +47,11 @@
       <span class="nav-label">SMS Inbox</span>
       <span class="nav-badge" id="smsBadge" style="display:none"></span>
     </a>
+    <a class="nav-item" data-view="inventory" data-label="Inventory" onclick="switchView('inventory')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3 3 8v8l9 5 9-5V8z"/><polyline points="3 8 12 13 21 8"/><line x1="12" y1="13" x2="12" y2="21"/></svg>
+      <span class="nav-label">Inventory</span>
+      <span class="nav-badge" id="invNavBadge" style="display:none"></span>
+    </a>
 
   </nav>
   <div class="sidebar-footer">
@@ -580,6 +585,11 @@
     </div>
   </div><!-- /view-sms -->
 
+  <!-- INVENTORY -->
+  <div class="view" id="view-inventory" style="position:relative;">
+    <div id="invRoot"></div>
+  </div>
+
 </main>
 
 
@@ -696,6 +706,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="dashboard.js"></script>
 <script src="jobsheet-module.js"></script>
+<script src="inventory-module.js"></script>
   <script src="photo-convert.js"></script>
   <script src="photo-module.js"></script>
 <script src="report-module.js"></script>
