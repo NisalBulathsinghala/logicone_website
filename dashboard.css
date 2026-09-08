@@ -794,6 +794,11 @@ body {
   background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.4); color: #d97706;
 }
 .d-btn-receipt:hover { background: rgba(245,158,11,0.2); border-color: #f59e0b; color: #b45309; }
+/* Labels — violet */
+.d-btn-label {
+  background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.4); color: #7c3aed;
+}
+.d-btn-label:hover { background: rgba(139,92,246,0.2); border-color: #8b5cf6; color: #6d28d9; }
 
 .d-action-status { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .d-status-sel {

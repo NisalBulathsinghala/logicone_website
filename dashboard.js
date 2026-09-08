@@ -703,7 +703,9 @@ function showDetail(j) {
   }
   // 3. Print Receipt — amber
   h += `<button class="d-action-btn d-btn-receipt" onclick="reprintReceipt('${j.jobId}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Receipt</button>`;
-  // 4. Status selector — pushed to the right
+  // 4. Print Labels — violet (Brother QL-810W, die-cut 17x54mm)
+  h += `<button class="d-action-btn d-btn-label" onclick="reprintLabels('${j.jobId}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 7V5a2 2 0 012-2h6a2 2 0 012 2v2"/><line x1="7" y1="12" x2="17" y2="12"/></svg> Labels</button>`;
+  // 5. Status selector — pushed to the right
   h += `<div class="d-action-status"><select id="dSel" class="d-status-sel">`;
   COLS.forEach(c => { h += `<option value="${c.id}" ${c.id === j.status ? 'selected' : ''}>${c.label}</option>`; });
   h += `</select><button class="d-btn-update" onclick="moveFromDetail('${j.jobId}')">Update</button></div>`;
@@ -952,6 +954,20 @@ function reprintReceipt(id) {
     return;
   }
   window.receiptGenerateAndPrint(j);
+}
+
+// Print the parts labels (count/parts depend on accessories — see
+// label-module.js) for an existing job on the Brother QL-810W. Opens
+// the browser print dialog — pick "Brother QL-810W" there each time
+// (see label-module.js header for the one-time die-cut driver setup).
+function reprintLabels(id) {
+  const j = jobs.find(x => x.jobId === id);
+  if (!j) { showToast('error', 'Job not found'); return; }
+  if (typeof window.labelGenerateAndPrint !== 'function') {
+    showToast('error', 'Label module not loaded');
+    return;
+  }
+  window.labelGenerateAndPrint(j);
 }
 
 // ============================================================
