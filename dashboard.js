@@ -468,26 +468,37 @@ function kRenderSimpleJobTable(list) {
 async function kRenderAwaitingPartsTable(list) {
   const thead = document.getElementById('kanbanFilterThead');
   const tbody = document.getElementById('kanbanFilterBody');
-  thead.innerHTML = `<tr><th>Job ID</th><th>Customer</th><th>Brand</th><th>Model</th><th>Parts</th><th>Order Numbers</th><th>Days Waiting</th></tr>`;
+  thead.innerHTML = `<tr><th>Job ID</th><th>Customer</th><th>Brand</th><th>Model</th><th>Parts</th><th>Order Numbers</th><th>Cin7 Orders</th><th>Days Waiting</th></tr>`;
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-secondary);">No jobs awaiting parts</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-secondary);">No jobs awaiting parts</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-secondary);">Loading parts info…</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-secondary);">Loading parts info…</td></tr>`;
 
   let partsData = {};
+  let cin7Data = {};
   try {
-    const res = await fetch('/.netlify/functions/firestore-jobsheet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'load-parts-batch', jobIds: list.map(j => j.jobId) }),
-    }).then(r => r.json());
-    if (res.ok) partsData = res.data || {};
-    else console.warn('load-parts-batch failed:', res.error);
+    const jobIds = list.map(j => j.jobId);
+    const [partsRes, cin7Res] = await Promise.all([
+      fetch('/.netlify/functions/firestore-jobsheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load-parts-batch', jobIds }),
+      }).then(r => r.json()),
+      fetch('/.netlify/functions/parts-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load-batch', jobIds }),
+      }).then(r => r.json()),
+    ]);
+    if (partsRes.ok) partsData = partsRes.data || {};
+    else console.warn('load-parts-batch failed:', partsRes.error);
+    if (cin7Res.ok) cin7Data = cin7Res.data || {};
+    else console.warn('parts-orders load-batch failed:', cin7Res.error);
   } catch (e) {
-    console.warn('load-parts-batch error:', e.message);
+    console.warn('Awaiting Parts data load error:', e.message);
   }
 
   // Bail out quietly if the tile was clicked again (or Back was hit)
@@ -499,12 +510,24 @@ async function kRenderAwaitingPartsTable(list) {
     const pd = partsData[j.jobId] || { parts: [], orderNums: [] };
     const parts = (pd.parts || []).filter(p => p && (p.name || p.partno));
     const orders = (pd.orderNums || []).filter(Boolean);
+    const cin7Orders = cin7Data[j.jobId] || [];
 
     const partsText = parts.length
-      ? parts.map(p => `<div>${p.name || p.partno || 'Unnamed part'}${p.qty ? ' ×' + p.qty : ''}</div>`).join('')
+      ? parts.map(p => `<div>${p.partno ? `<span style="font-family:'SF Mono','Fira Code',monospace;color:var(--text-secondary);">${p.partno}</span> — ` : ''}${p.name || 'Unnamed part'}${p.qty ? ' ×' + p.qty : ''}</div>`).join('')
       : '<span style="color:var(--text-secondary);font-style:italic;">None listed</span>';
     const ordersText = orders.length
       ? orders.map(o => `<div>${o}</div>`).join('')
+      : '<span style="color:var(--text-secondary);font-style:italic;">—</span>';
+    const cin7Text = cin7Orders.length
+      ? cin7Orders.map(o => {
+          const statusBadge = o.received
+            ? `<span style="color:#059669;font-weight:600;">Received</span>`
+            : `<span style="color:#d97706;font-weight:600;">Awaiting</span>`;
+          const track = o.trackingCode
+            ? ` · <a href="https://auspost.com.au/mypost/track/#/details/${encodeURIComponent(o.trackingCode)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);">Track</a>`
+            : '';
+          return `<div>${o.item || o.itemRaw || 'Order ' + (o.orderRef || '?')}${o.cost ? ' — $' + Number(o.cost).toFixed(2) : ''}<br>${statusBadge}${track}</div>`;
+        }).join('<hr style="border:none;border-top:1px solid var(--border-light);margin:4px 0;">')
       : '<span style="color:var(--text-secondary);font-style:italic;">—</span>';
 
     const tr = document.createElement('tr');
@@ -517,6 +540,7 @@ async function kRenderAwaitingPartsTable(list) {
       <td style="font-weight:600;">${j.model || '—'}</td>
       <td class="t-wrap-cell" style="font-size:12.5px;max-width:280px;">${partsText}</td>
       <td class="t-wrap-cell" style="font-size:12.5px;font-family:'SF Mono','Fira Code',monospace;max-width:160px;">${ordersText}</td>
+      <td class="t-wrap-cell" style="font-size:12px;max-width:220px;">${cin7Text}</td>
       <td>${getTotalDays(j)}<span style="font-size:11px;color:var(--text-secondary);">d</span></td>`;
     tbody.appendChild(tr);
   });
@@ -567,16 +591,24 @@ async function dLoadJobsheetExtras(j) {
   if (!notesBody && !partsBody) return;
 
   try {
-    const res = await fetch('/.netlify/functions/firestore-jobsheet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'load', jobId: j.jobId }),
-    }).then(r => r.json());
+    const [res, cin7Res] = await Promise.all([
+      fetch('/.netlify/functions/firestore-jobsheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load', jobId: j.jobId }),
+      }).then(r => r.json()),
+      fetch('/.netlify/functions/parts-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load', jobId: j.jobId }),
+      }).then(r => r.json()),
+    ]);
 
     const titleEl = document.getElementById('dTitle');
     if (!titleEl || titleEl.textContent !== (j.jobId || 'Job Details')) return; // stale — a different job is open now
 
     const data = (res.ok && res.data) ? res.data : {};
+    const cin7Orders = (cin7Res.ok && Array.isArray(cin7Res.data)) ? cin7Res.data : [];
 
     if (notesBody) {
       const stages = [
@@ -599,19 +631,39 @@ async function dLoadJobsheetExtras(j) {
       const parts  = (data.parts || []).filter(p => p && (p.name || p.partno));
       const orders = (data.orderNums || []).filter(Boolean);
 
-      if (!parts.length && !orders.length) {
+      if (!parts.length && !orders.length && !cin7Orders.length) {
         partsBody.innerHTML = '<div class="d-photo-empty">No parts recorded yet</div>';
       } else {
         let html = '';
         if (parts.length) {
           html += '<div class="d-parts-list">' + parts.map(p => `
             <div class="d-parts-row">
-              <span>${p.name || p.partno || 'Unnamed part'}</span>
+              <span>${p.partno ? `<span style="font-family:'SF Mono','Fira Code',monospace;color:var(--text-secondary);margin-right:8px;">${p.partno}</span>` : ''}${p.name || 'Unnamed part'}</span>
               <span class="d-parts-qty">×${p.qty || 1}</span>
             </div>`).join('') + '</div>';
         }
         if (orders.length) {
           html += `<div class="d-order-nums"><strong>Order #:</strong> ${orders.join(', ')}</div>`;
+        }
+        if (cin7Orders.length) {
+          html += '<div class="d-parts-list" style="margin-top:10px;">' + cin7Orders.map(o => {
+            const statusBadge = o.received
+              ? `<span style="color:#059669;font-weight:600;">✓ Received${o.receivedAt ? ' ' + fmtDate(o.receivedAt) : ''}</span>`
+              : `<span style="color:#d97706;font-weight:600;">Awaiting</span>`;
+            const track = o.trackingCode
+              ? ` · <a href="https://auspost.com.au/mypost/track/#/details/${encodeURIComponent(o.trackingCode)}" target="_blank" style="color:var(--accent);">Track: ${o.trackingCode}</a>`
+              : '';
+            const inv = o.driveFileUrl ? ` · <a href="${o.driveFileUrl}" target="_blank" style="color:var(--accent);">Invoice</a>` : '';
+            return `
+            <div class="d-parts-row" style="flex-direction:column;align-items:flex-start;gap:3px;">
+              <div style="display:flex;justify-content:space-between;width:100%;">
+                <span>${o.item || o.itemRaw || 'Order ' + (o.orderRef || '?')}</span>
+                <span class="d-parts-qty">${o.cost ? '$' + Number(o.cost).toFixed(2) : ''}</span>
+              </div>
+              <div style="font-size:11.5px;color:var(--text-secondary);">Cin7 Order ${o.orderRef || '—'}${o.invoiceNo ? ' · Inv ' + o.invoiceNo : ''} · ${statusBadge}${track}${inv}</div>
+              ${o.needsReview ? '<div style="font-size:11px;color:#d97706;">⚠️ Some fields may not have parsed cleanly</div>' : ''}
+            </div>`;
+          }).join('') + '</div>';
         }
         partsBody.innerHTML = html;
       }
