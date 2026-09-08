@@ -1,58 +1,99 @@
 /* ============================================================
    Logic One SA — Label Module
    ------------------------------------------------------------
-   Prints 3 stick-on identification labels — Robot / Dock / Dock
-   Ramp — sized for a Brother QL-810W on 62mm continuous roll
-   stock, so a device's parts never get confused with another
-   job's while both are in the workshop. One PDF page per label;
-   on continuous stock the driver auto-cuts once per page, so this
-   comes off the printer as 3 separate tags, no scissors needed.
+   Prints one stick-on label per physical part handed in with a
+   job, sized for a Brother QL-810W on 17mm x 54mm die-cut label
+   stock. The receipt tag already carries the job ID and customer
+   details, so these carry no info of their own beyond:
+     - the PART NAME (ROBOT / DOCK / DOCK RAMP / CABLE / SCOOTER)
+     - a short NUMBER, shared by every label in the same print
+       run, so parts sitting on the shelf can be matched back to
+       each other without carrying the full job ID around
+   The number comes from netlify/functions/next-label-number.js —
+   a shared counter that cycles back to 001 every calendar quarter
+   (see that file for why, and how to switch it to your BAS/FY
+   quarters instead). Re-printing labels for the same job always
+   returns that job's original number, so a misprint or a second
+   part found later never gets a mismatched tag.
+
+   One PDF page per label; die-cut stock is pre-gapped, so the
+   printer advances to the next label on its own between pages
+   — no auto-cut setting to worry about (that only mattered on
+   the old continuous-roll stock).
+
+   Which labels get printed depends on what was checked in the
+   Accessories list on intake (see getLabelParts below):
+     - Robot Vacuum + Auto Empty Dock + Charging Cable → 4 labels:
+       ROBOT, DOCK, DOCK RAMP, CABLE
+     - Robot Vacuum + Charging Dock + Charging Cable    → 3 labels:
+       ROBOT, DOCK, CABLE
+     - Robot Vacuum only (no dock brought in)            → 1 label:
+       ROBOT
+   Scooters are single-unit — always just one SCOOTER label.
 
    ONE-TIME setup on the machine that prints these: install the
-   QL-810W driver, then in its print preferences set the roll/media
-   width to 62mm continuous. After that it's just: pick "Brother
-   QL-810W" in the print dialog this opens, hit print. A webpage
-   can open a print dialog but can't submit it or choose the
-   printer for you — that's a browser limit, not something this
-   code works around. True zero-click printing (no dialog at all)
-   would need a small local helper program instead.
-
-   Reuses receipt-module.js's QR token/renderer (window.loGenerateStatusToken
-   / window.loGenerateQRDataUrl) so the QR on a label and the QR on
-   the receipt resolve to the exact same job-status link — which now
-   also has its own "Upload Photos" tab, so the same QR reaches both.
-   receipt-module.js must be loaded first — see dashboard.html.
+   QL-810W driver, then in its print preferences set the label
+   type to die-cut, 17mm x 54mm (Brother's own part number for
+   this size is DK-1204 — some resellers list it as "DK-11204",
+   same thing). Check the driver shows die-cut, not "Continuous
+   Length" — wrong media type makes the cutter sync to the wrong
+   points and slice mid-label instead of at the gap between labels.
+   Also worth turning on "Auto Cut" / "Cut Every Label" in the
+   driver so a multi-label job pops out as separate ready-to-peel
+   tags instead of one connected strip. After that it's just: pick
+   "Brother QL-810W" in the print dialog this opens, hit print. A
+   webpage can open a print dialog but can't submit it or choose
+   the printer for you — that's a browser limit, not something
+   this code works around. True zero-click printing (no dialog at
+   all) would need a small local helper program instead.
 
    Not saved to Drive — a one-off workshop artifact, not a
    customer-facing record like the receipt.
 
    Public API:
      window.labelGenerateAndPrint(jobObj)
-       - Builds the 3-page label PDF and opens the print dialog.
+       - Fetches this job's shared number, builds the label PDF
+         (1-4 pages, depending on accessories), and opens the
+         print dialog. If the number can't be fetched, nothing
+         prints — a label with the wrong (or a made-up) number is
+         worse than no label, since the whole point is not mixing
+         parts up between jobs.
    ============================================================ */
 
 (function () {
   'use strict';
 
-  // Which parts get a label, in print order. Always prints all three
-  // regardless of job.brand right now — say the word if Segway jobs
-  // (single-unit, no dock) should print just one "SCOOTER" label instead.
-  const LABEL_PARTS = ['ROBOT', 'DOCK', 'DOCK RAMP'];
+  // Works out which parts get a label, in print order, from what was
+  // checked under Accessories on intake (see ACCESSORIES_BY_TYPE in
+  // dashboard.js). Scooters are single-unit, so they always get just
+  // one label regardless of accessories.
+  function getLabelParts(job) {
+    const deviceType = String(job.deviceType || job.brand || '').toLowerCase();
+    if (deviceType.includes('scooter')) return ['SCOOTER'];
 
-  // QL-810W tops out at 62mm — this MUST match the roll width set in the
-  // driver's print preferences, or the printer will scale/clip oddly.
-  const LABEL_W = 62;   // mm — fixed, matches the roll
-  const LABEL_H = 32;   // mm — length is free on continuous stock; this is
-                         // just how much of the roll each label uses
-  const PAD     = 3;    // mm, inner padding
-  const QR_SIZE = 22;   // mm
+    const acc = String(job.accessories || '').toLowerCase();
+    const hasAutoEmptyDock = acc.includes('auto empty dock');
+    const hasChargingDock  = acc.includes('charging dock');
+    const hasCable         = acc.includes('charging cable') || acc.includes('cable');
 
-  const STATUS_BASE_URL = 'https://logicone.com.au'; // keep in sync with receipt-module.js
+    const parts = ['ROBOT'];
+    if (hasAutoEmptyDock) parts.push('DOCK', 'DOCK RAMP');
+    else if (hasChargingDock) parts.push('DOCK');
+    if (hasCable) parts.push('CABLE');
+    return parts;
+  }
+
+  // Brother DK-1204 die-cut stock (also sold as "DK-11204" by some
+  // resellers) — this MUST match the label type set in the driver's
+  // print preferences, or the printer will scale/clip oddly, or cut
+  // mid-label instead of at the gap between labels.
+  const LABEL_W = 54;   // mm — fixed, matches the die-cut label
+  const LABEL_H = 17;   // mm — fixed, matches the die-cut label
+  const PAD     = 2;    // mm, inner padding
 
   const C = {
-    ink:     [15, 23, 42],
-    inkSoft: [71, 85, 105],
-    accent:  [0, 102, 204],
+    ink:    [15, 23, 42],
+    accent: [0, 102, 204],
   };
 
   // ── Lazy-load jsPDF (idempotent — receipt-module.js may already have it) ──
@@ -74,29 +115,28 @@
     jsPDFLoaded = true;
   }
 
-  // QR is a nice-to-have, not load-bearing. If receipt-module.js hasn't
-  // loaded (script order issue) or token/QR generation fails for any
-  // reason, labels still print fine as text-only — same fallback spirit
-  // as the receipt's own logo-load handling.
-  async function tryGetQR(jobId) {
-    try {
-      if (typeof window.loGenerateStatusToken !== 'function' ||
-          typeof window.loGenerateQRDataUrl   !== 'function') {
-        console.warn('label: receipt-module.js QR helpers not found — printing text-only');
-        return null;
-      }
-      const token = await window.loGenerateStatusToken(jobId);
-      const url   = `${STATUS_BASE_URL}/job-status.html?id=${encodeURIComponent(jobId)}&t=${token}`;
-      return await window.loGenerateQRDataUrl(url);
-    } catch (e) {
-      console.warn('label: QR unavailable, printing text-only —', e.message);
-      return null;
+  // Gets this job's shared label number. Same job → same number every
+  // time (server-side idempotent on jobId), so reprints never drift.
+  // Throws on any failure — deliberately not caught here, so a bad
+  // fetch stops printing rather than falling back to a made-up number.
+  async function fetchLabelNumber(jobId) {
+    const res = await fetch('/.netlify/functions/next-label-number', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json || !json.ok || !json.data || !json.data.number) {
+      throw new Error((json && json.error) || `Number service returned ${res.status}`);
     }
+    return json.data.number;
   }
 
-  // ── Build the 3-page, 62mm-wide label PDF ──────────────────────────────
-  // One page per label. On continuous roll stock the driver cuts once per
-  // page, so this comes off the QL-810W as 3 separate tags. Width is
+  // ── Build the label PDF (1-4 pages, one per part) ──────────────────────
+  // One page per label. Whether these come off the QL-810W as separate
+  // peel-and-stick tags or one connected strip depends on the driver's
+  // "Auto Cut" setting — see the header note above; this code has no
+  // control over that, it's purely a printer-preferences thing. Width is
   // greater than height (a wide, short strip), so orientation is set
   // explicitly to landscape — leaving it as 'portrait' risks jsPDF
   // silently swapping the two dimensions to keep height >= width.
@@ -111,29 +151,20 @@
       pdf.setFont('helvetica', weight || 'normal');
     };
 
-    const qrDataUrl  = await tryGetQR(job.jobId || '');
-    const brandModel = [job.brand, job.model].filter(Boolean).join(' ') || '\u2014';
-    const textW = qrDataUrl ? (LABEL_W - QR_SIZE - PAD * 3) : (LABEL_W - PAD * 2);
+    // One number for the whole job — fetched once, reused on every page,
+    // so all of a job's labels carry the same matching number.
+    const number = await fetchLabelNumber(job.jobId);
+    const parts  = getLabelParts(job);
+    const cx     = LABEL_W / 2;
 
-    LABEL_PARTS.forEach((part, i) => {
+    parts.forEach((part, i) => {
       if (i > 0) pdf.addPage([LABEL_W, LABEL_H], 'landscape');
 
-      setText(C.accent, 13, 'bold');
-      pdf.text(part, PAD, PAD + 5);
+      setText(C.accent, 12, 'bold');
+      pdf.text(part, cx, PAD + 6, { align: 'center' });
 
-      setText(C.ink, 10.5, 'bold');
-      pdf.text(String(job.jobId || '\u2014'), PAD, PAD + 13);
-
-      setText(C.inkSoft, 7.5, 'normal');
-      const wrapped = pdf.splitTextToSize(brandModel, textW);
-      pdf.text(wrapped.slice(0, 2), PAD, PAD + 19);
-
-      if (qrDataUrl) {
-        const qx = LABEL_W - QR_SIZE - PAD;
-        const qy = (LABEL_H - QR_SIZE) / 2;
-        try { pdf.addImage(qrDataUrl, 'PNG', qx, qy, QR_SIZE, QR_SIZE); }
-        catch (e) { console.warn('label: QR image draw failed —', e.message); }
-      }
+      setText(C.ink, 15, 'bold');
+      pdf.text(number, cx, PAD + 13.5, { align: 'center' });
     });
 
     return pdf;
