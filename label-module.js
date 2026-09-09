@@ -3,12 +3,14 @@
    ------------------------------------------------------------
    Prints one stick-on label per physical part handed in with a
    job, sized for a Brother QL-810W on 17mm x 54mm die-cut label
-   stock. The receipt tag already carries the job ID and customer
-   details, so these carry no info of their own beyond:
-     - the PART NAME (ROBOT / DOCK / DOCK RAMP / CABLE / SCOOTER)
+   stock. The receipt tag already carries the job ID, customer
+   details, and which part is which, so these carry nothing but:
      - a short NUMBER, shared by every label in the same print
        run, so parts sitting on the shelf can be matched back to
        each other without carrying the full job ID around
+   Sized to fill the label — see the width/height measurement in
+   buildLabelsPdf below — for legibility from across the workshop,
+   not just up close.
    The number comes from netlify/functions/next-label-number.js —
    a shared counter that cycles back to 001 every calendar quarter
    (see that file for why, and how to switch it to your BAS/FY
@@ -21,38 +23,41 @@
    — no auto-cut setting to worry about (that only mattered on
    the old continuous-roll stock).
 
-   Which labels get printed depends on what was checked in the
-   Accessories list on intake (see getLabelParts below):
-     - Robot Vacuum + Auto Empty Dock + Charging Cable → 4 labels:
-       ROBOT, DOCK, DOCK RAMP, CABLE
-     - Robot Vacuum + Charging Dock + Charging Cable    → 3 labels:
-       ROBOT, DOCK, CABLE
-     - Robot Vacuum only (no dock brought in)            → 1 label:
-       ROBOT
-   Scooters are single-unit — always just one SCOOTER label.
+   How many labels get printed still depends on what was checked
+   in the Accessories list on intake (see getLabelParts below) —
+   just not what's printed on them anymore:
+     - Robot Vacuum + Auto Empty Dock + Charging Cable → 4 labels
+     - Robot Vacuum + Charging Dock + Charging Cable    → 3 labels
+     - Robot Vacuum only (no dock brought in)            → 1 label
+   Scooters are single-unit — always just one label.
 
-   ONE-TIME setup on the machine that prints these: install the
-   QL-810W driver, then in its print preferences set the label
-   type to die-cut, 17mm x 54mm (Brother's own part number for
-   this size is DK-1204 — some resellers list it as "DK-11204",
-   same thing). Check the driver shows die-cut, not "Continuous
-   Length" — wrong media type makes the cutter sync to the wrong
-   points and slice mid-label instead of at the gap between labels.
-   Also worth turning off per-label cutting so a 1-4 label job comes
-   off as one strip, cut once at the end, instead of after every
-   label. Where that lives depends on the OS: on Windows it's a
-   persistent printer setting (Printer Setting Tool -> Device Settings
-   -> Auto Cut -> "Cut at End", written to the printer itself). On Mac
-   the standalone Printer Setting Tool doesn't have this — it's a
-   per-print-job option in the system print dialog's "Cut Option"
-   panel (uncheck "Cut Every"), which needs saving as a default Preset
-   to stick. Neither carries over to iPad/iPhone AirPrint automatically
-   — worth testing a real print from those before assuming it's set. After that it's just: pick
-   "Brother QL-810W" in the print dialog this opens, hit print. A
-   webpage can open a print dialog but can't submit it or choose
-   the printer for you — that's a browser limit, not something
-   this code works around. True zero-click printing (no dialog at
-   all) would need a small local helper program instead.
+   ONE-TIME setup on the machine that prints these:
+     1. Install the QL-810W driver, then in its print preferences
+        set the label type to die-cut, 17mm x 54mm (Brother's own
+        part number for this size is DK-1204 — some resellers list
+        it as "DK-11204", same thing). Check the driver shows
+        die-cut, not "Continuous Length" — wrong media type makes
+        the cutter sync to the wrong points and slice mid-label
+        instead of at the gap between labels.
+     2. Turn off per-label cutting so a 1-4 label job comes off as
+        one strip, cut once at the end, instead of after every
+        label. Where that lives depends on the OS:
+          - Windows: a persistent printer setting — Printer Setting
+            Tool -> Device Settings -> Auto Cut -> "Cut at End",
+            written to the printer itself.
+          - Mac: the standalone Printer Setting Tool doesn't have
+            this — it's a per-print-job option in the system print
+            dialog's "Cut Option" panel (uncheck "Cut Every"),
+            which needs saving as a default Preset to stick.
+          - Neither carries over to iPad/iPhone AirPrint
+            automatically — worth testing a real print from those
+            before assuming it's set.
+   After that it's just: pick "Brother QL-810W" in the print dialog
+   this opens, hit print. A webpage can open a print dialog but
+   can't submit it or choose the printer for you — that's a browser
+   limit, not something this code works around. True zero-click
+   printing (no dialog at all) would need a small local helper
+   program instead.
 
    Not saved to Drive — a one-off workshop artifact, not a
    customer-facing record like the receipt.
@@ -96,11 +101,6 @@
   // mid-label instead of at the gap between labels.
   const LABEL_W = 54;   // mm — fixed, matches the die-cut label
   const LABEL_H = 17;   // mm — fixed, matches the die-cut label
-  const PAD     = 2;    // mm, inner padding
-
-  const C = {
-    black: [0, 0, 0],
-  };
 
   // ── Lazy-load jsPDF (idempotent — receipt-module.js may already have it) ──
   let jsPDFLoaded = false;
@@ -143,56 +143,56 @@
   // strip (all 1-4 labels) or a cut after every single one depends on
   // the printer's own Auto Cut setting — see the header note above;
   // this code has no control over that, it's purely a printer-setting
-  // thing. Width is
-  // greater than height (a wide, short strip), so orientation is set
-  // explicitly to landscape — leaving it as 'portrait' risks jsPDF
-  // silently swapping the two dimensions to keep height >= width.
+  // thing. Width is greater than height (a wide, short strip), so
+  // orientation is set explicitly to landscape — leaving it as
+  // 'portrait' risks jsPDF silently swapping the two dimensions to
+  // keep height >= width.
   async function buildLabelsPdf(job) {
     await ensureJsPDF();
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'mm', format: [LABEL_W, LABEL_H], orientation: 'landscape', compress: true });
 
-    const setText = (rgb, size, weight) => {
-      pdf.setTextColor(rgb[0], rgb[1], rgb[2]);
-      pdf.setFontSize(size);
-      pdf.setFont('helvetica', weight || 'normal');
-    };
-
     // One number for the whole job — fetched once, reused on every page,
-    // so all of a job's labels carry the same matching number.
+    // so all of a job's labels carry the same matching number. No part
+    // name printed anymore; getLabelParts() is still used to know how
+    // many physical labels to produce (still driven by accessories),
+    // just not to put text on them.
     const number = await fetchLabelNumber(job.jobId);
-    const parts  = getLabelParts(job);
-    const cx     = LABEL_W / 2;
+    const pageCount = getLabelParts(job).length;
+    const cx = LABEL_W / 2;
 
-    // Vertical layout: centre the two-line block (part name + number) in
-    // the label as a unit. jsPDF positions text by baseline, so simply
-    // splitting LABEL_H in half (what this had before) doesn't centre
-    // anything — it left far more space above the part name than below
-    // the number. This computes where the baselines actually need to
-    // land for the visible text to sit centred with even top/bottom
-    // margins. MM_PER_PT/CAP_RATIO are Helvetica approximations; if a
-    // real printed label looks off by a consistent amount, nudge those
-    // two constants rather than the baseline formulas below.
-    const FONT_PART  = 14;
-    const FONT_NUM   = 18;
-    const MM_PER_PT  = 0.3528;
-    const CAP_RATIO  = 0.72;  // cap-height as a fraction of font size
-    const LINE_GAP   = 2;     // mm, gap between the two lines' visual blocks
-    const capPart = FONT_PART * MM_PER_PT * CAP_RATIO;
-    const capNum  = FONT_NUM  * MM_PER_PT * CAP_RATIO;
-    const topMargin = (LABEL_H - (capPart + LINE_GAP + capNum)) / 2;
-    const basePart  = topMargin + capPart;
-    const baseNum   = basePart + LINE_GAP + capNum;
+    // Size the number to fill the label: measure its width at a large
+    // reference size, then scale so it spans the available width (minus
+    // a small side margin). Capped so it never grows taller than the
+    // label. Measuring rather than using a fixed pt size means it stays
+    // "full size" whether the number is 8 characters ("26Q3-002") or
+    // grows to 9 later in a busy quarter, instead of looking too small
+    // on short numbers or overflowing on long ones.
+    const MM_PER_PT = 0.3528;
+    const CAP_RATIO = 0.72;   // cap-height as a fraction of font size — Helvetica approximation
+    const H_MARGIN  = 2;      // mm, side padding
+    const V_MARGIN  = 1.5;    // mm, top/bottom padding
+    const REF_SIZE  = 100;    // pt — arbitrary reference size for measuring text width
 
-    parts.forEach((part, i) => {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(REF_SIZE);
+    const refWidth = pdf.getTextWidth(number); // mm, at REF_SIZE
+
+    const maxWidth      = LABEL_W - H_MARGIN * 2;
+    const widthFitSize  = (maxWidth / refWidth) * REF_SIZE;
+    const heightCapSize = (LABEL_H - V_MARGIN * 2) / (MM_PER_PT * CAP_RATIO);
+    const fontSize      = Math.min(widthFitSize, heightCapSize);
+
+    const capHeight = fontSize * MM_PER_PT * CAP_RATIO;
+    const baseline  = (LABEL_H + capHeight) / 2; // vertically centred
+
+    pdf.setFontSize(fontSize);
+    pdf.setTextColor(0, 0, 0);
+
+    for (let i = 0; i < pageCount; i++) {
       if (i > 0) pdf.addPage([LABEL_W, LABEL_H], 'landscape');
-
-      setText(C.black, FONT_PART, 'bold');
-      pdf.text(part, cx, basePart, { align: 'center' });
-
-      setText(C.black, FONT_NUM, 'bold');
-      pdf.text(number, cx, baseNum, { align: 'center' });
-    });
+      pdf.text(number, cx, baseline, { align: 'center' });
+    }
 
     return pdf;
   }
