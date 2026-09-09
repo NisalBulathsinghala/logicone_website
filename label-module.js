@@ -99,8 +99,7 @@
   const PAD     = 2;    // mm, inner padding
 
   const C = {
-    ink:    [15, 23, 42],
-    accent: [0, 102, 204],
+    black: [0, 0, 0],
   };
 
   // ── Lazy-load jsPDF (idempotent — receipt-module.js may already have it) ──
@@ -174,8 +173,8 @@
     // margins. MM_PER_PT/CAP_RATIO are Helvetica approximations; if a
     // real printed label looks off by a consistent amount, nudge those
     // two constants rather than the baseline formulas below.
-    const FONT_PART  = 12;
-    const FONT_NUM   = 15;
+    const FONT_PART  = 14;
+    const FONT_NUM   = 18;
     const MM_PER_PT  = 0.3528;
     const CAP_RATIO  = 0.72;  // cap-height as a fraction of font size
     const LINE_GAP   = 2;     // mm, gap between the two lines' visual blocks
@@ -188,10 +187,10 @@
     parts.forEach((part, i) => {
       if (i > 0) pdf.addPage([LABEL_W, LABEL_H], 'landscape');
 
-      setText(C.accent, FONT_PART, 'bold');
+      setText(C.black, FONT_PART, 'bold');
       pdf.text(part, cx, basePart, { align: 'center' });
 
-      setText(C.ink, FONT_NUM, 'bold');
+      setText(C.black, FONT_NUM, 'bold');
       pdf.text(number, cx, baseNum, { align: 'center' });
     });
 
