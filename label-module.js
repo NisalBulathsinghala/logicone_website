@@ -38,9 +38,16 @@
    same thing). Check the driver shows die-cut, not "Continuous
    Length" — wrong media type makes the cutter sync to the wrong
    points and slice mid-label instead of at the gap between labels.
-   Also worth turning on "Auto Cut" / "Cut Every Label" in the
-   driver so a multi-label job pops out as separate ready-to-peel
-   tags instead of one connected strip. After that it's just: pick
+   Also worth turning off per-label cutting so a 1-4 label job comes
+   off as one strip, cut once at the end, instead of after every
+   label. Where that lives depends on the OS: on Windows it's a
+   persistent printer setting (Printer Setting Tool -> Device Settings
+   -> Auto Cut -> "Cut at End", written to the printer itself). On Mac
+   the standalone Printer Setting Tool doesn't have this — it's a
+   per-print-job option in the system print dialog's "Cut Option"
+   panel (uncheck "Cut Every"), which needs saving as a default Preset
+   to stick. Neither carries over to iPad/iPhone AirPrint automatically
+   — worth testing a real print from those before assuming it's set. After that it's just: pick
    "Brother QL-810W" in the print dialog this opens, hit print. A
    webpage can open a print dialog but can't submit it or choose
    the printer for you — that's a browser limit, not something
@@ -133,10 +140,11 @@
   }
 
   // ── Build the label PDF (1-4 pages, one per part) ──────────────────────
-  // One page per label. Whether these come off the QL-810W as separate
-  // peel-and-stick tags or one connected strip depends on the driver's
-  // "Auto Cut" setting — see the header note above; this code has no
-  // control over that, it's purely a printer-preferences thing. Width is
+  // One page per label. Whether these come off the QL-810W as one cut
+  // strip (all 1-4 labels) or a cut after every single one depends on
+  // the printer's own Auto Cut setting — see the header note above;
+  // this code has no control over that, it's purely a printer-setting
+  // thing. Width is
   // greater than height (a wide, short strip), so orientation is set
   // explicitly to landscape — leaving it as 'portrait' risks jsPDF
   // silently swapping the two dimensions to keep height >= width.
@@ -157,14 +165,34 @@
     const parts  = getLabelParts(job);
     const cx     = LABEL_W / 2;
 
+    // Vertical layout: centre the two-line block (part name + number) in
+    // the label as a unit. jsPDF positions text by baseline, so simply
+    // splitting LABEL_H in half (what this had before) doesn't centre
+    // anything — it left far more space above the part name than below
+    // the number. This computes where the baselines actually need to
+    // land for the visible text to sit centred with even top/bottom
+    // margins. MM_PER_PT/CAP_RATIO are Helvetica approximations; if a
+    // real printed label looks off by a consistent amount, nudge those
+    // two constants rather than the baseline formulas below.
+    const FONT_PART  = 12;
+    const FONT_NUM   = 15;
+    const MM_PER_PT  = 0.3528;
+    const CAP_RATIO  = 0.72;  // cap-height as a fraction of font size
+    const LINE_GAP   = 2;     // mm, gap between the two lines' visual blocks
+    const capPart = FONT_PART * MM_PER_PT * CAP_RATIO;
+    const capNum  = FONT_NUM  * MM_PER_PT * CAP_RATIO;
+    const topMargin = (LABEL_H - (capPart + LINE_GAP + capNum)) / 2;
+    const basePart  = topMargin + capPart;
+    const baseNum   = basePart + LINE_GAP + capNum;
+
     parts.forEach((part, i) => {
       if (i > 0) pdf.addPage([LABEL_W, LABEL_H], 'landscape');
 
-      setText(C.accent, 12, 'bold');
-      pdf.text(part, cx, PAD + 6, { align: 'center' });
+      setText(C.accent, FONT_PART, 'bold');
+      pdf.text(part, cx, basePart, { align: 'center' });
 
-      setText(C.ink, 15, 'bold');
-      pdf.text(number, cx, PAD + 13.5, { align: 'center' });
+      setText(C.ink, FONT_NUM, 'bold');
+      pdf.text(number, cx, baseNum, { align: 'center' });
     });
 
     return pdf;
