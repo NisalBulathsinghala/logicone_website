@@ -190,7 +190,7 @@
     // shrinking the text further to buy symmetric clearance it doesn't
     // need, the top end gets a bigger dedicated margin and the bottom
     // stays tight, since that end printed cleanly.
-    const TOP_MARGIN    = 8;  // mm, clearance at the y=0 end
+    const TOP_MARGIN    = 10;  // mm, clearance at the y=0 end
     const BOTTOM_MARGIN = 2;  // mm, clearance at the y=LABEL_W end
     const V_MARGIN  = 1.5;    // mm, margin across the 17mm roll width
     const REF_SIZE  = 100;    // pt — arbitrary reference size for measuring text width
