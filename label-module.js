@@ -147,10 +147,22 @@
   // orientation is set explicitly to landscape — leaving it as
   // 'portrait' risks jsPDF silently swapping the two dimensions to
   // keep height >= width.
+  //
+  // IMPORTANT: the PDF page itself is built as LABEL_H x LABEL_W (17x54,
+  // portrait), not LABEL_W x LABEL_H — this looks backwards but matches
+  // how the printer/CUPS actually sees the roll: physically it's 17mm
+  // *across* the roll (fixed) and 54mm *along* the feed per label. The
+  // print agent's config.json declares the media the same way
+  // (Custom.17x54mm). If the PDF page shape doesn't match that, the
+  // printer either clips the content or auto-rotates it unpredictably —
+  // which is exactly what happened when this was still built as 54x17.
+  // The number itself is drawn rotated 90° so it still reads normally
+  // along the label's 54mm length once printed, despite the page now
+  // being "tall" rather than "wide".
   async function buildLabelsPdf(job) {
     await ensureJsPDF();
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: 'mm', format: [LABEL_W, LABEL_H], orientation: 'landscape', compress: true });
+    const pdf = new jsPDF({ unit: 'mm', format: [LABEL_H, LABEL_W], orientation: 'portrait', compress: true });
 
     // One number for the whole job — fetched once, reused on every page,
     // so all of a job's labels carry the same matching number. No part
@@ -159,39 +171,47 @@
     // just not to put text on them.
     const number = await fetchLabelNumber(job.jobId);
     const pageCount = getLabelParts(job).length;
-    const cx = LABEL_W / 2;
 
     // Size the number to fill the label: measure its width at a large
-    // reference size, then scale so it spans the available width (minus
-    // a small side margin). Capped so it never grows taller than the
-    // label. Measuring rather than using a fixed pt size means it stays
-    // "full size" whether the number is 8 characters ("26Q3-002") or
-    // grows to 9 later in a busy quarter, instead of looking too small
-    // on short numbers or overflowing on long ones.
+    // reference size, then scale so it spans the available length (minus
+    // a small margin along the 54mm run). Capped so it never grows
+    // thicker than the 17mm roll width. Measuring rather than using a
+    // fixed pt size means it stays "full size" whether the number is 8
+    // characters ("26Q3-002") or grows to 9 later in a busy quarter,
+    // instead of looking too small on short numbers or overflowing on
+    // long ones. These constraints are about the text itself (how long a
+    // run, how tall the strokes) and don't change just because the page
+    // got rotated — only where we place/rotate the result does.
     const MM_PER_PT = 0.3528;
     const CAP_RATIO = 0.72;   // cap-height as a fraction of font size — Helvetica approximation
-    const H_MARGIN  = 2;      // mm, side padding
-    const V_MARGIN  = 1.5;    // mm, top/bottom padding
+    const H_MARGIN  = 2;      // mm, margin along the 54mm run
+    const V_MARGIN  = 1.5;    // mm, margin across the 17mm roll width
     const REF_SIZE  = 100;    // pt — arbitrary reference size for measuring text width
 
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(REF_SIZE);
     const refWidth = pdf.getTextWidth(number); // mm, at REF_SIZE
 
-    const maxWidth      = LABEL_W - H_MARGIN * 2;
-    const widthFitSize  = (maxWidth / refWidth) * REF_SIZE;
-    const heightCapSize = (LABEL_H - V_MARGIN * 2) / (MM_PER_PT * CAP_RATIO);
-    const fontSize      = Math.min(widthFitSize, heightCapSize);
+    const maxRun         = LABEL_W - H_MARGIN * 2;   // LABEL_W (54) is still the run length
+    const widthFitSize   = (maxRun / refWidth) * REF_SIZE;
+    const heightCapSize  = (LABEL_H - V_MARGIN * 2) / (MM_PER_PT * CAP_RATIO); // LABEL_H (17) is still the stroke-height limit
+    const fontSize       = Math.min(widthFitSize, heightCapSize);
 
-    const capHeight = fontSize * MM_PER_PT * CAP_RATIO;
-    const baseline  = (LABEL_H + capHeight) / 2; // vertically centred
+    // Anchor at the page's dead centre. With angle:90 + align:'center',
+    // jsPDF centres the text along its run direction automatically (the
+    // 54mm page height, post-rotation) — the anchor just needs to sit on
+    // the page's centreline. NOTE: if the printed label comes out upside
+    // down, change angle to -90 (or 270) below — that's the one thing
+    // this can't be verified without an actual test print.
+    const cx = LABEL_H / 2;
+    const cy = LABEL_W / 2;
 
     pdf.setFontSize(fontSize);
     pdf.setTextColor(0, 0, 0);
 
     for (let i = 0; i < pageCount; i++) {
-      if (i > 0) pdf.addPage([LABEL_W, LABEL_H], 'landscape');
-      pdf.text(number, cx, baseline, { align: 'center' });
+      if (i > 0) pdf.addPage([LABEL_H, LABEL_W], 'portrait');
+      pdf.text(number, cx, cy, { align: 'center', angle: 90 });
     }
 
     return pdf;
