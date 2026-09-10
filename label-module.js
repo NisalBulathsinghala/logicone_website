@@ -197,6 +197,34 @@
     return pdf;
   }
 
+  // ── Local print agent (optional, silent) ────────────────────────────────
+  // If the Logic One print agent (see /print-agent) is running on this Mac,
+  // this sends the PDF straight to it and skips the browser dialog entirely.
+  // Only ever succeeds on the machine the agent is installed on — from an
+  // iPad/iPhone (or a Mac without it installed) this just times out quickly
+  // and falls through to the normal dialog below, same as before the agent
+  // existed. PRINT_AGENT_KEY must match "sharedSecret" in the agent's
+  // config.json — if you change one, change the other.
+  const PRINT_AGENT_URL = 'http://localhost:8787/print/labels';
+  const PRINT_AGENT_KEY = 'ae8a08b16cc1544d43761a84b37f66aa36dbe480503104e1';
+
+  async function tryAgentPrint(pdfBlob) {
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 1500);
+      const res = await fetch(PRINT_AGENT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/pdf', 'X-Print-Key': PRINT_AGENT_KEY },
+        body: pdfBlob,
+        signal: ctrl.signal,
+      });
+      clearTimeout(timeout);
+      return res.ok;
+    } catch (e) {
+      return false; // agent not running/reachable — not an error, just fall back
+    }
+  }
+
   // ── Public: build and print ─────────────────────────────────────────────
   window.labelGenerateAndPrint = async function (job) {
     if (!job || !job.jobId) {
@@ -210,6 +238,12 @@
     } catch (e) {
       console.error('label build failed:', e);
       if (typeof showToast === 'function') showToast('error', 'Label build failed: ' + e.message);
+      return;
+    }
+
+    const printedSilently = await tryAgentPrint(pdf.output('blob'));
+    if (printedSilently) {
+      if (typeof showToast === 'function') showToast('success', 'Labels sent to printer');
       return;
     }
 

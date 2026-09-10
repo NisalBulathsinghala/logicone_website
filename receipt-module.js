@@ -9,7 +9,9 @@
 
    Public API:
      window.receiptGenerateAndPrint(jobObj)
-       - Builds PDF, opens print dialog, saves to Drive in parallel.
+       - Builds PDF, prints (silently via the local print agent if it's
+         running on this Mac — see /print-agent — otherwise the normal
+         browser print dialog), saves to Drive in parallel.
        - Used by submitNewJob() and the "Print Receipt" button.
 
      window.receiptDownload(jobObj)
@@ -29,6 +31,35 @@
   // TOKEN_SECRET: MUST match the value in job-status.html exactly.
   const QR_BASE_URL    = 'https://logicone.com.au';          // ← update if different
   const QR_TOKEN_SECRET = 'lo-status-2026';                  // ← change both files together
+
+  // ── Local print agent (optional, silent) ────────────────────────────────
+  // If the Logic One print agent (see /print-agent) is running on this Mac,
+  // this sends the PDF straight to it and skips the browser dialog entirely.
+  // Only ever succeeds on the machine the agent is installed on — from an
+  // iPad/iPhone (or a Mac without it installed) this just times out quickly
+  // and falls through to the normal dialog, same as before the agent
+  // existed. PRINT_AGENT_KEY must match "sharedSecret" in the agent's
+  // config.json, and must match the same constant in label-module.js —
+  // if you change one, change all three.
+  const PRINT_AGENT_URL = 'http://localhost:8787/print/receipt';
+  const PRINT_AGENT_KEY = 'ae8a08b16cc1544d43761a84b37f66aa36dbe480503104e1';
+
+  async function tryAgentPrint(pdfBlob) {
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 1500);
+      const res = await fetch(PRINT_AGENT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/pdf', 'X-Print-Key': PRINT_AGENT_KEY },
+        body: pdfBlob,
+        signal: ctrl.signal,
+      });
+      clearTimeout(timeout);
+      return res.ok;
+    } catch (e) {
+      return false; // agent not running/reachable — not an error, just fall back
+    }
+  }
 
   // ── Generate a short token for a job ID ────────────────────────────────────
   async function generateStatusToken(jobId) {
@@ -498,20 +529,26 @@
       return;
     }
 
-    // ── Open print dialog immediately ─────────────────────────────────────
-    // jsPDF's autoPrint() injects the print intent into the PDF; opening the
-    // blob in a new tab triggers the browser's PDF viewer, which honours it.
-    try {
-      pdf.autoPrint();
-      const blobUrl = pdf.output('bloburl');
-      const win = window.open(blobUrl, '_blank');
-      if (!win) {
-        if (typeof showToast === 'function') {
-          showToast('error', 'Pop-up blocked — allow pop-ups to print receipts');
+    // ── Try the local print agent first (silent, no dialog) ────────────────
+    const printedSilently = await tryAgentPrint(pdf.output('blob'));
+    if (printedSilently) {
+      if (typeof showToast === 'function') showToast('success', 'Receipt sent to printer');
+    } else {
+      // ── Open print dialog immediately ─────────────────────────────────────
+      // jsPDF's autoPrint() injects the print intent into the PDF; opening the
+      // blob in a new tab triggers the browser's PDF viewer, which honours it.
+      try {
+        pdf.autoPrint();
+        const blobUrl = pdf.output('bloburl');
+        const win = window.open(blobUrl, '_blank');
+        if (!win) {
+          if (typeof showToast === 'function') {
+            showToast('error', 'Pop-up blocked — allow pop-ups to print receipts');
+          }
         }
+      } catch (e) {
+        console.error('print open failed:', e);
       }
-    } catch (e) {
-      console.error('print open failed:', e);
     }
 
     // ── Save to Drive in parallel (don't block the print) ─────────────────
