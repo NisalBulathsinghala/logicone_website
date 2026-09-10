@@ -196,22 +196,28 @@
     const widthFitSize   = (maxRun / refWidth) * REF_SIZE;
     const heightCapSize  = (LABEL_H - V_MARGIN * 2) / (MM_PER_PT * CAP_RATIO); // LABEL_H (17) is still the stroke-height limit
     const fontSize       = Math.min(widthFitSize, heightCapSize);
+    const textLen        = refWidth * (fontSize / REF_SIZE); // actual rendered length at fontSize
 
-    // Anchor at the page's dead centre. With angle:90 + align:'center',
-    // jsPDF centres the text along its run direction automatically (the
-    // 54mm page height, post-rotation) — the anchor just needs to sit on
-    // the page's centreline. NOTE: if the printed label comes out upside
-    // down, change angle to -90 (or 270) below — that's the one thing
-    // this can't be verified without an actual test print.
-    const cx = LABEL_H / 2;
-    const cy = LABEL_W / 2;
+    // Manual centering — NOT jsPDF's built-in align:'center'. Verified by
+    // actually rendering both: angle + align:'center' together silently
+    // produces a BLANK page in jsPDF 2.5.1 (that's what "nothing printed"
+    // was — not a printer problem). angle alone works fine, so this
+    // computes the centred position itself instead.
+    //
+    // With angle:90, text grows toward DECREASING y (confirmed by test
+    // render) — so the anchor starts high (page centre + half the text's
+    // length) so the run ends up centred across the label. x sits on the
+    // width centreline; no perpendicular nudge needed — verified visually,
+    // it already sits centred as-is.
+    const x = LABEL_H / 2;
+    const y = LABEL_W / 2 + textLen / 2;
 
     pdf.setFontSize(fontSize);
     pdf.setTextColor(0, 0, 0);
 
     for (let i = 0; i < pageCount; i++) {
       if (i > 0) pdf.addPage([LABEL_H, LABEL_W], 'portrait');
-      pdf.text(number, cx, cy, { align: 'center', angle: 90 });
+      pdf.text(number, x, y, { angle: 90 });
     }
 
     return pdf;
