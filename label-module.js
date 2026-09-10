@@ -184,12 +184,14 @@
     // got rotated — only where we place/rotate the result does.
     const MM_PER_PT = 0.3528;
     const CAP_RATIO = 0.72;   // cap-height as a fraction of font size — Helvetica approximation
-    const H_MARGIN  = 4;      // mm, margin along the 54mm run — was 2mm, but a
-                               // real print came out clipped near one edge
-                               // (likely the AirPrint driver's own unprintable
-                               // margin, or a slight physical mis-registration
-                               // on the die-cut boundary — either way, more
-                               // clearance is the fix regardless of cause)
+    // Asymmetric margins along the 54mm run — a real print came out
+    // cropped specifically at the top (y=0 end, where the run finishes —
+    // see the anchor math below), not both edges evenly. Rather than
+    // shrinking the text further to buy symmetric clearance it doesn't
+    // need, the top end gets a bigger dedicated margin and the bottom
+    // stays tight, since that end printed cleanly.
+    const TOP_MARGIN    = 8;  // mm, clearance at the y=0 end
+    const BOTTOM_MARGIN = 2;  // mm, clearance at the y=LABEL_W end
     const V_MARGIN  = 1.5;    // mm, margin across the 17mm roll width
     const REF_SIZE  = 100;    // pt — arbitrary reference size for measuring text width
 
@@ -197,7 +199,7 @@
     pdf.setFontSize(REF_SIZE);
     const refWidth = pdf.getTextWidth(number); // mm, at REF_SIZE
 
-    const maxRun         = LABEL_W - H_MARGIN * 2;   // LABEL_W (54) is still the run length
+    const maxRun         = LABEL_W - TOP_MARGIN - BOTTOM_MARGIN; // LABEL_W (54) is still the run length
     const widthFitSize   = (maxRun / refWidth) * REF_SIZE;
     const heightCapSize  = (LABEL_H - V_MARGIN * 2) / (MM_PER_PT * CAP_RATIO); // LABEL_H (17) is still the stroke-height limit
     const fontSize       = Math.min(widthFitSize, heightCapSize);
@@ -207,15 +209,16 @@
     // actually rendering both: angle + align:'center' together silently
     // produces a BLANK page in jsPDF 2.5.1 (that's what "nothing printed"
     // was — not a printer problem). angle alone works fine, so this
-    // computes the centred position itself instead.
+    // computes the position itself instead.
     //
     // With angle:90, text grows toward DECREASING y (confirmed by test
-    // render) — so the anchor starts high (page centre + half the text's
-    // length) so the run ends up centred across the label. x sits on the
-    // width centreline; no perpendicular nudge needed — verified visually,
-    // it already sits centred as-is.
+    // render) — so the anchor starts near the bottom edge (LABEL_W minus
+    // its margin) and the run finishes up near the top edge, landing
+    // TOP_MARGIN away from y=0. x sits on the width centreline; no
+    // perpendicular nudge needed — verified visually, it already sits
+    // centred as-is.
     const x = LABEL_H / 2;
-    const y = LABEL_W / 2 + textLen / 2;
+    const y = LABEL_W - BOTTOM_MARGIN;
 
     pdf.setFontSize(fontSize);
     pdf.setTextColor(0, 0, 0);
