@@ -184,7 +184,12 @@
     // got rotated — only where we place/rotate the result does.
     const MM_PER_PT = 0.3528;
     const CAP_RATIO = 0.72;   // cap-height as a fraction of font size — Helvetica approximation
-    const H_MARGIN  = 2;      // mm, margin along the 54mm run
+    const H_MARGIN  = 4;      // mm, margin along the 54mm run — was 2mm, but a
+                               // real print came out clipped near one edge
+                               // (likely the AirPrint driver's own unprintable
+                               // margin, or a slight physical mis-registration
+                               // on the die-cut boundary — either way, more
+                               // clearance is the fix regardless of cause)
     const V_MARGIN  = 1.5;    // mm, margin across the 17mm roll width
     const REF_SIZE  = 100;    // pt — arbitrary reference size for measuring text width
 
