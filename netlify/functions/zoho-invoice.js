@@ -110,8 +110,6 @@ async function createEstimate(token, contactId, job) {
     lineItems.push({ name: 'Postage & Handling', rate: parseFloat(job.postage), quantity: 1 });
   }
 
-  lineItems.push({ name: 'Less: Inspection Fee Paid', rate: -INSPECTION_FEE, quantity: 1 });
-
   const subject = `Repair Quote — ${job.brand} ${job.model}${job.serial ? ' (S/N: ' + job.serial + ')' : ''}`;
 
   const body = {
