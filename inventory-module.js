@@ -36,6 +36,7 @@
   const style = document.createElement('style');
   style.id = 'lo-inventory-styles';
   style.textContent = `
+#invRoot { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .inv-wrap { padding: 20px 28px; }
 .inv-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
 .inv-tab-btn {

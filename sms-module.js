@@ -135,8 +135,14 @@
   window.smsModuleInit = function (job) {
     if (!TWILIO_ENABLED) return; // copy-only mode — existing dashboard behaviour unchanged
 
-    // Upgrade each sms-card's Copy button to Copy + Send
-    const cards = document.querySelectorAll('.sms-card');
+    // Upgrade each sms-card's Copy button to Copy + Send.
+    // IMPORTANT: scope this to the detail modal's own panel (#dSmsTemplatePanel).
+    // A global '.sms-card' query also matches the jobsheet view's template
+    // cards (#jsSmsTemplatePanel, jobsheet-module.js) once that page has been
+    // opened in the session — they stay in the DOM (just display:none) and
+    // shift every index here, so window._smsTemplates[index] comes back
+    // undefined and smsSend() silently no-ops. Scoping avoids that entirely.
+    const cards = document.querySelectorAll('#dSmsTemplatePanel .sms-card');
     cards.forEach((card, i) => {
       const top = card.querySelector('.sms-card-top');
       if (!top) return;
@@ -298,7 +304,7 @@
 
   // ── Load inbound SMS log panel ───────────────────────────────
   async function loadInboxPanel(job) {
-    const smsPanel = document.querySelector('.sms-panel');
+    const smsPanel = document.getElementById('dSmsTemplatePanel');
     if (!smsPanel) return;
 
     // Remove any existing inbox panel from a previous job open
