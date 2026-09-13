@@ -110,6 +110,12 @@ document.addEventListener('DOMContentLoaded', () => {
   buildBoard();
   loadData();
 
+  // Phone-width screens land on the card-based Jobs view instead of the
+  // kanban board, which needs a much wider canvas to be usable.
+  if (window.matchMedia('(max-width: 900px)').matches) {
+    switchView('mjobs');
+  }
+
   // Load SMS conversation data immediately so kanban badges show
   // unread counts without requiring a visit to the SMS tab first
   smsInboxRefresh().then(() => smsRefreshKanbanBadges());
@@ -296,7 +302,7 @@ function buildBoard() {
 }
 
 function renderAll() {
-  renderKanban(); renderStats(); renderTable();
+  renderKanban(); renderStats(); renderTable(); mRenderJobs();
   document.getElementById('totalBadge').textContent = jobs.length;
   setTimeout(kUpdateScrollBtns, 200);
 }
@@ -1709,19 +1715,53 @@ function switchView(v) {
   document.getElementById('view-' + v).classList.add('active');
   const navEl = document.querySelector(`[data-view="${v}"]`);
   if (navEl) navEl.classList.add('active');
-  const titles = { kanban:'KANBAN BOARD', list:'ALL JOBS', jobsheet:'JOB SHEETS', sms:'SMS INBOX', inventory:'INVENTORY' };
+  const titles = { kanban:'KANBAN BOARD', list:'ALL JOBS', jobsheet:'JOB SHEETS', sms:'SMS INBOX', inventory:'INVENTORY', mjobs:'JOBS' };
   document.getElementById('viewTitle').textContent = titles[v] || '';
   // Show/hide search bar (not relevant on job sheet, sms, or inventory — each has its own)
   const searchBar = document.querySelector('.search-bar');
   if (searchBar) searchBar.style.display = (v === 'jobsheet' || v === 'sms' || v === 'inventory') ? 'none' : '';
   if (v === 'jobsheet') jsRenderJobList();
   if (v === 'kanban') setTimeout(kUpdateScrollBtns, 50);
+  if (v === 'mjobs') mRenderJobs();
   if (v === 'sms') smsInboxInit();
   if (v === 'inventory' && typeof invModuleInit === 'function') invModuleInit();
   // Show/hide scroll arrow
   const arrow = document.getElementById('jsScrollArrow');
   if (arrow) arrow.classList.toggle('visible', v === 'jobsheet');
   closeSidebar();
+  // Keep bottom tab bar in sync when a view is reached another way (sidebar, card tap, etc.)
+  document.querySelectorAll('.mtab').forEach(t => t.classList.toggle('active', t.dataset.mtab === v));
+}
+
+// ============================================================
+// MOBILE BOTTOM TAB BAR
+// ============================================================
+function mTabGo(tab) {
+  if (tab === 'new') { openModal('newJobModal'); return; }
+  if (tab === 'more') { toggleSidebar(); return; }
+  document.querySelectorAll('.mtab').forEach(t => t.classList.toggle('active', t.dataset.mtab === tab));
+  switchView(tab);
+}
+
+let mJobsFilter = 'active';
+function mSetFilter(f) {
+  mJobsFilter = f;
+  document.querySelectorAll('.mjobs-chip').forEach(c => c.classList.toggle('active', c.dataset.filter === f));
+  mRenderJobs();
+}
+
+function mRenderJobs() {
+  const list = document.getElementById('mJobsList');
+  const empty = document.getElementById('mJobsEmpty');
+  if (!list) return;
+  let f = filtered(); // applies the shared search box term
+  if (mJobsFilter === 'active') f = f.filter(j => j.status !== 'Complete' && j.status !== 'Collected');
+  else if (mJobsFilter !== 'all') f = f.filter(j => j.status === mJobsFilter);
+  // Most days-in-progress first — the jobs that most need attention float to the top
+  f = [...f].sort((a, b) => (getTotalDays(b) === '—' ? -1 : getTotalDays(b)) - (getTotalDays(a) === '—' ? -1 : getTotalDays(a)));
+  list.innerHTML = '';
+  f.forEach(j => list.appendChild(mkCard(j)));
+  empty.style.display = f.length ? 'none' : '';
 }
 
 function openModal(id) {
@@ -1746,7 +1786,7 @@ function showLoading(s) { document.getElementById('kanbanLoading').classList.tog
 
 
 
-function handleSearch() { searchTerm = document.getElementById('searchInput').value.trim(); renderKanban(); renderTable(); }
+function handleSearch() { searchTerm = document.getElementById('searchInput').value.trim(); renderKanban(); renderTable(); mRenderJobs(); }
 
 function fmtDate(s) {
   if (!s) return '—';
@@ -2292,15 +2332,18 @@ function smsUpdateBadge(convs) {
   // Unread count comes from server-side index — survives page reloads
   const unread = convs.reduce((n, c) => n + (c.unread || 0), 0);
   const badge  = document.getElementById('smsBadge');
-  if (!badge) return;
-  if (unread > 0) {
-    badge.textContent = unread;
-    badge.style.display = '';
-    badge.style.background = '#ef4444';
-    badge.style.color = '#fff';
-  } else {
-    badge.style.display = 'none';
-  }
+  const mbadge = document.getElementById('mtabSmsBadge');
+  [badge, mbadge].forEach(b => {
+    if (!b) return;
+    if (unread > 0) {
+      b.textContent = unread;
+      b.style.display = '';
+      b.style.background = '#ef4444';
+      b.style.color = '#fff';
+    } else {
+      b.style.display = 'none';
+    }
+  });
 }
 
 // Periodically poll for new inbound messages (every 30s)

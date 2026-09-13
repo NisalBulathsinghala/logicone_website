@@ -9,16 +9,17 @@
 .js-topbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 28px; background: var(--bg-surface);
-  border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 16px;
+  border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 12px;
+  flex-wrap: wrap; row-gap: 8px;
 }
 /* Sticky only inside the job sheet view's own scroll container */
 #view-jobsheet.active .js-topbar {
   position: sticky; top: 0; z-index: 10;
 }
-.js-topbar-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
-.js-topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.js-back-btn { white-space: nowrap; }
-.js-job-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.js-topbar-left { display: flex; align-items: center; gap: 16px; min-width: 0; flex-shrink: 1; }
+.js-topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; row-gap: 8px; }
+.js-back-btn { white-space: nowrap; flex-shrink: 0; }
+.js-job-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 40px; flex-shrink: 1; }
 .js-save-ind {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 12px; color: var(--text-secondary); font-weight: 500;
@@ -286,6 +287,16 @@
 
   .js-section { padding: 16px; }
   .js-topbar { padding: 12px 16px; }
+}
+
+@media (max-width: 560px) {
+  .js-topbar-right .btn-label,
+  .js-back-btn .btn-label,
+  #jsBackToList .btn-label { display: none; }
+  .js-save-ind { display: none; }
+  .js-parts-table th:nth-child(3), .js-parts-table td:nth-child(3) { display: none; }
+  .js-parts-table th, .js-parts-table td { padding: 5px 3px; }
+  .js-parts-table { font-size: 12px; }
 }
 /* Day counter badge on kanban cards */
 .card-day-badge {

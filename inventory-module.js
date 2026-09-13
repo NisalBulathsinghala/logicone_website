@@ -36,7 +36,6 @@
   const style = document.createElement('style');
   style.id = 'lo-inventory-styles';
   style.textContent = `
-#invRoot { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .inv-wrap { padding: 20px 28px; }
 .inv-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
 .inv-tab-btn {
@@ -385,17 +384,21 @@ function invRefreshNavBadge() {
   const recvCount = invReceiving.length;
   const total = lowCount + recvCount;
   const badge = document.getElementById('invNavBadge');
-  if (!badge) return;
-  if (total > 0) {
-    badge.textContent = total;
-    badge.style.display = '';
-    badge.title = [
-      lowCount ? `${lowCount} low stock` : '',
-      recvCount ? `${recvCount} pending receipt` : '',
-    ].filter(Boolean).join(' · ');
-  } else {
-    badge.style.display = 'none';
-  }
+  const mbadge = document.getElementById('mtabInvBadge');
+  const tip = [
+    lowCount ? `${lowCount} low stock` : '',
+    recvCount ? `${recvCount} pending receipt` : '',
+  ].filter(Boolean).join(' · ');
+  [badge, mbadge].forEach(b => {
+    if (!b) return;
+    if (total > 0) {
+      b.textContent = total;
+      b.style.display = '';
+      b.title = tip;
+    } else {
+      b.style.display = 'none';
+    }
+  });
 }
 window.invRefreshNavBadge = invRefreshNavBadge;
 

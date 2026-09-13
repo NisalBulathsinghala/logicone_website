@@ -123,6 +123,23 @@
     </div>
   </div>
 
+  <!-- MOBILE JOBS (card list — phone-friendly alternative to kanban/table) -->
+  <div class="view" id="view-mjobs" style="position:relative;">
+    <div class="mjobs-filters" id="mJobsFilters">
+      <button class="mjobs-chip active" data-filter="active" onclick="mSetFilter('active')">Active</button>
+      <button class="mjobs-chip" data-filter="all" onclick="mSetFilter('all')">All</button>
+      <button class="mjobs-chip" data-filter="Intake" onclick="mSetFilter('Intake')">Intake</button>
+      <button class="mjobs-chip" data-filter="Diagnosis" onclick="mSetFilter('Diagnosis')">Diagnosis</button>
+      <button class="mjobs-chip" data-filter="Awaiting Parts" onclick="mSetFilter('Awaiting Parts')">Awaiting Parts</button>
+      <button class="mjobs-chip" data-filter="In Repair" onclick="mSetFilter('In Repair')">In Repair</button>
+      <button class="mjobs-chip" data-filter="Testing" onclick="mSetFilter('Testing')">Testing</button>
+      <button class="mjobs-chip" data-filter="Complete" onclick="mSetFilter('Complete')">Complete</button>
+      <button class="mjobs-chip" data-filter="Collected" onclick="mSetFilter('Collected')">Collected</button>
+    </div>
+    <div class="mjobs-list" id="mJobsList"></div>
+    <div class="mjobs-empty" id="mJobsEmpty" style="display:none;">No jobs match this filter.</div>
+  </div>
+
   <!-- LIST -->
   <div class="view" id="view-list" style="position:relative;">
     <div class="loading-overlay" id="listLoading"><div class="spinner"></div><div class="loading-text">Loading jobs…</div></div>
@@ -138,13 +155,13 @@
   <div class="view" id="view-jobsheet" style="position:relative;overflow:hidden;">
     <div class="js-topbar">
       <div class="js-topbar-left">
-        <button class="btn btn-secondary js-back-btn" onclick="switchView('kanban')">
+        <button class="btn btn-secondary js-back-btn" onclick="switchView('kanban')" title="Dashboard">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-          Dashboard
+          <span class="btn-label">Dashboard</span>
         </button>
-        <button class="btn btn-secondary" id="jsBackToList" onclick="jsCloseSheet()" style="display:none;">
+        <button class="btn btn-secondary" id="jsBackToList" onclick="jsCloseSheet()" style="display:none;" title="All Jobs">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
-          All Jobs
+          <span class="btn-label">All Jobs</span>
         </button>
         <div id="jsJobTitle" class="js-job-title">Select a job to open its sheet</div>
       </div>
@@ -153,17 +170,17 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           Not saved
         </div>
-        <button class="btn btn-secondary" onclick="window.print()">
+        <button class="btn btn-secondary" onclick="window.print()" title="Print">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          Print
+          <span class="btn-label">Print</span>
         </button>
-        <button class="btn btn-secondary" onclick="jsExportCSV()">
+        <button class="btn btn-secondary" onclick="jsExportCSV()" title="Export CSV">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Export CSV
+          <span class="btn-label">Export CSV</span>
         </button>
-        <button class="btn btn-primary" id="jsSaveBtn" onclick="jsSaveSheet()">
+        <button class="btn btn-primary" id="jsSaveBtn" onclick="jsSaveSheet()" title="Save to Drive">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          Save to Drive
+          <span class="btn-label">Save to Drive</span>
         </button>
       </div>
     </div>
@@ -708,6 +725,32 @@
   <svg id="toastIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
   <span id="toastMsg"></span>
 </div>
+
+<!-- MOBILE BOTTOM TAB BAR -->
+<nav class="mobile-tabbar" id="mobileTabbar">
+  <button class="mtab active" data-mtab="mjobs" onclick="mTabGo('mjobs')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span>Jobs</span>
+  </button>
+  <button class="mtab" data-mtab="sms" onclick="mTabGo('sms')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    <span>SMS</span>
+    <span class="mtab-badge" id="mtabSmsBadge" style="display:none"></span>
+  </button>
+  <button class="mtab mtab-new" data-mtab="new" onclick="mTabGo('new')">
+    <span class="mtab-new-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+    <span>New</span>
+  </button>
+  <button class="mtab" data-mtab="inventory" onclick="mTabGo('inventory')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3 3 8v8l9 5 9-5V8z"/><polyline points="3 8 12 13 21 8"/><line x1="12" y1="13" x2="12" y2="21"/></svg>
+    <span>Inventory</span>
+    <span class="mtab-badge" id="mtabInvBadge" style="display:none"></span>
+  </button>
+  <button class="mtab" data-mtab="more" onclick="mTabGo('more')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+    <span>More</span>
+  </button>
+</nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="dashboard.js"></script>

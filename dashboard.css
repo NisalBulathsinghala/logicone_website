@@ -473,6 +473,7 @@ body {
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 20px 24px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 5; background: var(--bg-surface);
 }
 
 .modal-header h2 { font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 700; }
@@ -603,7 +604,8 @@ body {
 
 .modal-footer {
   padding: 16px 24px; border-top: 1px solid var(--border);
-  display: flex; justify-content: flex-end; gap: 10px;
+  display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;
+  position: sticky; bottom: 0; z-index: 5; background: var(--bg-surface);
 }
 
 /* ===== DETAIL ===== */
@@ -743,6 +745,70 @@ body {
 
 .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 150; }
 .sidebar-overlay.show { display: block; }
+
+/* ===== MOBILE BOTTOM TAB BAR ===== */
+.mobile-tabbar {
+  display: none;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 250;
+  background: var(--bg-surface); border-top: 1px solid var(--border);
+  padding: 6px max(6px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-right));
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+}
+
+@media (max-width: 900px) {
+  .mobile-tabbar { display: flex; align-items: flex-end; justify-content: space-around; }
+  .main-content { padding-bottom: calc(58px + env(safe-area-inset-bottom)); }
+}
+
+.mtab {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: none; border: none; cursor: pointer; position: relative;
+  color: var(--text-secondary); font-family: 'Inter', sans-serif;
+  font-size: 10px; font-weight: 600; padding: 4px 6px; flex: 1; min-width: 0;
+}
+.mtab svg { width: 21px; height: 21px; }
+.mtab.active { color: var(--accent); }
+.mtab span:not(.mtab-new-circle):not(.mtab-badge) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mtab-badge {
+  position: absolute; top: 0; right: 14px;
+  background: #ef4444; color: #fff; font-size: 9px; font-weight: 700;
+  min-width: 15px; height: 15px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; padding: 0 3px;
+}
+
+.mtab-new-circle {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent); color: #fff; margin-bottom: 1px;
+}
+.mtab-new-circle svg { width: 18px; height: 18px; }
+.mtab-new.active .mtab-new-circle { background: var(--accent-dark); }
+.mtab-new { color: var(--text-secondary); }
+
+/* ===== MOBILE JOBS VIEW ===== */
+.mjobs-filters {
+  display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  padding: 14px 16px; flex-shrink: 0; border-bottom: 1px solid var(--border-light);
+}
+.mjobs-filters::-webkit-scrollbar { display: none; }
+.mjobs-chip {
+  flex-shrink: 0; white-space: nowrap; font-family: 'Inter', sans-serif;
+  font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+  background: var(--bg-primary); border: 1px solid var(--border);
+  border-radius: 20px; padding: 7px 14px; cursor: pointer;
+}
+.mjobs-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.mjobs-list {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px 16px; overflow-y: auto; flex: 1; min-height: 0;
+}
+.mjobs-empty {
+  text-align: center; color: var(--text-secondary); font-size: 13px; padding: 40px 20px;
+}
+#view-mjobs { flex-direction: column; }
+#view-mjobs.active { display: flex; }
 
 .kanban-wrapper::-webkit-scrollbar { height: 6px; }
 .kanban-wrapper::-webkit-scrollbar-track { background: transparent; }
