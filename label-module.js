@@ -159,15 +159,22 @@
     // name printed anymore; getLabelParts() is still used to know how
     // many physical labels to produce (still driven by accessories),
     // just not to put text on them.
-    const number = await fetchLabelNumber(job.jobId);
+    const fullNumber = await fetchLabelNumber(job.jobId);
+    // next-label-number.js formats this as "YYQ#-NNN" (e.g. "26Q3-002")
+    // so the counter can reset every quarter without colliding. The round
+    // label is too small to fit that whole thing legibly, and the quarter
+    // prefix isn't needed for shelf-matching, so only the sequence part
+    // after the dash gets drawn. Falls back to the full string if the
+    // format ever changes shape, rather than drawing nothing.
+    const match = fullNumber.match(/-(\d+)$/);
+    const number = match ? match[1] : fullNumber;
     const pageCount = getLabelParts(job).length;
 
     // Size the number to fill the label: measure its width at a large
     // reference size, then scale up. Measuring rather than using a fixed
-    // pt size means it stays "full size" whether the number is 8
-    // characters ("26Q3-002") or grows to 9 later in a busy quarter,
-    // instead of looking too small on short numbers or overflowing on
-    // long ones.
+    // pt size means it stays "full size" whether the sequence is 3 digits
+    // ("002") or grows to 4 later in a busy quarter, instead of looking
+    // too small on short numbers or overflowing on long ones.
     //
     // The die-cut is a circle, so — unlike a straight strip — there's no
     // single fixed margin: how much width is available depends on how
