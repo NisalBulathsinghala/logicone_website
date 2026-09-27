@@ -2,13 +2,16 @@
    Logic One SA — Label Module
    ------------------------------------------------------------
    Prints one stick-on label per physical part handed in with a
-   job, sized for a Brother QL-810W on 17mm x 54mm die-cut label
-   stock. The receipt tag already carries the job ID, customer
-   details, and which part is which, so these carry nothing but:
+   job, sized for a Brother QL-810W on 24mm round die-cut label
+   stock (trying this size out — was previously 17mm x 54mm
+   rectangular stock; see git history for that geometry if this
+   doesn't work out). The receipt tag already carries the job ID,
+   customer details, and which part is which, so these carry
+   nothing but:
      - a short NUMBER, shared by every label in the same print
        run, so parts sitting on the shelf can be matched back to
        each other without carrying the full job ID around
-   Sized to fill the label — see the width/height measurement in
+   Sized to fill the label — see the diameter measurement in
    buildLabelsPdf below — for legibility from across the workshop,
    not just up close.
    The number comes from netlify/functions/next-label-number.js —
@@ -33,12 +36,11 @@
 
    ONE-TIME setup on the machine that prints these:
      1. Install the QL-810W driver, then in its print preferences
-        set the label type to die-cut, 17mm x 54mm (Brother's own
-        part number for this size is DK-1204 — some resellers list
-        it as "DK-11204", same thing). Check the driver shows
-        die-cut, not "Continuous Length" — wrong media type makes
-        the cutter sync to the wrong points and slice mid-label
-        instead of at the gap between labels.
+        set the label type to die-cut, 24mm round (Brother's own
+        part number for this stock is DK-1218). Check the driver
+        shows die-cut, not "Continuous Length" — wrong media type
+        makes the cutter sync to the wrong points and slice
+        mid-label instead of at the gap between labels.
      2. Turn off per-label cutting so a 1-4 label job comes off as
         one strip, cut once at the end, instead of after every
         label. Where that lives depends on the OS:
@@ -95,12 +97,13 @@
     return parts;
   }
 
-  // Brother DK-1204 die-cut stock (also sold as "DK-11204" by some
-  // resellers) — this MUST match the label type set in the driver's
-  // print preferences, or the printer will scale/clip oddly, or cut
-  // mid-label instead of at the gap between labels.
-  const LABEL_W = 54;   // mm — fixed, matches the die-cut label
-  const LABEL_H = 17;   // mm — fixed, matches the die-cut label
+  // Brother DK-1218 round die-cut stock — this MUST match the label
+  // type set in the driver's print preferences, or the printer will
+  // scale/clip oddly, or cut mid-label instead of at the gap between
+  // labels. If a local print agent is used (see PRINT_AGENT_URL below),
+  // its own config also needs to be updated to the matching round media
+  // type — check its media list, since the exact name varies by driver.
+  const LABEL_SIZE = 24;   // mm — diameter, fixed, matches the die-cut label
 
   // ── Lazy-load jsPDF (idempotent — receipt-module.js may already have it) ──
   let jsPDFLoaded = false;
@@ -143,26 +146,13 @@
   // strip (all 1-4 labels) or a cut after every single one depends on
   // the printer's own Auto Cut setting — see the header note above;
   // this code has no control over that, it's purely a printer-setting
-  // thing. Width is greater than height (a wide, short strip), so
-  // orientation is set explicitly to landscape — leaving it as
-  // 'portrait' risks jsPDF silently swapping the two dimensions to
-  // keep height >= width.
-  //
-  // IMPORTANT: the PDF page itself is built as LABEL_H x LABEL_W (17x54,
-  // portrait), not LABEL_W x LABEL_H — this looks backwards but matches
-  // how the printer/CUPS actually sees the roll: physically it's 17mm
-  // *across* the roll (fixed) and 54mm *along* the feed per label. The
-  // print agent's config.json declares the media the same way
-  // (Custom.17x54mm). If the PDF page shape doesn't match that, the
-  // printer either clips the content or auto-rotates it unpredictably —
-  // which is exactly what happened when this was still built as 54x17.
-  // The number itself is drawn rotated 90° so it still reads normally
-  // along the label's 54mm length once printed, despite the page now
-  // being "tall" rather than "wide".
+  // thing. The page is a square bounding box around the round die-cut,
+  // so — unlike the old rectangular stock — there's no long/short axis
+  // and no need to rotate the text 90°; it's drawn upright, centred.
   async function buildLabelsPdf(job) {
     await ensureJsPDF();
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: 'mm', format: [LABEL_H, LABEL_W], orientation: 'portrait', compress: true });
+    const pdf = new jsPDF({ unit: 'mm', format: [LABEL_SIZE, LABEL_SIZE], orientation: 'portrait', compress: true });
 
     // One number for the whole job — fetched once, reused on every page,
     // so all of a job's labels carry the same matching number. No part
@@ -173,59 +163,53 @@
     const pageCount = getLabelParts(job).length;
 
     // Size the number to fill the label: measure its width at a large
-    // reference size, then scale so it spans the available length (minus
-    // a small margin along the 54mm run). Capped so it never grows
-    // thicker than the 17mm roll width. Measuring rather than using a
-    // fixed pt size means it stays "full size" whether the number is 8
+    // reference size, then scale up. Measuring rather than using a fixed
+    // pt size means it stays "full size" whether the number is 8
     // characters ("26Q3-002") or grows to 9 later in a busy quarter,
     // instead of looking too small on short numbers or overflowing on
-    // long ones. These constraints are about the text itself (how long a
-    // run, how tall the strokes) and don't change just because the page
-    // got rotated — only where we place/rotate the result does.
+    // long ones.
+    //
+    // The die-cut is a circle, so — unlike a straight strip — there's no
+    // single fixed margin: how much width is available depends on how
+    // tall the text is, since a taller line has to sit closer to the
+    // vertical centre to still clear the curve. SAFE_FRACTION insets the
+    // fitting circle a bit from the true die-cut edge (stock can shift a
+    // little in the printer) so the widest strokes clear it with room to
+    // spare. Within that safe circle, the largest font where the text's
+    // own width x height bounding box still fits corner-to-corner solves
+    // width^2 + height^2 = diameter^2 — solvable directly for fontSize
+    // since both width and height scale linearly with it.
     const MM_PER_PT = 0.3528;
     const CAP_RATIO = 0.72;   // cap-height as a fraction of font size — Helvetica approximation
-    // Asymmetric margins along the 54mm run — a real print came out
-    // cropped specifically at the top (y=0 end, where the run finishes —
-    // see the anchor math below), not both edges evenly. Rather than
-    // shrinking the text further to buy symmetric clearance it doesn't
-    // need, the top end gets a bigger dedicated margin and the bottom
-    // stays tight, since that end printed cleanly.
-    const TOP_MARGIN    = 10;  // mm, clearance at the y=0 end
-    const BOTTOM_MARGIN = 2;  // mm, clearance at the y=LABEL_W end
-    const V_MARGIN  = 1.5;    // mm, margin across the 17mm roll width
-    const REF_SIZE  = 100;    // pt — arbitrary reference size for measuring text width
+    const SAFE_FRACTION = 0.85;
+    const SAFE_DIAMETER = LABEL_SIZE * SAFE_FRACTION;
+    const REF_SIZE = 100;    // pt — arbitrary reference size for measuring text width
 
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(REF_SIZE);
     const refWidth = pdf.getTextWidth(number); // mm, at REF_SIZE
 
-    const maxRun         = LABEL_W - TOP_MARGIN - BOTTOM_MARGIN; // LABEL_W (54) is still the run length
-    const widthFitSize   = (maxRun / refWidth) * REF_SIZE;
-    const heightCapSize  = (LABEL_H - V_MARGIN * 2) / (MM_PER_PT * CAP_RATIO); // LABEL_H (17) is still the stroke-height limit
-    const fontSize       = Math.min(widthFitSize, heightCapSize);
-    const textLen        = refWidth * (fontSize / REF_SIZE); // actual rendered length at fontSize
+    const widthPerPt     = refWidth / REF_SIZE;      // mm of text width per pt of font size
+    const capHeightPerPt = MM_PER_PT * CAP_RATIO;    // mm of cap height per pt of font size
+    const fontSize = SAFE_DIAMETER / Math.sqrt(widthPerPt * widthPerPt + capHeightPerPt * capHeightPerPt);
 
-    // Manual centering — NOT jsPDF's built-in align:'center'. Verified by
-    // actually rendering both: angle + align:'center' together silently
-    // produces a BLANK page in jsPDF 2.5.1 (that's what "nothing printed"
-    // was — not a printer problem). angle alone works fine, so this
-    // computes the position itself instead.
-    //
-    // With angle:90, text grows toward DECREASING y (confirmed by test
-    // render) — so the anchor starts near the bottom edge (LABEL_W minus
-    // its margin) and the run finishes up near the top edge, landing
-    // TOP_MARGIN away from y=0. x sits on the width centreline; no
-    // perpendicular nudge needed — verified visually, it already sits
-    // centred as-is.
-    const x = LABEL_H / 2;
-    const y = LABEL_W - BOTTOM_MARGIN;
+    // jsPDF's text() anchor defaults to (left edge, alphabetic baseline),
+    // so centering is computed manually rather than via align/baseline
+    // options — consistent with how this file already avoids relying on
+    // jsPDF's own centering (see the git history for the rotated-strip
+    // version, where angle + align:'center' silently produced a blank
+    // page in jsPDF 2.5.1).
+    const textWidth = widthPerPt * fontSize;
+    const capHeight = capHeightPerPt * fontSize;
+    const x = (LABEL_SIZE - textWidth) / 2;
+    const y = LABEL_SIZE / 2 + capHeight / 2;
 
     pdf.setFontSize(fontSize);
     pdf.setTextColor(0, 0, 0);
 
     for (let i = 0; i < pageCount; i++) {
-      if (i > 0) pdf.addPage([LABEL_H, LABEL_W], 'portrait');
-      pdf.text(number, x, y, { angle: 90 });
+      if (i > 0) pdf.addPage([LABEL_SIZE, LABEL_SIZE], 'portrait');
+      pdf.text(number, x, y);
     }
 
     return pdf;
