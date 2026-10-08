@@ -57,7 +57,10 @@ exports.handler = async function (event) {
     // dashboard load so kanban cards can show sent/not-sent without a
     // per-job round trip.
     if (action === 'load-sms-status-batch') {
-      const snap = await db.collection('jobs').get();
+      // `!= null` only matches docs that actually have the field, and Firestore
+      // bills reads per returned doc — so this costs (jobs with a sent
+      // template) reads instead of one read per job on every dashboard load.
+      const snap = await db.collection('jobs').where('smsSentTemplates', '!=', null).get();
       const result = {};
       snap.forEach(doc => {
         const data = doc.data();

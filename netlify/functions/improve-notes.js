@@ -4,7 +4,8 @@
 // — LPU-hosted open-weight models, not xAI's Grok).
 //
 // Required Netlify environment variable: GROQ_API_KEY
-// Optional environment variable: GROQ_MODEL (defaults to llama-3.3-70b-versatile)
+// Optional environment variable: GROQ_MODEL (defaults to openai/gpt-oss-120b —
+// Groq shut down llama-3.1-8b-instant and llama-3.3-70b-versatile on 2026-08-16)
 //
 // Request body (JSON):
 // {
@@ -19,7 +20,7 @@
 // Response (200):     { ok: true, improved: string, model: string }
 // Response (4xx/5xx): { ok: false, error: string, detail?: string }
 
-const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
+const DEFAULT_MODEL = 'openai/gpt-oss-120b';
 const MAX_NOTE_LENGTH = 4000;
 const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const REQUEST_TIMEOUT_MS = 15000; // Groq's LPU inference is fast; 15s leaves headroom under most Netlify function limits
@@ -301,6 +302,10 @@ function canonicalActionStem(stem) {
   return aliases[stem] || stem;
 }
 
+function isReasoningModel(model) {
+  return /^openai\/gpt-oss/i.test(String(model || ''));
+}
+
 async function requestGroq({ apiKey, model, systemPrompt, userPrompt }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -319,10 +324,15 @@ async function requestGroq({ apiKey, model, systemPrompt, userPrompt }) {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        // Groq's Chat Completions API has no store/reasoning-effort params —
-        // those were xAI Responses API fields and don't apply here. Plain
-        // Llama models aren't reasoning models, so there's nothing to tune.
-        max_completion_tokens: 700,
+        // gpt-oss models reason before answering, and reasoning tokens count
+        // against max_completion_tokens — 700 could be spent entirely on
+        // thinking, leaving an empty reply. Keep effort low (this is a
+        // simple rewrite), hide the reasoning from the response, and leave
+        // plenty of headroom. Non-reasoning models (e.g. a Llama set via
+        // GROQ_MODEL) reject these params, so only send them to gpt-oss.
+        ...(isReasoningModel(model)
+          ? { reasoning_effort: 'low', include_reasoning: false, max_completion_tokens: 2000 }
+          : { max_completion_tokens: 700 }),
       }),
     });
 

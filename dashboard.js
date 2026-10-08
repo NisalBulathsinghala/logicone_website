@@ -37,7 +37,14 @@ const HMAP = {
   'receive method':'receiveMethod','receiving method':'receiveMethod',
   'job id':'jobId','status':'status','drive folder':'driveFolder',
   'status timestamps':'statusTimestamps',
+  'archived':'archived','archive location':'archiveLocation',
 };
+
+// Treats common sheet truthy spellings ('TRUE', 'yes', '1', etc.) as archived.
+function isArchived(j) {
+  const v = String(j.archived || '').trim().toLowerCase();
+  return v === 'true' || v === 'yes' || v === '1';
+}
 
 let jobs = [], searchTerm = '';
 
@@ -236,16 +243,51 @@ function refreshData() { loadData(); }
 
 // Push the full job list to Firestore in one batched call. Fire-and-forget —
 // Sheets is still the source of truth for rendering, this is a side sync.
+//
+// Only records that changed since the last successful sync are sent. This used
+// to push EVERY job on EVERY load/refresh — one Firestore write per job each
+// time (the batch also stamps _syncedAt, so even unchanged jobs were real
+// writes). That burned through the daily free-tier quota and surfaced as
+// "RESOURCE_EXHAUSTED" on anything else touching Firestore, e.g. photo upload
+// (qr-photo verify). Per-job signatures live in localStorage; if it's
+// unavailable or cleared, this just falls back to a full sync once.
+const _SYNC_SIG_KEY = 'lo_job_sync_sigs_v1';
+function _syncSig(rec) {
+  const s = JSON.stringify(rec);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return h.toString(36) + ':' + s.length;
+}
 function syncJobsToFirestore(jobList) {
   const records = (jobList || []).filter(j => j.jobId);
   if (!records.length) return;
+
+  let sigs = {};
+  try { sigs = JSON.parse(localStorage.getItem(_SYNC_SIG_KEY) || '{}') || {}; } catch (e) {}
+
+  const changed = [];
+  const sentSigs = {};
+  records.forEach(rec => {
+    // smsSentTemplates lives in Firestore and is merged onto jobs client-side;
+    // it isn't part of the sheet record, so keep it out of the signature/payload.
+    const { smsSentTemplates, ...core } = rec;
+    const sig = _syncSig(core);
+    if (sigs[rec.jobId] !== sig) { changed.push(core); sentSigs[rec.jobId] = sig; }
+  });
+  if (!changed.length) return;
+
   fetch('/.netlify/functions/firestore-jobsheet', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'save-records-batch', records })
+    body: JSON.stringify({ action: 'save-records-batch', records: changed })
   })
     .then(r => r.json())
-    .then(res => { if (!res.ok) console.warn('Firestore job sync failed:', res.error); })
+    .then(res => {
+      if (!res.ok) { console.warn('Firestore job sync failed:', res.error); return; }
+      // Only remember signatures once the write actually succeeded, so a
+      // failed sync is retried on the next load.
+      try { localStorage.setItem(_SYNC_SIG_KEY, JSON.stringify(Object.assign({}, sigs, sentSigs))); } catch (e) {}
+    })
     .catch(e => console.warn('Firestore job sync error:', e));
 }
 
@@ -343,7 +385,9 @@ function mkCard(j) {
   }
 
   let folderH = '';
-  if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
+  if (isArchived(j)) {
+    folderH = `<span class="card-archived" title="Archived${j.archiveLocation ? ' — ' + j.archiveLocation : ''} — check the NAS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>`;
+  } else if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
     folderH = `<a class="card-folder" href="${j.driveFolder}" target="_blank" title="Open Drive folder" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></a>`;
   }
 
@@ -470,7 +514,7 @@ function kRenderSimpleJobTable(list) {
       <td><span class="t-status" style="background:${sc.bg};color:${sc.c};">${j.status || '—'}</span></td>
       <td style="font-size:12.5px;color:var(--text-secondary);">${fmtDate(j.ts)}</td>
       <td>${getTotalDays(j)}<span style="font-size:11px;color:var(--text-secondary);">d</span></td>
-      <td>${j.driveFolder && !String(j.driveFolder).startsWith('ERROR') ? `<a href="${j.driveFolder}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);font-size:12px;">Open</a>` : '—'}</td>`;
+      <td>${isArchived(j) ? `<span class="tag-sm tag-archived" title="${j.archiveLocation || 'Check the NAS'}">Archived</span>` : (j.driveFolder && !String(j.driveFolder).startsWith('ERROR') ? `<a href="${j.driveFolder}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);font-size:12px;">Open</a>` : '—')}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -583,7 +627,7 @@ function renderTable() {
       <td><span class="t-status" style="background:${sc.bg};color:${sc.c};">${j.status||'—'}</span></td>
       <td style="font-size:12.5px;color:var(--text-secondary);">${fmtDate(j.ts)}</td>
       <td>${getTotalDays(j)}<span style="font-size:11px;color:var(--text-secondary);">d</span></td>
-      <td>${j.driveFolder && !String(j.driveFolder).startsWith('ERROR') ? `<a href="${j.driveFolder}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);font-size:12px;">Open</a>` : '—'}</td>`;
+      <td>${isArchived(j) ? `<span class="tag-sm tag-archived" title="${j.archiveLocation || 'Check the NAS'}">Archived</span>` : (j.driveFolder && !String(j.driveFolder).startsWith('ERROR') ? `<a href="${j.driveFolder}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);font-size:12px;">Open</a>` : '—')}</td>`;
     tb.appendChild(tr);
   });
 }
@@ -707,8 +751,10 @@ function showDetail(j) {
   let h = '<div class="d-action-bar">';
   // 1. Job Sheet — primary blue
   h += `<button class="d-action-btn d-btn-jobsheet" onclick="jsOpenJobFromDetail('${j.jobId}');closeModal('detailModal');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Job Sheet</button>`;
-  // 2. Drive Folder — green (only if available)
-  if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
+  // 2. Drive Folder — green (only if available) / Archived badge if moved to NAS
+  if (isArchived(j)) {
+    h += `<span class="d-action-btn d-btn-archived" title="Check the NAS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg> Archived${j.archiveLocation ? ' — ' + j.archiveLocation : ''}</span>`;
+  } else if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
     h += `<a href="${j.driveFolder}" target="_blank" class="d-action-btn d-btn-drive" title="Open Drive Folder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> Drive</a>`;
   }
   // 3. Print Receipt — amber
@@ -730,7 +776,11 @@ function showDetail(j) {
   h += '</div>';
 
   // ── Photos section ──────────────────────────────────────────
-  if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
+  if (isArchived(j)) {
+    h += `<div class="d-photos-section"><div class="d-photos-header"><span>Photos</span></div>
+      <div class="d-photo-archived-note">This job's photos were archived off Drive${j.archiveLocation ? ' to <strong>' + j.archiveLocation + '</strong>' : ''}. Check the NAS.</div>
+    </div>`;
+  } else if (j.driveFolder && !String(j.driveFolder).startsWith('ERROR')) {
     h += `<div class="d-photos-section" id="dPhotosSection">
       <div class="d-photos-header">
         <span>Photos</span>
