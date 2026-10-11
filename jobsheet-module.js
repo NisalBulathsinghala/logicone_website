@@ -520,7 +520,15 @@ function jsUpdateNavActive() {
 let jsParts = [];
 let jsCurrentJob = null;
 
-const STATUS_ORDER = ['Intake','Diagnosis','Awaiting Parts','In Repair','Testing','Complete','Collected'];
+const STATUS_ORDER = ['Intake','Diagnosis','Customer Service','Awaiting Parts','In Repair','Testing','Complete','Collected'];
+
+// Side stages sit outside the normal forward progression: a job can enter
+// one from several points (e.g. warranty voided at Diagnosis or mid-repair)
+// and leave it to wherever it goes next. They are skipped when working out
+// the "furthest-along" status, and never shown as done unless the job
+// really was in them (otherwise every job would show a ticked
+// "Customer Service" once it moved past that point in the order).
+const SIDE_STATUSES = ['Customer Service'];
 
 // The furthest-along status in STATUS_ORDER that actually has a recorded
 // timestamp — this is the real current status, since progressing a job
@@ -529,7 +537,7 @@ const STATUS_ORDER = ['Intake','Diagnosis','Awaiting Parts','In Repair','Testing
 function jsLatestStatusFromTimestamps(timestamps) {
   if (!timestamps) return null;
   let latest = null;
-  STATUS_ORDER.forEach(s => { if (timestamps[s]) latest = s; });
+  STATUS_ORDER.forEach(s => { if (!SIDE_STATUSES.includes(s) && timestamps[s]) latest = s; });
   return latest;
 }
 
@@ -746,6 +754,22 @@ async function jsOpenJob(jobId) {
     jsSetSaveIndicator(false);
   }
 
+  // Tracking number read at job creation (before any job sheet existed)
+  // is held in its own doc — copy it into the field if still empty.
+  try {
+    const trk = document.getElementById('jsFRecvTracking');
+    if (trk && !trk.value.trim()) {
+      const r = await fetch('/.netlify/functions/receiving-tracking', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load', jobId }),
+      }).then(x => x.json());
+      if (r.ok && r.data && r.data.tracking && !trk.value.trim()) {
+        trk.value = r.data.tracking;
+        jsSetSaveIndicator(false);
+      }
+    }
+  } catch (e) { console.warn('receiving-tracking load error:', e); }
+
   // Non-blocking — auto-filed Cin7 parts orders, separate Firestore doc,
   // shouldn't hold up the rest of the job sheet loading.
   jsLoadCin7Orders(jobId);
@@ -762,7 +786,7 @@ function jsRenderTimeline(j) {
 
   tl.innerHTML = STATUS_ORDER.map((status, idx) => {
     const ts = timestamps[status];
-    const isDone = ts || idx < currentIdx;
+    const isDone = ts || (idx < currentIdx && !SIDE_STATUSES.includes(status));
     const isCurrent = status === j.status;
     const dotClass = isCurrent ? 'current' : isDone ? 'done' : '';
 
@@ -770,7 +794,7 @@ function jsRenderTimeline(j) {
     let duration = '';
     if (ts) {
       const nextStatus = STATUS_ORDER.find((s, i) => i > idx && timestamps[s]);
-      const end = nextStatus ? new Date(timestamps[nextStatus]) : (isCurrent ? new Date() : null);
+      const end = isCurrent ? new Date() : (nextStatus ? new Date(timestamps[nextStatus]) : null);
       if (end) {
         const days = Math.floor((end - new Date(ts)) / 86400000);
         const hrs  = Math.floor(((end - new Date(ts)) % 86400000) / 3600000);
@@ -893,6 +917,7 @@ function jsResetEditableFields(j) {
   document.getElementById('jsFQcNote').value         = '';
   document.getElementById('jsFinalRemark').value = '';
   document.getElementById('jsFOtherGoods').value = '';
+  { const t = document.getElementById('jsFRecvTracking'); if (t) t.value = ''; }
   const repLvl = document.getElementById('jsFRepairLevel');
   if (repLvl) repLvl.value = '';
   jsUpdateRepairLevelHint();
@@ -1434,6 +1459,7 @@ function jsCollectData() {
     repairLevel: document.getElementById('jsFRepairLevel')?.value || '',
     checklist,
     otherGoods: document.getElementById('jsFOtherGoods').value,
+    receivingTracking: (document.getElementById('jsFRecvTracking')?.value || '').trim(),
     scooterChecklist,
     orderNums: [...jsOrderNums],
     parts: jsParts.map(p => ({...p, qty:parseFloat(p.qty)||0, price:parseFloat(p.price)||0})),
@@ -1468,6 +1494,8 @@ function jsLoadFromData(data) {
   document.getElementById('jsFDate').value  = data.date || '';
   document.getElementById('jsFETA').value   = data.eta  || '';
   document.getElementById('jsFOtherGoods').value = data.otherGoods || '';
+  const recvTrk = document.getElementById('jsFRecvTracking');
+  if (recvTrk) recvTrk.value = data.receivingTracking || '';
   document.getElementById('jsFPostage').value  = data.postage  != null ? data.postage  : '';
   document.getElementById('jsFDiscount').value = data.discount != null ? data.discount : '';
   document.getElementById('jsFCustRemark').value   = data.custRemark   || '';
@@ -1535,7 +1563,14 @@ function jsLoadFromData(data) {
   // re-saved, so data.status here can be stale. The furthest-along status
   // that actually has a recorded timestamp is the real current status.
   const timestampStatus = jsLatestStatusFromTimestamps(jsCurrentJob ? jsCurrentJob.statusTimestamps : null);
-  const effectiveStatus = timestampStatus || data.status;
+  // A side stage (e.g. Customer Service) can't be derived from "furthest
+  // along" — a job pulled back into it from In Repair would otherwise snap
+  // back to In Repair and push that wrong status to the Sheet. If the Sheet
+  // says the job is in a side stage it actually entered, trust the Sheet.
+  const listJob = (typeof jobs !== 'undefined' && jsCurrentJob) ? jobs.find(j => j.jobId === jsCurrentJob.jobId) : null;
+  const inSideStage = !!(listJob && SIDE_STATUSES.includes(listJob.status) &&
+    jsCurrentJob.statusTimestamps && jsCurrentJob.statusTimestamps[listJob.status]);
+  const effectiveStatus = inSideStage ? listJob.status : (timestampStatus || data.status);
   if (effectiveStatus) {
     const jobInList = (typeof jobs !== 'undefined') && jobs.find(j => j.jobId === jsCurrentJob?.jobId);
     // The Sheet's status column is what isCompleted() and the invoice
@@ -1731,8 +1766,8 @@ async function jsSaveSheet() {
 function jsExportCSV() {
   const d = jsCollectData();
   const partsStr = d.parts.map(p => `${p.partno}:${p.name}(${p.qty}x$${p.price})`).join('; ');
-  const headers = ['Job ID','Case Number','Customer','Phone','Email','Device','Brand','Model','Serial','Warranty','Service Type','Technician','Date','ETA','Status','Parts','Parts Total','Postage','Discount','Total','Inspection Notes','Repairing Notes','Testing Notes','QC Notes','Final Remark'];
-  const row = [d.jobId,d.caseNo,d.name,d.phone,d.email,d.deviceType,d.brand,d.model,d.serial,d.warranty,d.svcType,d.tech,d.date,d.eta,d.status,partsStr,d.partsTotal,d.postage,d.discount,d.total,d.inspectionNote,d.repairingNote,d.testingNote,d.qcNote,d.finalRemark];
+  const headers = ['Job ID','Case Number','Customer','Phone','Email','Device','Brand','Model','Serial','Warranty','Service Type','Technician','Date','ETA','Status','Parts','Parts Total','Postage','Discount','Total','Inspection Notes','Repairing Notes','Testing Notes','QC Notes','Final Remark','Receiving Tracking'];
+  const row = [d.jobId,d.caseNo,d.name,d.phone,d.email,d.deviceType,d.brand,d.model,d.serial,d.warranty,d.svcType,d.tech,d.date,d.eta,d.status,partsStr,d.partsTotal,d.postage,d.discount,d.total,d.inspectionNote,d.repairingNote,d.testingNote,d.qcNote,d.finalRemark,d.receivingTracking];
   const csv = [headers,row].map(r => r.map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download = `job-${d.jobId||'export'}.csv`; a.click();

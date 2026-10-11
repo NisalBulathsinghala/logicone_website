@@ -4,6 +4,7 @@
 const COLS = [
   { id: 'Intake', label: 'Intake', color: 'var(--col-intake)' },
   { id: 'Diagnosis', label: 'Diagnosis', color: 'var(--col-diagnosis)' },
+  { id: 'Customer Service', label: 'Customer Service', color: 'var(--col-feedback)' },
   { id: 'Awaiting Parts', label: 'Awaiting Parts', color: 'var(--col-awaiting)' },
   { id: 'In Repair', label: 'In Repair', color: 'var(--col-repair)' },
   { id: 'Testing', label: 'Testing', color: 'var(--col-testing)' },
@@ -14,6 +15,7 @@ const COLS = [
 const SC = {
   'Intake': { bg:'rgba(99,102,241,0.1)', c:'#6366f1' },
   'Diagnosis': { bg:'rgba(245,158,11,0.1)', c:'#d97706' },
+  'Customer Service': { bg:'rgba(236,72,153,0.1)', c:'#db2777' },
   'Awaiting Parts': { bg:'rgba(239,68,68,0.1)', c:'#dc2626' },
   'In Repair': { bg:'rgba(59,130,246,0.1)', c:'#2563eb' },
   'Testing': { bg:'rgba(139,92,246,0.1)', c:'#7c3aed' },
@@ -442,6 +444,7 @@ function renderStats() {
   const diagnosis = jobs.filter(j => j.status === 'Diagnosis').length;
   const inRepair  = jobs.filter(j => j.status === 'In Repair').length;
   const waiting   = jobs.filter(j => j.status === 'Awaiting Parts').length;
+  const feedback  = jobs.filter(j => j.status === 'Customer Service').length;
   const testing   = jobs.filter(j => j.status === 'Testing').length;
   const complete  = jobs.filter(j => j.status === 'Complete' || j.status === 'Collected').length;
   // Total active = everything not yet collected/completed
@@ -451,6 +454,7 @@ function renderStats() {
   document.getElementById('sD').textContent = diagnosis;
   document.getElementById('sA').textContent = inRepair;
   document.getElementById('sW').textContent = waiting;
+  document.getElementById('sF').textContent = feedback;
   document.getElementById('sC').textContent = complete;
   document.getElementById('sT').textContent = total;
 }
@@ -1621,6 +1625,7 @@ async function njUploadQueuedPhotos(jobId, driveFolder) {
   }
 
   showToast('success', `Uploading ${queued.length} photo${queued.length === 1 ? '' : 's'} to ${jobId}…`);
+  njSaveTrackingFromPhotos(jobId, queued).catch(e => console.warn('Tracking extract failed:', e));
 
   try {
     const tokenRes = await callScript({ action: 'getUploadToken', driveFolder });
@@ -1646,6 +1651,26 @@ async function njUploadQueuedPhotos(jobId, driveFolder) {
     showToast('error', `Photo upload failed (${err.message}) — add them from ${jobId}'s Photos tab instead`);
   } finally {
     queued.forEach(p => URL.revokeObjectURL(p.url));
+  }
+}
+
+// Reads the inbound courier tracking number from the queued photos
+// (the "Shipping label" slot first, then the rest) and stores it so the
+// job sheet's Receiving Tracking field picks it up on first open.
+async function njSaveTrackingFromPhotos(jobId, queued) {
+  if (typeof window.loReadTracking !== 'function') return;
+  const isLabel = p => /label/i.test(p.label || '');
+  const ordered = queued.filter(isLabel).concat(queued.filter(p => !isLabel(p)));
+  for (const p of ordered) {
+    const r = await window.loReadTracking(p.file, { ocr: isLabel(p) });
+    if (!r) continue;
+    await fetch('/.netlify/functions/receiving-tracking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save', jobId, tracking: r.tracking }),
+    });
+    showToast('success', `Tracking ${r.tracking} read from ${r.source}`);
+    return;
   }
 }
 

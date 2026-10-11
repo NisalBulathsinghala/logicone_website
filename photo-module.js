@@ -474,6 +474,12 @@ async function jsPhotoUploadFile(rawFile, folderId) {
     ? await window.loConvertToJpeg(rawFile)
     : rawFile;
 
+  // Receiving photos may include the inbound courier label — try to read
+  // its tracking number into the job sheet (runs alongside the upload).
+  if (_photoCurrentTab === '01_Receiving Photos' && file.type.startsWith('image/')) {
+    jsPhotoExtractTracking(file, { ocr: /label/i.test(file.name) }).catch(e => console.warn('Tracking extract failed:', e));
+  }
+
   // Create queue item UI
   const item = document.createElement('div');
   item.className = 'js-upload-item';
@@ -560,6 +566,95 @@ async function jsPhotoUploadFile(rawFile, folderId) {
     if (typeof showToast === 'function') showToast('error', `${file.name}: ${err.message}`);
   }
 }
+
+// ── Receiving tracking number (barcode first, OCR fallback) ──
+// loReadTracking(file) -> { tracking, source } or null. Shared with the
+// New Job photo flow in dashboard.js. Most photos aren't labels, so a
+// null result is normal and silent. Barcode is free; OCR (a vision-model
+// call) runs only when opts.ocr !== false — callers pass false for photos
+// that aren't known to be the label.
+window.loReadTracking = async function(file, opts) {
+  const allowOcr = !(opts && opts.ocr === false);
+  const bitmap = await createImageBitmap(file);
+  let tracking = await jsPhotoReadBarcode(bitmap, file);
+  if (tracking) return { tracking, source: 'barcode' };
+  if (!allowOcr) return null;
+
+  const scale = Math.min(1, 1000 / Math.max(bitmap.width, bitmap.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bitmap.width * scale);
+  c.height = Math.round(bitmap.height * scale);
+  c.getContext('2d').drawImage(bitmap, 0, 0, c.width, c.height);
+  const b64 = c.toDataURL('image/jpeg', 0.85).split(',')[1];
+  const res = await fetch('/.netlify/functions/receiving-tracking', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'extract', imageBase64: b64, mimeType: 'image/jpeg' }),
+  }).then(r => r.json());
+  return res.ok && res.tracking ? { tracking: res.tracking, source: 'OCR' } : null;
+};
+
+// Fills #jsFRecvTracking from an uploaded receiving photo, unless it
+// already has a value.
+async function jsPhotoExtractTracking(file, opts) {
+  const field = document.getElementById('jsFRecvTracking');
+  if (!field || field.value.trim()) return;
+  const r = await window.loReadTracking(file, opts);
+  if (!r || field.value.trim()) return;
+
+  field.value = r.tracking;
+  if (typeof jsSetSaveIndicator === 'function') jsSetSaveIndicator(false);
+  if (typeof showToast === 'function') showToast('success', `Tracking ${r.tracking} read from ${r.source} — save the job sheet to keep it`);
+}
+
+async function jsPhotoReadBarcode(bitmap, file) {
+  let raw = null;
+  if ('BarcodeDetector' in window) {
+    try {
+      const found = await new BarcodeDetector().detect(bitmap);
+      if (found.length) raw = found[0].rawValue;
+    } catch (e) { /* fall through to ZXing */ }
+  }
+  if (!raw && window.ZXing) {
+    const url = URL.createObjectURL(file);
+    try {
+      const hints = new Map([[ZXing.DecodeHintType.TRY_HARDER, true]]);
+      const reader = new ZXing.BrowserMultiFormatReader(hints);
+      raw = (await reader.decodeFromImageUrl(url)).getText();
+    } catch (e) { /* no barcode found */ }
+    finally { URL.revokeObjectURL(url); }
+  }
+  if (!raw) return null;
+  const t = raw.replace(/\s+/g, '').toUpperCase();
+  return /^[A-Z0-9]{8,40}$/.test(t) ? t : null;
+}
+
+// "Read tracking from label" button — for photos already in Drive. Finds
+// the first Receiving photo with "label" in its name and reads it.
+window.jsPhotoReadLabelFromDrive = async function() {
+  const toast = (t, m) => { if (typeof showToast === 'function') showToast(t, m); };
+  const field = document.getElementById('jsFRecvTracking');
+  const items = (_photoMedia['01_Receiving Photos'] || [])
+    .filter(f => /label/i.test(f.name) && (f.mimeType || '').startsWith('image/'));
+  if (!items.length) return toast('error', 'No photo with "label" in its name in Receiving — rename the label photo in Drive first');
+  if (!_photoToken) return toast('error', 'Drive not ready — try reopening the job');
+
+  toast('success', 'Reading label…');
+  for (const item of items) {
+    try {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${item.id}?alt=media`,
+        { headers: { Authorization: 'Bearer ' + _photoToken } });
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      const r = await window.loReadTracking(new File([blob], item.name, { type: blob.type || 'image/jpeg' }));
+      if (!r) continue;
+      field.value = r.tracking;
+      if (typeof jsSetSaveIndicator === 'function') jsSetSaveIndicator(false);
+      return toast('success', `Tracking ${r.tracking} read from ${r.source} — save the job sheet to keep it`);
+    } catch (e) { console.warn('Label read failed:', item.name, e); }
+  }
+  toast('error', 'Could not read a tracking number from the label photo');
+};
 
 // ── Lightbox ─────────────────────────────────────────────────
 window.jsPhotoLightboxOpen = function(item) {

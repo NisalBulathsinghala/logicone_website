@@ -25,6 +25,7 @@
   --radius-xl: 18px;
   --col-intake: #6366f1;
   --col-diagnosis: #f59e0b;
+  --col-feedback: #ec4899;
   --col-awaiting: #ef4444;
   --col-repair: #3b82f6;
   --col-testing: #8b5cf6;
@@ -232,7 +233,7 @@ body {
 
 /* ===== STATS ===== */
 .stats-row {
-  display: grid; grid-template-columns: repeat(6, 1fr);
+  display: grid; grid-template-columns: repeat(7, 1fr);
   gap: 14px; padding: 20px 28px; flex-shrink: 0;
 }
 
@@ -273,6 +274,7 @@ body {
 .si-diagnosis { background: rgba(245,158,11,0.1); color: var(--col-diagnosis); }
 .si-active { background: rgba(59,130,246,0.1); color: var(--col-repair); }
 .si-waiting { background: rgba(239,68,68,0.1); color: var(--col-awaiting); }
+.si-feedback { background: rgba(236,72,153,0.1); color: var(--col-feedback); }
 .si-done { background: rgba(16,185,129,0.1); color: var(--col-complete); }
 .si-total { background: rgba(0,180,216,0.1); color: var(--accent); }
 

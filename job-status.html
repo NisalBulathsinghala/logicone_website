@@ -168,6 +168,8 @@ body::before {
 .s-intake .status-dot     { background: #6366f1; }
 .s-diagnosis  { background: rgba(245,158,11,0.1);  color: #b45309; }
 .s-diagnosis .status-dot  { background: #f59e0b; }
+.s-feedback   { background: rgba(236,72,153,0.1);  color: #be185d; }
+.s-feedback .status-dot   { background: #ec4899; }
 .s-awaiting   { background: rgba(239,68,68,0.1);   color: #b91c1c; }
 .s-awaiting .status-dot   { background: #ef4444; }
 .s-inrepair   { background: rgba(59,130,246,0.1);  color: #1d4ed8; }
@@ -483,6 +485,15 @@ const STAGES = [
     desc: 'We are inspecting and diagnosing the fault.',
   },
   {
+    // Only shown for jobs that actually went through it (warranty voided,
+    // waiting on a reply) — hidden for everyone else, see renderJob().
+    id: 'Customer Service',
+    label: 'Customer Service',
+    cssClass: 's-feedback',
+    optional: true,
+    desc: 'Our team is following up before the repair can continue. We will contact you if we need anything from you.',
+  },
+  {
     id: 'Awaiting Parts',
     label: 'Awaiting Parts',
     cssClass: 's-awaiting',
@@ -629,7 +640,7 @@ function showState(name) {
 
 function statusClass(statusId) {
   const map = {
-    'Intake':'s-intake','Diagnosis':'s-diagnosis','Awaiting Parts':'s-awaiting',
+    'Intake':'s-intake','Diagnosis':'s-diagnosis','Customer Service':'s-feedback','Awaiting Parts':'s-awaiting',
     'In Repair':'s-inrepair','Testing':'s-testing','Complete':'s-complete','Collected':'s-collected',
   };
   return map[statusId] || 's-intake';
@@ -691,6 +702,9 @@ function renderJob(job) {
     const isCurrent = i === stageIdx;
     const ts = job.statusTimestamps?.[stage.id];
     const tsStr = fmtDateTime(ts);
+
+    // Optional stages only appear when the job went through them
+    if (stage.optional && !ts && !isCurrent) return;
 
     const row = document.createElement('div');
     row.className = 'tl-row';
