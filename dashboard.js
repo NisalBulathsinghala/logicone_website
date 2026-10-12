@@ -1625,7 +1625,6 @@ async function njUploadQueuedPhotos(jobId, driveFolder) {
   }
 
   showToast('success', `Uploading ${queued.length} photo${queued.length === 1 ? '' : 's'} to ${jobId}…`);
-  njSaveTrackingFromPhotos(jobId, queued).catch(e => console.warn('Tracking extract failed:', e));
 
   try {
     const tokenRes = await callScript({ action: 'getUploadToken', driveFolder });
@@ -1651,26 +1650,6 @@ async function njUploadQueuedPhotos(jobId, driveFolder) {
     showToast('error', `Photo upload failed (${err.message}) — add them from ${jobId}'s Photos tab instead`);
   } finally {
     queued.forEach(p => URL.revokeObjectURL(p.url));
-  }
-}
-
-// Reads the inbound courier tracking number from the queued photos
-// (the "Shipping label" slot first, then the rest) and stores it so the
-// job sheet's Receiving Tracking field picks it up on first open.
-async function njSaveTrackingFromPhotos(jobId, queued) {
-  if (typeof window.loReadTracking !== 'function') return;
-  const isLabel = p => /label/i.test(p.label || '');
-  const ordered = queued.filter(isLabel).concat(queued.filter(p => !isLabel(p)));
-  for (const p of ordered) {
-    const r = await window.loReadTracking(p.file, { ocr: isLabel(p) });
-    if (!r) continue;
-    await fetch('/.netlify/functions/receiving-tracking', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save', jobId, tracking: r.tracking }),
-    });
-    showToast('success', `Tracking ${r.tracking} read from ${r.source}`);
-    return;
   }
 }
 

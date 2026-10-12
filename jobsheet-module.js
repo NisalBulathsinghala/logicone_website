@@ -577,6 +577,8 @@ function jsRenderJobList() {
 function jsFilterJobs() { jsRenderJobList(); }
 
 function jsCloseSheet() {
+  jsAutosaveFlush();
+  jsAutosaveDisarm();
   jsCurrentJob = null;
   jsParts = [];
   document.getElementById('jsSheetForm').style.display = 'none';
@@ -638,6 +640,10 @@ async function fsPartsOrders(action, payload) {
 async function jsOpenJob(jobId) {
   const j = jobs.find(x => x.jobId === jobId);
   if (!j) return;
+  // Save any pending edits to the sheet we're leaving BEFORE the form is
+  // repopulated for the next job (data is collected synchronously here).
+  jsAutosaveFlush();
+  jsAutosaveDisarm();
   jsCurrentJob = j;
   jsParts = [];
   jsOrderNums = [];
@@ -754,21 +760,17 @@ async function jsOpenJob(jobId) {
     jsSetSaveIndicator(false);
   }
 
-  // Tracking number read at job creation (before any job sheet existed)
-  // is held in its own doc — copy it into the field if still empty.
-  try {
-    const trk = document.getElementById('jsFRecvTracking');
-    if (trk && !trk.value.trim()) {
-      const r = await fetch('/.netlify/functions/receiving-tracking', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'load', jobId }),
-      }).then(x => x.json());
-      if (r.ok && r.data && r.data.tracking && !trk.value.trim()) {
-        trk.value = r.data.tracking;
-        jsSetSaveIndicator(false);
-      }
-    }
-  } catch (e) { console.warn('receiving-tracking load error:', e); }
+  // Autosave is only allowed once we know what's already saved: either the
+  // data loaded, or Firestore positively said there is none (a new job). If
+  // the load simply failed, the form is blank and autosaving it would
+  // overwrite the real saved copy.
+  if (driveDataLoaded || (fsSheet && fsSheet.notFound)) {
+    jsAutosaveArm(jobId);
+  } else {
+    const ind = document.getElementById('jsSaveInd');
+    if (ind) ind.title = 'Autosave is off for this job because its saved data could not be loaded. Use Save to Drive.';
+  }
+
 
   // Non-blocking — auto-filed Cin7 parts orders, separate Firestore doc,
   // shouldn't hold up the rest of the job sheet loading.
@@ -917,7 +919,6 @@ function jsResetEditableFields(j) {
   document.getElementById('jsFQcNote').value         = '';
   document.getElementById('jsFinalRemark').value = '';
   document.getElementById('jsFOtherGoods').value = '';
-  { const t = document.getElementById('jsFRecvTracking'); if (t) t.value = ''; }
   const repLvl = document.getElementById('jsFRepairLevel');
   if (repLvl) repLvl.value = '';
   jsUpdateRepairLevelHint();
@@ -1459,7 +1460,6 @@ function jsCollectData() {
     repairLevel: document.getElementById('jsFRepairLevel')?.value || '',
     checklist,
     otherGoods: document.getElementById('jsFOtherGoods').value,
-    receivingTracking: (document.getElementById('jsFRecvTracking')?.value || '').trim(),
     scooterChecklist,
     orderNums: [...jsOrderNums],
     parts: jsParts.map(p => ({...p, qty:parseFloat(p.qty)||0, price:parseFloat(p.price)||0})),
@@ -1494,8 +1494,6 @@ function jsLoadFromData(data) {
   document.getElementById('jsFDate').value  = data.date || '';
   document.getElementById('jsFETA').value   = data.eta  || '';
   document.getElementById('jsFOtherGoods').value = data.otherGoods || '';
-  const recvTrk = document.getElementById('jsFRecvTracking');
-  if (recvTrk) recvTrk.value = data.receivingTracking || '';
   document.getElementById('jsFPostage').value  = data.postage  != null ? data.postage  : '';
   document.getElementById('jsFDiscount').value = data.discount != null ? data.discount : '';
   document.getElementById('jsFCustRemark').value   = data.custRemark   || '';
@@ -1668,6 +1666,8 @@ async function jsDeductInventoryForParts(parts, jobId) {
 
 async function jsSaveSheet() {
   await jsDeductInventoryForParts(jsParts, jsCurrentJob ? jsCurrentJob.jobId : '');
+  jsAutosaveCancelPending();
+  _jsManualSaving = true;
   const data = jsCollectData();
   const btn = document.getElementById('jsSaveBtn');
   btn.disabled = true;
@@ -1703,6 +1703,7 @@ async function jsSaveSheet() {
       const fsSaveResult = await fsJobsheet('save', { jobId: data.jobId, data });
       const firestoreSaveOk = !!fsSaveResult.ok;
       if (!firestoreSaveOk) console.warn('Firestore save failed:', fsSaveResult);
+      if (firestoreSaveOk) jsAutosaveRebase(data);
 
       // Build the checklist string from ticked items for the Accessories column
       const tickedItems = [...document.querySelectorAll('.js-check-item input:checked')]
@@ -1759,6 +1760,7 @@ async function jsSaveSheet() {
 
   clearInterval(_saveMsgTimer);
   jsSaveOverlayHide();
+  _jsManualSaving = false;
   btn.disabled = false;
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save to Drive';
 }
@@ -1766,8 +1768,8 @@ async function jsSaveSheet() {
 function jsExportCSV() {
   const d = jsCollectData();
   const partsStr = d.parts.map(p => `${p.partno}:${p.name}(${p.qty}x$${p.price})`).join('; ');
-  const headers = ['Job ID','Case Number','Customer','Phone','Email','Device','Brand','Model','Serial','Warranty','Service Type','Technician','Date','ETA','Status','Parts','Parts Total','Postage','Discount','Total','Inspection Notes','Repairing Notes','Testing Notes','QC Notes','Final Remark','Receiving Tracking'];
-  const row = [d.jobId,d.caseNo,d.name,d.phone,d.email,d.deviceType,d.brand,d.model,d.serial,d.warranty,d.svcType,d.tech,d.date,d.eta,d.status,partsStr,d.partsTotal,d.postage,d.discount,d.total,d.inspectionNote,d.repairingNote,d.testingNote,d.qcNote,d.finalRemark,d.receivingTracking];
+  const headers = ['Job ID','Case Number','Customer','Phone','Email','Device','Brand','Model','Serial','Warranty','Service Type','Technician','Date','ETA','Status','Parts','Parts Total','Postage','Discount','Total','Inspection Notes','Repairing Notes','Testing Notes','QC Notes','Final Remark'];
+  const row = [d.jobId,d.caseNo,d.name,d.phone,d.email,d.deviceType,d.brand,d.model,d.serial,d.warranty,d.svcType,d.tech,d.date,d.eta,d.status,partsStr,d.partsTotal,d.postage,d.discount,d.total,d.inspectionNote,d.repairingNote,d.testingNote,d.qcNote,d.finalRemark];
   const csv = [headers,row].map(r => r.map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download = `job-${d.jobId||'export'}.csv`; a.click();
@@ -1777,6 +1779,7 @@ function jsExportCSV() {
 function jsSetSaveIndicator(saved, at) {
   const el = document.getElementById('jsSaveInd');
   if (!el) return;
+  el.title = '';
   if (saved) {
     el.className = 'js-save-ind saved';
     const t = at ? new Date(at).toLocaleString('en-AU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
@@ -1786,6 +1789,140 @@ function jsSetSaveIndicator(saved, at) {
     el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Not saved`;
   }
 }
+
+// ============================================================
+// AUTOSAVE (Firestore only)
+// ============================================================
+// Edits are saved to Firestore (jobs/{id}/jobsheet/current) a few seconds
+// after you stop typing, and when you switch job, close the sheet, or leave
+// the tab. That is the copy the sheet loads first, so nothing is lost if the
+// tab closes or the phone sleeps.
+//
+// Deliberately NOT done by autosave - these stay on the Save to Drive button:
+//   - the Drive copy and the Google Sheet row (so the customer status page,
+//     which reads parts and notes from Drive, never shows half-written notes)
+//   - stock deduction for parts (only happens on an explicit save)
+// Autosave only writes when the form really differs from the last save, and
+// only after the job's existing saved data has loaded (see jsOpenJob).
+const JS_AUTOSAVE_DELAY_MS = 6000;
+const JS_AUTOSAVE_RETRY_MS = 30000;
+let _jsAutoTimer = null;
+let _jsAutoArmedFor = null;   // jobId autosave may write for (null = off)
+let _jsAutoSnapshot = '';     // form state as of the last save
+let _jsAutoBusy = false;
+let _jsAutoRerun = false;
+let _jsManualSaving = false;
+
+function _jsAutoSnap(data) {
+  // savedAt changes on every call, and status timestamps are written by the
+  // status buttons themselves - neither counts as an edit.
+  const { savedAt, statusTimestamps, ...rest } = data;
+  return JSON.stringify(rest);
+}
+
+function jsSetAutosaveIndicator(state, at) {
+  const el = document.getElementById('jsSaveInd');
+  if (!el) return;
+  const svg = (inner) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">${inner}</svg>`;
+  el.title = 'Autosave keeps a copy in the dashboard only. Use Save to Drive to update Drive and the Sheet.';
+  if (state === 'saving') {
+    el.className = 'js-save-ind';
+    el.innerHTML = `<svg style="animation:lo-spin .7s linear infinite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Autosaving…`;
+  } else if (state === 'saved') {
+    el.className = 'js-save-ind saved';
+    const t = at ? new Date(at).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '';
+    el.innerHTML = svg('<polyline points="20 6 9 17 4 12"/>') + ` Autosaved${t ? ' ' + t : ''}`;
+  } else {
+    el.className = 'js-save-ind';
+    el.innerHTML = svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>') + ' Autosave failed - will retry';
+  }
+}
+
+function jsAutosaveArm(jobId) {
+  if (!jsCurrentJob || jsCurrentJob.jobId !== jobId) return;
+  _jsAutoArmedFor = jobId;
+  _jsAutoSnapshot = _jsAutoSnap(jsCollectData());
+}
+
+function jsAutosaveDisarm() {
+  clearTimeout(_jsAutoTimer);
+  _jsAutoTimer = null;
+  _jsAutoArmedFor = null;
+  _jsAutoSnapshot = '';
+  _jsAutoRerun = false;
+  _jsManualSaving = false;
+}
+
+function jsAutosaveCancelPending() {
+  clearTimeout(_jsAutoTimer);
+  _jsAutoTimer = null;
+}
+
+// After an explicit save, treat the saved state as the new baseline.
+function jsAutosaveRebase(data) {
+  if (_jsAutoArmedFor && data && data.jobId === _jsAutoArmedFor) _jsAutoSnapshot = _jsAutoSnap(data);
+}
+
+function jsAutosaveSchedule() {
+  if (!jsCurrentJob || _jsAutoArmedFor !== jsCurrentJob.jobId || _jsManualSaving) return;
+  clearTimeout(_jsAutoTimer);
+  _jsAutoTimer = setTimeout(() => jsAutosaveRun(), JS_AUTOSAVE_DELAY_MS);
+}
+
+// Run now if an autosave is waiting (job switch, close sheet, tab hidden).
+function jsAutosaveFlush(opts) {
+  if (_jsAutoTimer) jsAutosaveRun(opts);
+}
+
+async function jsAutosaveRun(opts) {
+  clearTimeout(_jsAutoTimer);
+  _jsAutoTimer = null;
+  const job = jsCurrentJob;
+  if (!job || _jsAutoArmedFor !== job.jobId || _jsManualSaving) return;
+  if (_jsAutoBusy) { _jsAutoRerun = true; return; }
+
+  // Collected synchronously, so it always belongs to this job even if the
+  // user opens another one while the request is in flight.
+  const jobId = job.jobId;
+  const data = jsCollectData();
+  const snap = _jsAutoSnap(data);
+  if (snap === _jsAutoSnapshot) return;
+
+  _jsAutoBusy = true;
+  jsSetAutosaveIndicator('saving');
+  let ok = false;
+  try {
+    const res = await fetch('/.netlify/functions/firestore-jobsheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: !!(opts && opts.unload),
+      body: JSON.stringify({ action: 'save', jobId, data }),
+    });
+    ok = !!(await res.json()).ok;
+  } catch (e) {
+    console.warn('Autosave failed:', e);
+  }
+  _jsAutoBusy = false;
+
+  const stillHere = _jsAutoArmedFor === jobId && jsCurrentJob && jsCurrentJob.jobId === jobId;
+  if (ok) {
+    if (_jsAutoArmedFor === jobId) _jsAutoSnapshot = snap;
+    if (stillHere) jsSetAutosaveIndicator('saved', data.savedAt);
+  } else if (stillHere && !(opts && opts.unload)) {
+    jsSetAutosaveIndicator('error');
+    _jsAutoTimer = setTimeout(() => jsAutosaveRun(), JS_AUTOSAVE_RETRY_MS);
+    return;
+  }
+  if (stillHere && _jsAutoRerun) jsAutosaveSchedule();
+  _jsAutoRerun = false;
+}
+
+(function jsAutosaveInit() {
+  const form = document.getElementById('jsSheetForm');
+  if (form) ['input', 'change', 'click'].forEach(ev => form.addEventListener(ev, jsAutosaveSchedule));
+  document.addEventListener('visibilitychange', () => { if (document.hidden) jsAutosaveFlush(); });
+  window.addEventListener('pagehide', () => jsAutosaveFlush({ unload: true }));
+})();
 
 // ============================================================
 // ZOHO BOOKS ACTIONS
@@ -2331,6 +2468,9 @@ async function jsImproveStageNote(fieldId, label) {
     if (res.ok && res.improved) {
       _jsNoteUndoCache[fieldId] = note; // cache pre-improve text for undo
       textarea.value = res.improved;
+      // Set from code after a slow request, so no input event fires - without
+      // this the improved note would sit unsaved until the next keystroke.
+      jsAutosaveSchedule();
       if (typeof showToast === 'function') showToast('success', `${label} note improved`);
       jsShowUndoButton(fieldId, btn);
     } else {
@@ -2361,6 +2501,7 @@ function jsUndoImproveNote(fieldId) {
   if (textarea && fieldId in _jsNoteUndoCache) {
     textarea.value = _jsNoteUndoCache[fieldId];
     delete _jsNoteUndoCache[fieldId];
+    jsAutosaveSchedule();
   }
   if (undoBtn) undoBtn.remove();
 }
