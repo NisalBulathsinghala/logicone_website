@@ -159,10 +159,15 @@ window.fsInventory = fsInventory;
 // ============================================================
 // INIT / UI SHELL
 // ============================================================
+let invLoadedAt = 0;
 function invModuleInit() {
   invBuildUI();
   if (!invLoaded) invLoadItems();
-  else invRenderStock();
+  else {
+    invRenderStock();
+    // Stock changes from jobs saved on another device - refresh if it's been a while
+    if (Date.now() - invLoadedAt > 30000) invLoadItems({ keepOnError: true });
+  }
   if (invActiveTab === 'receiving' && !invReceivingLoaded) invLoadReceiving();
 }
 window.invModuleInit = invModuleInit;
@@ -310,10 +315,13 @@ window.invSwitchTab = invSwitchTab;
 // ============================================================
 // STOCK — load / render
 // ============================================================
-async function invLoadItems() {
+async function invLoadItems(opts) {
   const res = await fsInventory('list', {});
+  // A background refresh must not replace good cached stock with an empty list
+  if (opts && opts.keepOnError && !(res.ok && Array.isArray(res.data))) return;
   invItems = (res.ok && Array.isArray(res.data)) ? res.data : [];
   invLoaded = true;
+  invLoadedAt = Date.now();
 
   invLookupMap = {};
   invItems.forEach(item => {

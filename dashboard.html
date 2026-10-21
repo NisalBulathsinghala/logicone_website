@@ -724,6 +724,16 @@
   </div>
 </div>
 
+<!-- STATUS GATE: shown when a move is blocked for missing notes/photos -->
+<div class="modal-overlay" id="gateModal">
+  <div class="modal" style="width:440px;">
+    <div class="modal-header"><h2 id="gateTitle">Can't move yet</h2><button class="modal-close" onclick="closeModal('gateModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-body" id="gateBody"></div>
+    <div class="modal-footer" id="gateFoot"></div>
+  </div>
+</div>
+<div class="gate-checking" id="gateChecking">Checking notes and photos…</div>
+
 <!-- Toast notification -->
 <div class="toast" id="toast">
   <svg id="toastIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>

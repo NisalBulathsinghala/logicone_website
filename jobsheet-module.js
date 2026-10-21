@@ -1215,6 +1215,9 @@ function jsSetSvc(el, val) {
 
 async function jsSetStatus(el) {
   const newStatus = el.textContent.trim();
+  // Required notes/photos for this move (see gateAllowMove) - checked before
+  // the pill changes, so a blocked move leaves the status exactly as it was.
+  if (jsCurrentJob && newStatus !== jsCurrentJob.status && !(await gateAllowMove(jsCurrentJob, newStatus))) return;
   document.querySelectorAll('.js-status-pill').forEach(p => p.classList.toggle('active', p.textContent.trim() === newStatus));
   if (!jsCurrentJob) return;
 
@@ -1227,6 +1230,7 @@ async function jsSetStatus(el) {
     jsCurrentJob.statusTimestamps[newStatus] = new Date().toISOString();
   }
   jsCurrentJob.status = newStatus;
+  markLocalWrite();
   jsRenderTimeline(jsCurrentJob);
 
   // Update the jobs array so kanban re-renders with the new status
@@ -1239,6 +1243,7 @@ async function jsSetStatus(el) {
 
   if (cfg.appsScriptUrl) {
     const statusResult = await callScript({ action: 'updateStatus', jobId: jsCurrentJob.jobId, status: newStatus });
+    markLocalWrite();
     if (!statusResult.ok) {
       jsCurrentJob.status = oldStatus;
       if (jobInList) { jobInList.status = oldStatus; jobInList.statusTimestamps = jsCurrentJob.statusTimestamps; }
@@ -1668,6 +1673,7 @@ async function jsSaveSheet() {
   await jsDeductInventoryForParts(jsParts, jsCurrentJob ? jsCurrentJob.jobId : '');
   jsAutosaveCancelPending();
   _jsManualSaving = true;
+  markLocalWrite();
   const data = jsCollectData();
   const btn = document.getElementById('jsSaveBtn');
   btn.disabled = true;
@@ -1761,6 +1767,7 @@ async function jsSaveSheet() {
   clearInterval(_saveMsgTimer);
   jsSaveOverlayHide();
   _jsManualSaving = false;
+  markLocalWrite();
   btn.disabled = false;
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save to Drive';
 }

@@ -170,8 +170,47 @@ async function loadData() {
   // tcLookup.init() is called by the module itself after it defines window.tcLookup
 }
 
-async function fetchSheet() {
-  showLoading(true);
+// ── Keeping job data fresh ───────────────────────────────────────────────
+// Jobs come from the Google Sheet and used to load only once at startup (plus
+// the Sync button), so the board went stale whenever the tab sat in the
+// background or you moved between pages. refreshJobsIfStale() re-reads the
+// Sheet quietly - no overlay - when you switch views, return to the tab, or
+// come back via the browser's back button. It's throttled, skips while one of
+// our own writes is still landing in the Sheet, and never replaces good data
+// with an empty or failed response.
+const JOBS_STALE_AFTER_MS = 20000;
+const LOCAL_WRITE_GRACE_MS = 8000;
+let _jobsFetchedAt = 0;
+let _lastLocalWriteAt = 0;
+let _jobsFetchPromise = null;
+
+// Call when the dashboard changes a job (move, status, save) so a refresh in
+// the next few seconds doesn't read the Sheet before the change has landed.
+function markLocalWrite() { _lastLocalWriteAt = Date.now(); }
+
+async function refreshJobsIfStale(reason, opts) {
+  if (!(cfg.sheetId && cfg.apiKey)) return;   // demo mode
+  const force = !!(opts && opts.force);
+  if (!force && Date.now() - _jobsFetchedAt < JOBS_STALE_AFTER_MS) return;
+  if (Date.now() - _lastLocalWriteAt < LOCAL_WRITE_GRACE_MS) return;
+  await fetchSheet({ silent: true });
+}
+
+async function fetchSheet(opts) {
+  const silent = !!(opts && opts.silent);
+  // One Sheet read at a time. A quiet refresh just joins one in flight; an
+  // explicit load (Sync, new job) waits for it and then reads fresh itself.
+  if (_jobsFetchPromise) {
+    if (silent) return _jobsFetchPromise;
+    await _jobsFetchPromise.catch(() => {});
+  }
+  _jobsFetchPromise = _fetchSheetImpl({ silent });
+  try { await _jobsFetchPromise; } finally { _jobsFetchPromise = null; }
+}
+
+async function _fetchSheetImpl({ silent }) {
+  const startedAt = Date.now();
+  if (!silent) showLoading(true);
   try {
     const tab = encodeURIComponent(cfg.sheetTab || 'Sheet1');
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${tab}?key=${cfg.apiKey}`;
@@ -179,7 +218,10 @@ async function fetchSheet() {
     if (!r.ok) throw new Error(`API ${r.status}`);
     const d = await r.json();
     const rows = d.values;
-    if (!rows || rows.length < 2) { jobs = []; renderAll(); showLoading(false); return; }
+    if (!rows || rows.length < 2) {
+      if (silent) return;   // never blank the board on a quiet refresh
+      jobs = []; renderAll(); showLoading(false); return;
+    }
 
     const headers = rows[0];
     const cMap = {};
@@ -187,6 +229,11 @@ async function fetchSheet() {
       const k = h.trim().toLowerCase().replace(/\s+/g, ' ');
       if (HMAP[k]) cMap[i] = HMAP[k];
     });
+
+    // A change made here while this read was in flight may not be in the Sheet
+    // yet - applying the response would flip it back. Drop it; the next
+    // refresh picks up the settled data.
+    if (silent && _lastLocalWriteAt > startedAt) return;
 
     jobs = rows.slice(1).map(row => {
       const o = {};
@@ -214,6 +261,13 @@ async function fetchSheet() {
     }).filter(j => j.jobId || j.name);
 
     renderAll();
+    _jobsFetchedAt = Date.now();
+    // The job-sheet picker isn't part of renderAll(); redraw it if it's what's on screen
+    if (typeof jsRenderJobList === 'function' &&
+        document.getElementById('view-jobsheet')?.classList.contains('active') &&
+        document.getElementById('jsJobPicker')?.style.display !== 'none') {
+      jsRenderJobList();
+    }
 
     // Background sync: push every job record into Firestore too.
     // Sheets stays the write path for now (intake form still writes here);
@@ -228,6 +282,7 @@ async function fetchSheet() {
     loadSmsSentStatus();
 
   } catch (err) {
+    if (silent && jobs && jobs.length) { console.warn('Background refresh failed:', err.message); return; }
     // Don't overwrite real job data with demo data on a transient fetch failure.
     // Only fall back to demo if we have no jobs at all (first load).
     if (!jobs || !jobs.length) {
@@ -1052,9 +1107,143 @@ function maybeClearQrToken(jobId, newStatus) {
   }).catch(e => console.warn('qr-photo clear failed (non-fatal):', e.message));
 }
 
+// ============================================================
+// DOCUMENTATION GATES
+// ============================================================
+// A job can't move on without the paperwork for the stage it is leaving:
+//   - leaving Intake/Diagnosis for anything later  -> an Inspection note and
+//     at least one photo or video in the Inspection folder
+//   - reaching Complete (or jumping straight to Collected) -> a Testing or QC
+//     note and at least one photo or video in the Testing folder
+// Only FORWARD moves are checked, and only the move that crosses the line, so
+// older jobs already past a stage can still be finished, and moving a job back
+// is never blocked. Applies to the kanban drag, the job detail "Update"
+// button and the job sheet status buttons.
+//
+// This is enforced here in the browser. Anything that writes the Sheet
+// directly (editing the Status column, or the Apps Script itself) bypasses it.
+const GATE_MIN_NOTE_CHARS = 10;
+const GATE_RULES = {
+  inspection: {
+    notes: ['inspectionNote'],
+    folder: '02_Inspection Photos',
+    noteMsg: `an Inspection note (at least ${GATE_MIN_NOTE_CHARS} characters)`,
+    mediaMsg: 'at least one photo or video in the Inspection folder',
+  },
+  completion: {
+    notes: ['testingNote', 'qcNote'],
+    folder: '03_Testing Photos',
+    noteMsg: `a Testing or QC note (at least ${GATE_MIN_NOTE_CHARS} characters)`,
+    mediaMsg: 'at least one photo or video in the Testing folder',
+  },
+};
+
+function gateRequirements(from, to) {
+  const order = COLS.map(c => c.id);
+  const f = order.indexOf(from), t = order.indexOf(to);
+  const diag = order.indexOf('Diagnosis'), comp = order.indexOf('Complete');
+  if (f < 0 || t < 0 || t <= f) return [];
+  const reqs = [];
+  if (f <= diag && t > diag) reqs.push('inspection');
+  if (f < comp && t >= comp) reqs.push('completion');
+  return reqs;
+}
+
+// Notes: the job sheet on screen if it's this job (includes typing that hasn't
+// autosaved yet), otherwise the saved copy - Firestore first, then Drive.
+async function gateLoadNotes(job) {
+  if (typeof jsCurrentJob !== 'undefined' && jsCurrentJob && jsCurrentJob.jobId === job.jobId &&
+      document.getElementById('jsSheetForm')?.style.display !== 'none' && typeof jsCollectData === 'function') {
+    return jsCollectData();
+  }
+  const fs = await fsJobsheet('load', { jobId: job.jobId });
+  if (fs.ok && fs.data) return fs.data;
+  if (cfg.appsScriptUrl && job.driveFolder && !String(job.driveFolder).startsWith('ERROR')) {
+    const dr = await callScript({ action: 'loadJobSheet', jobId: job.jobId, driveFolder: job.driveFolder });
+    if (dr.ok && dr.data) return dr.data;
+    if (fs.notFound) return {};            // nothing saved anywhere: genuinely no notes yet
+    throw new Error(dr.error || fs.error || 'saved job sheet unavailable');
+  }
+  if (fs.notFound) return {};
+  throw new Error(fs.error || 'saved job sheet unavailable');
+}
+
+// Files per stage folder, straight from Drive via Apps Script (not a cached grid).
+async function gateLoadFileCounts(job) {
+  if (!job.driveFolder || String(job.driveFolder).startsWith('ERROR')) return {};
+  const res = await callScript({ action: 'listPhotos', driveFolder: job.driveFolder });
+  if (!(res.ok && Array.isArray(res.data))) throw new Error(res.error || 'photo list unavailable');
+  const counts = {};
+  res.data.forEach(f => { counts[f.subfolder] = (counts[f.subfolder] || 0) + 1; });
+  return counts;
+}
+
+async function checkStatusGate(job, newStatus) {
+  const reqs = gateRequirements(job.status, newStatus);
+  if (!reqs.length) return { ok: true };
+  let notes, counts;
+  try {
+    [notes, counts] = await Promise.all([gateLoadNotes(job), gateLoadFileCounts(job)]);
+  } catch (e) {
+    // Can't verify -> don't let it through
+    return { ok: false, error: `Couldn't check the notes and photos (${e.message}). Check your connection and try again.` };
+  }
+  const missing = [];
+  reqs.forEach(r => {
+    const rule = GATE_RULES[r];
+    if (!rule.notes.some(k => String(notes[k] || '').trim().length >= GATE_MIN_NOTE_CHARS)) missing.push(rule.noteMsg);
+    if (!(counts[rule.folder] > 0)) missing.push(rule.mediaMsg);
+  });
+  return missing.length ? { ok: false, missing } : { ok: true };
+}
+
+function gateBusy(on) {
+  const el = document.getElementById('gateChecking');
+  if (el) el.classList.toggle('show', !!on);
+}
+
+function gateShowBlocked(job, newStatus, result) {
+  const body = document.getElementById('gateBody');
+  const title = document.getElementById('gateTitle');
+  const foot = document.getElementById('gateFoot');
+  if (!body || !title || !foot) { showToast('error', result.error || `Can't move to ${newStatus} yet`); return; }
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  if (result.error) {
+    title.textContent = 'Could not check this job';
+    body.innerHTML = `<p style="font-size:14px;line-height:1.5;">${esc(result.error)}</p>`;
+    foot.innerHTML = `<button class="btn btn-primary" onclick="closeModal('gateModal')">OK</button>`;
+  } else {
+    title.textContent = `Can't move to ${newStatus} yet`;
+    body.innerHTML = `<p style="font-size:14px;line-height:1.5;"><b>${esc(job.jobId)}</b> needs the following before it can move on:</p>
+      <ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.7;">${result.missing.map(m => `<li>${esc(m)}</li>`).join('')}</ul>`;
+    const jid = String(job.jobId).replace(/'/g, "\\'");
+    foot.innerHTML = `<button class="btn btn-secondary" onclick="closeModal('gateModal')">Close</button>
+      <button class="btn btn-primary" onclick="closeModal('gateModal');jsOpenJobFromDetail('${jid}')">Open job sheet</button>`;
+  }
+  openModal('gateModal');
+}
+
+// true = go ahead; false = blocked (the reason has been shown)
+async function gateAllowMove(job, newStatus) {
+  if (!cfg.appsScriptUrl) return true;    // local/demo mode has no Drive to check
+  if (!gateRequirements(job.status, newStatus).length) return true;
+  gateBusy(true);
+  let result;
+  try { result = await checkStatusGate(job, newStatus); }
+  finally { gateBusy(false); }
+  if (result.ok) return true;
+  gateShowBlocked(job, newStatus, result);
+  return false;
+}
+
+
 async function moveJob(id, newStatus) {
-  const j = jobs.find(x => x.jobId === id);
-  if (!j || j.status === newStatus) return;
+  const j0 = jobs.find(x => x.jobId === id);
+  if (!j0 || j0.status === newStatus) return;
+  if (!(await gateAllowMove(j0, newStatus))) { renderAll(); return; }
+  // The job list can be refreshed while the check runs - work on the current object
+  const j = jobs.find(x => x.jobId === id) || j0;
+  if (j.status === newStatus) return;
   const oldStatus = j.status;
 
   // Record timestamp — only set once per status (don't overwrite if re-entering)
@@ -1064,10 +1253,12 @@ async function moveJob(id, newStatus) {
   }
   j.status = newStatus;
   renderAll();
+  markLocalWrite();
 
   if (cfg.appsScriptUrl) {
     // 1. Update status column in sheet
     const statusResult = await callScript({ action: 'updateStatus', jobId: id, status: newStatus });
+    markLocalWrite();
     if (!statusResult.ok) {
       showToast('error', 'Status update failed: ' + statusResult.error);
       j.status = oldStatus;
@@ -1779,6 +1970,7 @@ function switchView(v) {
   if (v === 'mjobs') mRenderJobs();
   if (v === 'sms') smsInboxInit();
   if (v === 'inventory' && typeof invModuleInit === 'function') invModuleInit();
+  if (v === 'kanban' || v === 'list' || v === 'mjobs' || v === 'jobsheet') refreshJobsIfStale('view:' + v);
   // Show/hide scroll arrow
   const arrow = document.getElementById('jsScrollArrow');
   if (arrow) arrow.classList.toggle('visible', v === 'jobsheet');
@@ -1901,16 +2093,22 @@ let _smsConvs       = [];   // conversation metadata from index (no messages)
 let _smsThreads     = {};   // phone → full message array, loaded on demand
 let _smsActiveConv  = null;
 let _smsLoaded      = false;
+let _smsRefreshedAt = 0;
 let _smsFilter      = 'all'; // 'all' | 'unread' | 'needs'
 let _smsSearch      = '';
 
 async function smsInboxInit() {
-  if (_smsLoaded) { smsRenderConvList(_smsConvs); return; }
+  if (_smsLoaded) {
+    smsRenderConvList(_smsConvs);
+    if (Date.now() - _smsRefreshedAt > 15000) smsInboxRefresh();
+    return;
+  }
   document.getElementById('smsConvItems').innerHTML = '<div class="sms-conv-loading">Loading conversations…</div>';
   await smsInboxRefresh();
 }
 
 async function smsInboxRefresh() {
+  _smsRefreshedAt = Date.now();
   const isFirst = !_smsLoaded;
   try {
     const fsRes  = await fetch('/.netlify/functions/firestore-sms', {
@@ -2416,8 +2614,15 @@ setInterval(async () => {
 // arrived while the dashboard was backgrounded
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
+    refreshJobsIfStale('visible');
     smsInboxRefresh().then(() => smsRefreshKanbanBadges());
   }
+});
+
+// Back/forward can restore this page from the browser's cache exactly as it
+// was left, with no reload - possibly hours old.
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) refreshJobsIfStale('pageshow', { force: true });
 });
 
 // Refresh SMS unread badges on all visible kanban cards
