@@ -26,6 +26,13 @@ window.LO_CONFIG = {
 // Replace the placeholder comment in dashboard.html
 dashboard = dashboard.replace('<!-- LO_CONFIG_PLACEHOLDER -->', configScript);
 
+// Cache-busting: stamp every local script and stylesheet with this build's ID,
+// so each deploy is picked up even by a browser (or a phone's home-screen app)
+// that is holding old copies of dashboard.js and the modules.
+const BUILD_VERSION = String(process.env.COMMIT_REF || process.env.DEPLOY_ID || Date.now()).slice(0, 12);
+dashboard = dashboard.replace(/(src|href)="([A-Za-z0-9_-]+\.(?:js|css))(?:\?v=[^"]*)?"/g, '$1="$2?v=' + BUILD_VERSION + '"');
+console.log('  asset version:', BUILD_VERSION);
+
 fs.writeFileSync('dashboard.html', dashboard);
 console.log('dashboard.html built successfully.');
 

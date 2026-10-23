@@ -194,6 +194,14 @@ body {
 }
 
 .topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.sync-status { font-size: 11.5px; color: var(--text-secondary); white-space: nowrap; }
+.sync-status.loading { opacity: 0.7; }
+.sync-status.error { color: #dc2626; font-weight: 600; }
+.sync-status .ss-short { display: none; }
+@media (max-width: 700px) {
+  .sync-status .ss-long { display: none; }
+  .sync-status .ss-short { display: inline; }
+}
 
 .btn {
   display: inline-flex; align-items: center; gap: 6px;

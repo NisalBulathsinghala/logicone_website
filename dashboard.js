@@ -216,18 +216,46 @@ async function fetchSheet(opts) {
   try { await _jobsFetchPromise; } finally { _jobsFetchPromise = null; }
 }
 
+// Small "Updated 10:41" label next to the Sync button, so it's visible when the
+// data last refreshed - and when a quiet refresh failed instead of silently
+// leaving old data on screen.
+let _lastSyncOkAt = 0;
+function setSyncStatus(kind, detail) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  const t = _lastSyncOkAt ? new Date(_lastSyncOkAt).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '';
+  el.className = 'sync-status' + (kind === 'error' ? ' error' : kind === 'loading' ? ' loading' : '');
+  el.title = (kind === 'error' && detail) ? ('Last refresh failed: ' + detail + '. Showing data from ' + (t || 'startup') + '. Click Sync to retry.') : '';
+  if (kind === 'loading') el.innerHTML = '<span class="ss-long">Updating…</span><span class="ss-short">…</span>';
+  else if (kind === 'error') el.innerHTML = '<span class="ss-long">Refresh failed · last ' + (t || 'never') + '</span><span class="ss-short">⚠ ' + t + '</span>';
+  else el.innerHTML = t ? '<span class="ss-long">Updated ' + t + '</span><span class="ss-short">' + t + '</span>' : '';
+}
+
 async function _fetchSheetImpl({ silent }) {
   const startedAt = Date.now();
   if (!silent) showLoading(true);
+  setSyncStatus('loading');
   try {
     const tab = encodeURIComponent(cfg.sheetTab || 'Sheet1');
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${tab}?key=${cfg.apiKey}`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`API ${r.status}`);
-    const d = await r.json();
+    // A hung request would otherwise keep _jobsFetchPromise pending forever,
+    // blocking every later refresh (and the Sync button). Also bypass the
+    // browser's HTTP cache so a refresh can never be answered from it.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    let d;
+    try {
+      const r = await fetch(url, { cache: 'no-store', signal: controller.signal });
+      if (!r.ok) throw new Error(`API ${r.status}`);
+      d = await r.json();
+    } catch (fe) {
+      throw (fe && fe.name === 'AbortError') ? new Error('timed out') : fe;
+    } finally {
+      clearTimeout(timer);
+    }
     const rows = d.values;
     if (!rows || rows.length < 2) {
-      if (silent) return;   // never blank the board on a quiet refresh
+      if (silent) { setSyncStatus('error', 'the Sheet returned no rows'); return; }   // never blank the board on a quiet refresh
       jobs = []; renderAll(); showLoading(false); return;
     }
 
@@ -241,7 +269,7 @@ async function _fetchSheetImpl({ silent }) {
     // A change made here while this read was in flight may not be in the Sheet
     // yet - applying the response would flip it back. Drop it; the next
     // refresh picks up the settled data.
-    if (silent && _lastLocalWriteAt > startedAt) return;
+    if (silent && _lastLocalWriteAt > startedAt) { setSyncStatus('ok'); return; }
 
     jobs = rows.slice(1).map(row => {
       const o = {};
@@ -270,6 +298,8 @@ async function _fetchSheetImpl({ silent }) {
 
     renderAll();
     _jobsFetchedAt = Date.now();
+    _lastSyncOkAt = _jobsFetchedAt;
+    setSyncStatus('ok');
     // The job-sheet picker isn't part of renderAll(); redraw it if it's what's on screen
     if (typeof jsRenderJobList === 'function' &&
         document.getElementById('view-jobsheet')?.classList.contains('active') &&
@@ -290,6 +320,7 @@ async function _fetchSheetImpl({ silent }) {
     loadSmsSentStatus();
 
   } catch (err) {
+    setSyncStatus('error', err.message);
     if (silent && jobs && jobs.length) { console.warn('Background refresh failed:', err.message); return; }
     // Don't overwrite real job data with demo data on a transient fetch failure.
     // Only fall back to demo if we have no jobs at all (first load).
