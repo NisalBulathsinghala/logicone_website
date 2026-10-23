@@ -192,7 +192,15 @@ async function refreshJobsIfStale(reason, opts) {
   if (!(cfg.sheetId && cfg.apiKey)) return;   // demo mode
   const force = !!(opts && opts.force);
   if (!force && Date.now() - _jobsFetchedAt < JOBS_STALE_AFTER_MS) return;
-  if (Date.now() - _lastLocalWriteAt < LOCAL_WRITE_GRACE_MS) return;
+  const sinceWrite = Date.now() - _lastLocalWriteAt;
+  if (sinceWrite < LOCAL_WRITE_GRACE_MS) {
+    // One of our own changes is still landing in the Sheet. Normally just skip;
+    // when coming back from a job sheet, try again once it has settled.
+    if (opts && opts.deferIfRecentWrite) {
+      setTimeout(() => refreshJobsIfStale(reason, { force: true }), LOCAL_WRITE_GRACE_MS - sinceWrite + 300);
+    }
+    return;
+  }
   await fetchSheet({ silent: true });
 }
 
@@ -969,7 +977,7 @@ async function dLoadPhotoTab(tabEl, driveFolder) {
   if (_dPhotoCache[cacheKey]) { dRenderPhotoGrid(grid, _dPhotoCache[cacheKey]); return; }
   try {
     // Always use Apps Script with per-job driveFolder — never use stale _photoFolderIds
-    const res = await callScript({ action: 'listPhotos', driveFolder });
+    const res = await callScript({ action: 'listPhotos', driveFolder, includeVideos: true });
     if (res.ok && res.data) {
       const items = res.data
         .filter(f => f.subfolder === folderName)
@@ -1168,13 +1176,40 @@ async function gateLoadNotes(job) {
   throw new Error(fs.error || 'saved job sheet unavailable');
 }
 
-// Files per stage folder, straight from Drive via Apps Script (not a cached grid).
-async function gateLoadFileCounts(job) {
+// Photos AND videos per stage folder, read live from Drive (not a cached grid).
+// This used to call the Apps Script listPhotos action, but that only returns
+// image files, so an uploaded video never counted. Instead, ask Apps Script for
+// a Drive token + the stage folder IDs (what the photo tab already does) and
+// list the folders directly.
+const GATE_MEDIA_EXT = /\.(jpe?g|png|webp|heic|heif|gif|bmp|tiff?|mp4|mov|m4v|avi|webm|3gp|mkv|mpe?g|wmv)$/i;
+function gateIsMedia(f) {
+  const mt = f.mimeType || '';
+  if (mt.startsWith('image/') || mt.startsWith('video/')) return true;
+  // Some uploads are stored as application/octet-stream - go by the file name
+  return GATE_MEDIA_EXT.test(f.name || '');
+}
+
+async function gateLoadFileCounts(job, folderNames) {
   if (!job.driveFolder || String(job.driveFolder).startsWith('ERROR')) return {};
-  const res = await callScript({ action: 'listPhotos', driveFolder: job.driveFolder });
-  if (!(res.ok && Array.isArray(res.data))) throw new Error(res.error || 'photo list unavailable');
+  const tok = await callScript({ action: 'getUploadToken', driveFolder: job.driveFolder });
+  if (!(tok.ok && tok.data && tok.data.token)) throw new Error(tok.error || 'Drive access unavailable');
+  const folderIds = tok.data.stageFolderIds || {};
+
   const counts = {};
-  res.data.forEach(f => { counts[f.subfolder] = (counts[f.subfolder] || 0) + 1; });
+  await Promise.all(folderNames.map(async (name) => {
+    const folderId = folderIds[name];
+    if (!folderId) { counts[name] = 0; return; }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    try {
+      const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=200`,
+        { headers: { Authorization: 'Bearer ' + tok.data.token }, signal: controller.signal });
+      if (!r.ok) throw new Error('Drive responded ' + r.status);
+      const data = await r.json();
+      counts[name] = (data.files || []).filter(gateIsMedia).length;
+    } finally { clearTimeout(timer); }
+  }));
   return counts;
 }
 
@@ -1183,7 +1218,7 @@ async function checkStatusGate(job, newStatus) {
   if (!reqs.length) return { ok: true };
   let notes, counts;
   try {
-    [notes, counts] = await Promise.all([gateLoadNotes(job), gateLoadFileCounts(job)]);
+    [notes, counts] = await Promise.all([gateLoadNotes(job), gateLoadFileCounts(job, reqs.map(r => GATE_RULES[r].folder))]);
   } catch (e) {
     // Can't verify -> don't let it through
     return { ok: false, error: `Couldn't check the notes and photos (${e.message}). Check your connection and try again.` };
@@ -1955,6 +1990,7 @@ function kUpdateScrollBtns() {
 }
 
 function switchView(v) {
+  const prevView = (document.querySelector('.view.active') || {}).id || '';
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('view-' + v).classList.add('active');
@@ -1970,7 +2006,11 @@ function switchView(v) {
   if (v === 'mjobs') mRenderJobs();
   if (v === 'sms') smsInboxInit();
   if (v === 'inventory' && typeof invModuleInit === 'function') invModuleInit();
-  if (v === 'kanban' || v === 'list' || v === 'mjobs' || v === 'jobsheet') refreshJobsIfStale('view:' + v);
+  if (v === 'kanban' || v === 'list' || v === 'mjobs' || v === 'jobsheet') {
+    // Coming back from a job sheet: always re-read, however recently we last did
+    const leftJobSheet = prevView === 'view-jobsheet' && v !== 'jobsheet';
+    refreshJobsIfStale('view:' + v, leftJobSheet ? { force: true, deferIfRecentWrite: true } : undefined);
+  }
   // Show/hide scroll arrow
   const arrow = document.getElementById('jsScrollArrow');
   if (arrow) arrow.classList.toggle('visible', v === 'jobsheet');

@@ -577,6 +577,7 @@ function jsRenderJobList() {
 function jsFilterJobs() { jsRenderJobList(); }
 
 function jsCloseSheet() {
+  refreshJobsIfStale('closeSheet', { force: true, deferIfRecentWrite: true });
   jsAutosaveFlush();
   jsAutosaveDisarm();
   jsCurrentJob = null;

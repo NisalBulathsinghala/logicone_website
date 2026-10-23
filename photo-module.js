@@ -312,7 +312,7 @@ async function jsPhotoLoadTab(folderName) {
     const folderId = _photoFolderIds[folderName];
     if (!folderId || !_photoToken) {
       // Fallback: use listPhotos Apps Script action
-      const res = await callScript({ action: 'listPhotos', driveFolder: job.driveFolder });
+      const res = await callScript({ action: 'listPhotos', driveFolder: job.driveFolder, includeVideos: true });
       if (res.ok && res.data) {
         // Group by subfolder
         _photoMedia = {};
